@@ -1,24 +1,21 @@
 name: Push-to-EC2
 
-on:
-  push:
-    branches:
-      - main
+on: push
 
 jobs:
   deploy:
-    name: Deploy to EC2 on master branch push
+    name: Push to EC2 Instance
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout the files
-        uses: actions/checkout@v2
+      - name: Checkout the code
+        uses: actions/checkout@v1
 
-      - name: Deploy to Server
-        uses: easingthemes/ssh-deploy@v2.2.11
+      - name: Deploy to my EC2 instance
+        uses: easingthemes/ssh-deploy@v2.1.5
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           SOURCE: "./"
-          REMOTE_HOST: ${{ secrets.HOST_DNS }}
-          REMOTE_USER: ${{ secrets.USERNAME }}
-          TARGET: ${{ secrets.TARGET_DIR }}
+          REMOTE_HOST: "ec2-3-121-97-50.eu-central-1.compute.amazonaws.com"
+          REMOTE_USER: "ubuntu"
+          TARGET: "/home/ubuntu/"
