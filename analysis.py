@@ -5,7 +5,7 @@ from log import Log
 from plot import Plot
 import pandas as pd
 
-# TEST actions 1
+# TEST actions 2
 
 class Manual:
     def __init__(self, print_transactions_bool, plot_tickers_list, check_only_tickers_in_watch_lists, show_only_tickers_to_act_on, show_total_algo_performance_vs_hold, plot_portfolio_tickers, cache):
