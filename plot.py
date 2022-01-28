@@ -69,13 +69,15 @@ class Plot:
                     ylim=(0, 100),
                     panel=panel_num,
                     ylabel="RSI")]
-            plot_list += [
-                mpf.make_addplot(
-                    self.data_df[data], 
-                    color=color, 
-                    ylim=(0, 100),
-                    secondary_y=False,
-                    panel=panel_num) for data, color in (('hline_80', 'red'), ('hline_50', 'black'), ('hline_20', 'blue'))]
+            for level, color in ((80, 'red'), (50, 'black'), (20, 'blue')):
+                self.data_df[f'hline_{level}'] = level
+                plot_list.append(
+                    mpf.make_addplot(
+                        self.data_df[f'hline_{level}'], 
+                        color=color, 
+                        ylim=(0, 100),
+                        secondary_y=False,
+                        panel=panel_num))
             self.plots_list += plot_list
         
         def _chop(panel_num):
@@ -87,13 +89,15 @@ class Plot:
                     ylim=(0, 100),
                     panel=panel_num,
                     ylabel="CHOP")]
-            plot_list += [
-                mpf.make_addplot(
-                    self.data_df[data], 
-                    color=color, 
-                    ylim=(0, 100),
-                    secondary_y=False,
-                    panel=panel_num) for data, color in (('hline_60', 'red'), ('hline_40', 'black'))]
+            for level, color in ((60, 'red'), (40, 'black')):
+                self.data_df[f'hline_{level}'] = level
+                plot_list.append(
+                    mpf.make_addplot(
+                        self.data_df[f'hline_{level}'], 
+                        color=color, 
+                        ylim=(0, 100),
+                        secondary_y=False,
+                        panel=panel_num))
             self.plots_list += plot_list
 
         def _macd(panel_num):
@@ -139,13 +143,15 @@ class Plot:
                     color=color, 
                     panel=panel_num,
                     ylabel="Stoch") for data, color in ((data_column_dict['STOCHk'], 'orange'), (data_column_dict['STOCHd'], 'black'))]     
-            plot_list += [
-                mpf.make_addplot(
-                    self.data_df[data], 
-                    color=color, 
-                    ylim=(0, 100),
-                    secondary_y=False,
-                    panel=panel_num) for data, color in (('hline_80', 'red'), ('hline_20', 'blue'))]
+            for level, color in ((80, 'red'), (20, 'blue')):
+                self.data_df[f'hline_{level}'] = level
+                plot_list.append(
+                    mpf.make_addplot(
+                        self.data_df[f'hline_{level}'], 
+                        color=color, 
+                        ylim=(0, 100),
+                        secondary_y=False,
+                        panel=panel_num))
             self.plots_list += plot_list
 
         def _ha(panel_num):
@@ -183,6 +189,24 @@ class Plot:
                     )]
             self.plots_list += plot_list
 
+        def _massi(panel_num):
+            data_column_dict = get_data_columns_dict('MASSI')
+            plot_list = [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['MASSI']],
+                    color='orange', 
+                    panel=panel_num,
+                    ylabel="MASSI")]
+            for level, color in ((27, 'black'), (26, 'blue'), (24, 'red')):
+                self.data_df[f'hline_{level}'] = level
+                plot_list.append(
+                    mpf.make_addplot(
+                        self.data_df[f'hline_{level}'], 
+                        color=color, 
+                        secondary_y=False,
+                        panel=panel_num))
+            self.plots_list += plot_list
+
         graphs_dict = {
             'PSAR': _psar,
             'ALMA': _alma,
@@ -194,7 +218,8 @@ class Plot:
             'GHLA': _ghla,
             'SUPERT': _supert,
             'CHOP': _chop,
-            'CKSP': _cksp}
+            'CKSP': _cksp,
+            'MASSI': _massi}
 
         strategy_components = [i.strip() for i in self.title.split(' - ')[1].split('+')]
         for i in ('PSAR', 'ALMA', 'ALMA_LONG', 'GHLA', 'SUPERT'):
@@ -202,8 +227,8 @@ class Plot:
                graphs_dict[i](0) 
 
         panel_number = 2
-        for i in ('RSI', 'MACD', 'STOCH', 'HA', 'CHOP', 'CKSP'):
-            if i in strategy_components:
+        for i in ('RSI', 'MACD', 'STOCH', 'HA', 'CHOP', 'CKSP', 'MASSI'):
+            if i in strategy_components or i == 'MASSI':
                graphs_dict[i](panel_number) 
                panel_number += 1
 

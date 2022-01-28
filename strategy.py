@@ -35,7 +35,7 @@ class Strategy:
                 os.remove(pickle_path)
 
         # Check if cache exists (and is completed)
-        while True:
+        for _ in range(2):
             try:
                 if not os.path.exists(pickle_path):
                     with open(pickle_path, 'wb') as pcl:
@@ -56,134 +56,140 @@ class Strategy:
         return cache
 
     def prepare_conditions(self, history_df):
-        conditions_dict = {"HOLD": {
+        condition_types_list = ("Blank", "Volatility", "Trend", "Candle", "Overlap", "Momentum")
+        conditions_dict = {ct:dict() for ct in condition_types_list}
+
+        ''' Blank '''
+        conditions_dict['Blank']["HOLD"]= {
             "buy": lambda x: True,
-            "sell": lambda x: False}}
+            "sell": lambda x: False}
+            
+        ''' Volatility '''
+        # MASSI (Mass Index)
+        history_df.ta.massi(append=True)
+        conditions_dict['Volatility']["MASSI"] = {
+            'buy': lambda x: 26 < x['MASSI_9_25'] < 27,
+            'sell': lambda x: 26 < x['MASSI_9_25'] < 27}
 
         ''' Candle '''
-        # Heikin-Ashi
+        # HA (Heikin-Ashi)
         history_df.ta.ha(append=True)
-        conditions_dict["HA"] = {
+        conditions_dict['Candle']["HA"] = {
             'buy': lambda x: (x['HA_open'] < x["HA_close"]) and (x['HA_low'] == x["HA_open"]),
             'sell': lambda x: (x['HA_open'] > x["HA_close"]) and (x['HA_high'] == x["HA_open"])}
 
         ''' Trend ''' 
         # PSAR (Parabolic Stop and Reverse)
         history_df.ta.psar(append=True)
-        conditions_dict["PSAR"] = {
+        conditions_dict['Trend']["PSAR"] = {
             'buy': lambda x: x['Close'] > x["PSARl_0.02_0.2"],
             'sell': lambda x: x['Close'] < x["PSARs_0.02_0.2"]}
 
         # CHOP (Choppiness Index)
         history_df.ta.chop(append=True)
-        conditions_dict["CHOP"] = {
+        conditions_dict["Trend"]["CHOP"] = {
             'buy': lambda x: x["CHOP_14_1_100"] < 60,
             'sell': lambda x: x["CHOP_14_1_100"] > 60}
 
         # CKSP (Chande Kroll Stop)
         history_df.ta.cksp(append=True)
-        conditions_dict["CKSP"] = {
+        conditions_dict["Trend"]["CKSP"] = {
             'buy': lambda x: x["CKSPl_10_3_20"] > x['CKSPs_10_3_20'],
             'sell': lambda x: x["CKSPl_10_3_20"] < x['CKSPs_10_3_20']}
 
         ''' Overlap '''
         ## ALMA (Arnaud Legoux Moving Average)
         history_df.ta.alma(length=15, append=True)
-        conditions_dict["ALMA"] = {
+        conditions_dict["Overlap"]["ALMA"] = {
             'buy': lambda x: x['Close'] > x['ALMA_15_6.0_0.85'],
             'sell': lambda x: x['Close'] < x['ALMA_15_6.0_0.85']}
         history_df.ta.alma(length=50, append=True)
         history_df.rename(columns={'ALMA_50_6.0_0.85': 'ALMA-LONG_50_6.0_0.85'}, inplace=True)
-        conditions_dict["ALMA_LONG"] = {
+        conditions_dict["Overlap"]["ALMA_LONG"] = {
             'buy': lambda x: x['Close'] > x['ALMA-LONG_50_6.0_0.85'],
             'sell': lambda x: x['Close'] < x['ALMA-LONG_50_6.0_0.85']}
 
         ## GHLA (Gann High-Low Activator)
         history_df.ta.hilo(append=True)
-        conditions_dict["GHLA"] = {
+        conditions_dict["Overlap"]["GHLA"] = {
             'buy': lambda x: x['Close'] > x['HILO_13_21'],
             'sell': lambda x: x['Close'] < x['HILO_13_21']}
 
         ## SUPERTREND
         history_df.ta.supertrend(append=True)
-        conditions_dict["SUPERT"] = {
+        conditions_dict["Overlap"]["SUPERT"] = {
             'buy': lambda x: x['Close'] > x['SUPERT_7_3.0'],
             'sell': lambda x: x['Close'] < x['SUPERT_7_3.0']}
 
         ''' Momentum '''
         # RSI (Relative Strength Index)
         history_df.ta.rsi(length=14, append=True)
-        conditions_dict["RSI"] = {
+        conditions_dict['Momentum']["RSI"] = {
             'buy': lambda x: x['RSI_14'] > 50,
             'sell': lambda x: x['RSI_14'] < 50}
 
         ## MACD (Moving Average Convergence Divergence)
         history_df.ta.macd(fast=8, slow=21, signal=5, append=True)
-        conditions_dict["MACD"] = {
+        conditions_dict['Momentum']["MACD"] = {
             'buy': lambda x: x['MACD_8_21_5'] > x['MACDs_8_21_5'],
             'sell': lambda x: x['MACD_8_21_5'] < x['MACDs_8_21_5']}
 
         ## STOCH (Stochastic Oscillator)
         history_df.ta.stoch(k=14, d=3, append=True)
-        conditions_dict["STOCH"] = {
+        conditions_dict['Momentum']["STOCH"] = {
             'buy': lambda x: x["STOCHd_14_3_3"] < 80 and x["STOCHk_14_3_3"] < 80,
             'sell': lambda x: x["STOCHd_14_3_3"] > 20 and x["STOCHk_14_3_3"] > 20}
-
-        # Reference horizontal lines
-        for level in (20, 25, 30, 40, 50, 60, 70, 75, 80):
-            history_df[f'hline_{level}'] = level
 
         return history_df.iloc[100:], conditions_dict
 
     def generate_strategies(self, conditions_dict):
         strategies_list = [
-            ['HOLD']]        
-        # Overlap 
+            [('Blank', 'HOLD')]]        
+        
+        # + Single indicator strategies
         strategies_list += [
-            ['MACD', 'RSI'],
-            ['MACD', 'RSI', 'STOCH'],
-            ['MACD', 'STOCH'],
-            ['ALMA', 'ALMA_LONG'],
-            ['GHLA', 'ALMA']]
-        # Overlap - Trend
+            [('Momentum', 'MACD'), ('Momentum', 'RSI')],
+            [('Momentum', 'MACD'), ('Momentum', 'RSI'), ('Momentum', 'STOCH')],
+            [('Momentum', 'MACD'), ('Momentum', 'STOCH')],
+            [("Overlap", 'ALMA'), ("Overlap", 'ALMA_LONG')],
+            [("Overlap", 'GHLA'), ("Overlap", 'ALMA')]]
+
+        # + Double indicator strategies (try all pairs of different types)
+        indicators_dict = {
+            "Momentum": ('RSI', 'MACD', 'STOCH'),
+            "Overlap": ('ALMA', 'GHLA', 'SUPERT'),
+            "Trend": ('PSAR', 'CKSP', 'CHOP'),
+            "Candle": ('HA', ''),
+            "Volatility": ('MASSI', '')}
+        type_indicators_list = list()
+        for indicator_type, indicators_list in indicators_dict.items():
+            type_indicators_list += [(indicator_type, indicator) for indicator in indicators_list if indicator != '']
+        for i, type_indicators_1 in enumerate(type_indicators_list):
+            for type_indicator_type_2 in type_indicators_list[i:]:
+                if type_indicators_1[0] == type_indicator_type_2[0]:
+                    continue
+                strategies_list.append([type_indicators_1, type_indicator_type_2])
+
+        # + Extra strategies
         strategies_list += [
-            ['ALMA', 'PSAR'],
-            ['ALMA', 'CKSP'],
-            ['ALMA', 'CHOP'],
-            ['GHLA', 'PSAR'],
-            ['GHLA', 'CHOP'],
-            ['SUPERT', 'PSAR'],
-            ['SUPERT', 'CHOP'],
-            ['SUPERT', 'CKSP']]
-        # Overlap - Momentum
-        strategies_list += [
-            ['ALMA', 'MACD'],
-            ['GHLA', 'RSI'],
-            ['SUPERT', 'RSI'],
-            ['SUPERT', 'STOCH'],
-            ['SUPERT', 'RSI', 'STOCH']]
-        # Momentum - Trend
-        strategies_list += [
-            ['MACD', 'PSAR'],
-            ['MACD', 'CKSP'],
-            ['MACD', 'CHOP'],
-            ['RSI', 'CHOP'],
-            ['STOCH', 'PSAR'],
-            ['STOCH', 'CKSP'],
-            ['STOCH', 'CHOP']]
-        # Candle - Momentum
-        strategies_list += [
-            ['MACD', 'RSI', 'HA']]
-        # Overlap - Candle
-        strategies_list += [
-            ['GHLA', 'HA']]
+            [('Overlap', 'SUPERT'), ('Momentum', 'RSI'), ('Momentum', 'STOCH')]]
+
+        # - Useless strategies
+        useless_strategies = [
+            [("Overlap", "GHLA"), ("Trend", "CHOP")],
+            [("Overlap", "SUPERT"), ("Trend", "PSAR")],
+            [("Momentum", "MACD"), ("Overlap", "SUPERT")],
+            [("Momentum", "RSI"), ("Overlap", "SUPERT")],
+            [("Momentum", "STOCH"), ("Trend", "CKSP")],
+            [("Momentum", "RSI"), ("Trend", "PSAR")]]
+        [strategies_list.pop(strategies_list.index(strategy)) for strategy in useless_strategies]
 
         strategies_dict = dict()
         for strategy_list in strategies_list:
             strategy_dict = dict()
             for order_type in ('buy', 'sell'):
-                strategy_dict[order_type] = [conditions_dict[strategy_component][order_type] for strategy_component in strategy_list]
-            strategies_dict[' + '.join(strategy_list)] = strategy_dict
+                strategy_dict[order_type] = [conditions_dict[strategy_component[0]][strategy_component[1]][order_type] for strategy_component in strategy_list]
+            strategies_dict[' + '.join([f"({i[0]}) {i[1]}" for i in strategy_list])] = strategy_dict
         return strategies_dict
 
     def get_signal(self, ticker_name, strategies_dict):   
@@ -235,7 +241,7 @@ class Strategy:
             summary["strategies"][strategy]['result'] = round(balance_dict['total'])
             summary["strategies"][strategy]['signal'] = 'sell' if balance_dict['market'] is None else 'buy'
             summary["strategies"][strategy]['transactions_counter'] = len(summary["strategies"][strategy]['transactions'])
-            if balance_dict['total'] > summary['max_output'].get('result', 0) and strategy != "HOLD":
+            if balance_dict['total'] > summary['max_output'].get('result', 0) and strategy != "(Blank) HOLD":
                 self.history_df.loc[:, 'total'] = balance_list
 
                 summary['max_output'] = {
@@ -244,7 +250,7 @@ class Strategy:
                     'signal': summary["strategies"][strategy]['signal'],
                     'transactions_counter': summary["strategies"][strategy]['transactions_counter']}
 
-        summary["hold_result"] = summary["strategies"].pop('HOLD')["result"]
+        summary["hold_result"] = summary["strategies"].pop('(Blank) HOLD')["result"]
         summary["sorted_strategies_list"] = sorted(summary['strategies'].items(), key=lambda x: int(x[1]["result"]), reverse=True)
         sorted_signals_list = [i[1]["signal"] for i in summary["sorted_strategies_list"]]
         summary["top_3_signal"] = sorted_signals_list[2] if len(set(sorted_signals_list[:2])) != 1 else sorted_signals_list[0]

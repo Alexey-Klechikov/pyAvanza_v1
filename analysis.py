@@ -1,11 +1,10 @@
 from pprint import pprint
+from signal import signal
 from context import Context
 from strategy import Strategy
 from log import Log
 from plot import Plot
 import pandas as pd
-
-# TEST actions 3
 
 class Manual:
     def __init__(self, print_transactions_bool, plot_tickers_list, check_only_tickers_in_watch_lists, show_only_tickers_to_act_on, show_total_algo_performance_vs_hold, plot_portfolio_tickers, cache):
@@ -74,6 +73,8 @@ class Manual:
             return 
         self.visited_tickers.append(ticker)
 
+        strategy_obj = Strategy(ticker, comment, cache) # TEST
+
         try:
             strategy_obj = Strategy(ticker, comment, cache)
         except Exception as e: 
@@ -89,28 +90,30 @@ class Manual:
         top_signal = strategy_obj.summary["max_output"].pop("signal")
         top_3_signal = strategy_obj.summary["top_3_signal"]
         signal = top_signal if top_signal == top_3_signal else f"{top_signal} ->> {top_3_signal}"
-        max_output_summary = ' / '.join([f'signal: {signal}'] + [f'{k}: {v}' for k, v in strategy_obj.summary["max_output"].items()])
-        print(f'\n--- {strategy_obj.summary["ticker_name"]} ({max_output_summary}) (HOLD: {strategy_obj.summary["hold_result"]}) ---')
+        max_output_summary = f'signal: {signal} / ' + ' / '.join([f'{k}: {v}' for k, v in strategy_obj.summary["max_output"].items() if k in ("result", "transactions_counter")])
+        print(f'\n--- {strategy_obj.summary["ticker_name"]} ({max_output_summary}) (HOLD: {strategy_obj.summary["hold_result"]}) ---\n')
 
         for parameter in ('result', 'transactions_counter'):
             self.counter_per_strategy['-- MAX --'][parameter] += strategy_obj.summary["max_output"][parameter]
 
-        for strategy_item_list in strategy_obj.summary["sorted_strategies_list"]:
+        for i, strategy_item_list in enumerate(strategy_obj.summary["sorted_strategies_list"]):
             strategy, strategy_data_dict = strategy_item_list[0], strategy_item_list[1]
-            print(f'\nStrategy: {strategy} -> {strategy_data_dict["result"]} (number_transactions: {len(strategy_data_dict["transactions"])}) (signal: {strategy_data_dict["signal"]})')
-            [print(f'> {t}') for t in strategy_data_dict["transactions"] if self.print_transactions_bool]
+            
+            if i < 3: 
+                print(f'Strategy: {strategy} -> {strategy_data_dict["result"]} (number_transactions: {len(strategy_data_dict["transactions"])}) (signal: {strategy_data_dict["signal"]})')
+                [print(f'> {t}') for t in strategy_data_dict["transactions"] if self.print_transactions_bool]
             
             self.counter_per_strategy.setdefault(strategy, {'total_sum': 0, 'win_counter': 0, 'transactions_counter': 0})
             self.counter_per_strategy[strategy]['total_sum'] += strategy_data_dict["result"]
             self.counter_per_strategy[strategy]['transactions_counter'] += len(strategy_data_dict["transactions"])
         self.counter_per_strategy[strategy_obj.summary["max_output"]['strategy']]['win_counter'] += 1
 
-        # Create a DF with all best strategies vs HOLD
-        self.record_ticker_performance(strategy_obj, ticker)
-
         # Plot
         if (ticker in self.plot_tickers_list) or (self.plot_portfolio_tickers and in_portfolio_bool):
             self.plot_ticker(strategy_obj)
+
+        # Create a DF with all best strategies vs HOLD
+        self.record_ticker_performance(strategy_obj, ticker)
 
     def run(self, check_only_new_tickers_bool, cache):
         ava_ctx = Context('bostad')
@@ -231,6 +234,10 @@ class Auto:
                     'max_return': signal_dict['return']})
         
         # Create orders
+        pprint(orders_dict)
+
+        return
+
         ava_ctx.create_orders(orders_dict)
 
         # Dump log to Telegram
