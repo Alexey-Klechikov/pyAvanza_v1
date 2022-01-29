@@ -1,0 +1,21 @@
+name: Push-to-EC2
+
+on: [push]
+
+jobs:
+  deploy:
+    name: Push to EC2 Instance
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v1
+
+      - name: Deploy to my EC2 instance
+        uses: easingthemes/ssh-deploy@v2.2.11
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          SOURCE: "/"
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: "ubuntu"
+          TARGET: "/home/ubuntu/pyAvanza/"
