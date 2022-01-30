@@ -242,7 +242,7 @@ class Auto:
             log_obj.dump_to_telegram()
 
 if __name__ == '__main__':
-
+    '''
     Manual(
         plot_tickers_list=[], 
         check_only_tickers_in_watch_lists=False,
@@ -251,8 +251,7 @@ if __name__ == '__main__':
         plot_portfolio_tickers=False,
         show_total_algo_performance_vs_hold=True,
         cache=True)
-
     '''
+
     walkthrough_obj = Auto('bostad')
     Auto('semester', signals_dict=walkthrough_obj.signals_dict)
-    '''
