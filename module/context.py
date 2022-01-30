@@ -25,7 +25,8 @@ class Context:
                               'password': keyring.get_password(user, 'pass'),
                               'totpSecret': keyring.get_password(user, 'totp')})
                 break
-            except:
+            except Exception as e:
+                print(e)
                 i += 1
                 time.sleep(i*2)   
 
