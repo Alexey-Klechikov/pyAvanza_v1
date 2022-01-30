@@ -1,9 +1,8 @@
 from pprint import pprint
-from signal import signal
-from context import Context
-from strategy import Strategy
-from log import Log
-from plot import Plot
+from .context import Context
+from .strategy import Strategy
+from .log import Log
+from .plot import Plot
 import pandas as pd
 
 class Manual:
@@ -151,7 +150,6 @@ class Manual:
 class Auto:
     def __init__(self, account, signals_dict=dict()):
         self.signals_dict = signals_dict
-
         self.run(account)
 
     def get_signal_on_ticker(self, ticker):
@@ -241,17 +239,17 @@ class Auto:
             log_obj = Log(orders_dict, ava_ctx.portfolio_dict)
             log_obj.dump_to_telegram()
 
-if __name__ == '__main__':
-    '''
-    Manual(
-        plot_tickers_list=[], 
-        check_only_tickers_in_watch_lists=False,
-        print_transactions_bool=False, 
-        show_only_tickers_to_act_on=False,
-        plot_portfolio_tickers=False,
-        show_total_algo_performance_vs_hold=True,
-        cache=True)
-    '''
 
-    walkthrough_obj = Auto('bostad')
-    Auto('semester', signals_dict=walkthrough_obj.signals_dict)
+def run(manual=False):
+    if manual:
+        Manual(
+            plot_tickers_list=[], 
+            check_only_tickers_in_watch_lists=False,
+            print_transactions_bool=False, 
+            show_only_tickers_to_act_on=False,
+            plot_portfolio_tickers=False,
+            show_total_algo_performance_vs_hold=True,
+            cache=True)
+    else:
+        walkthrough_obj = Auto('bostad')
+        Auto('semester', signals_dict=walkthrough_obj.signals_dict)
