@@ -15,6 +15,13 @@ class Plot:
     def create_extra_panels(self):
         get_data_columns_dict = lambda x: {i.split('_')[0]:i for i in sorted(self.data_df.columns) if i.startswith(x)}
 
+        def _hwc(panel_num):
+            plot_list = [mpf.make_addplot(
+                self.data_df['HWM'],
+                color='brown', 
+                panel=panel_num,)]
+            self.plots_list += plot_list
+
         def _ghla(panel_num):
             data_column_dict = get_data_columns_dict('HILO')
             plot_list = [
@@ -106,9 +113,8 @@ class Plot:
         def _macd(panel_num):
             data_column_dict = get_data_columns_dict('MACD')
             plot_lim = (
-                min(self.data_df[data_column_dict['MACD']].min(), self.data_df[data_column_dict['MACDh']].min(), self.data_df[data_column_dict['MACDs']].min()), 
-                max(self.data_df[data_column_dict['MACD']].max(), self.data_df[data_column_dict['MACDh']].max(), self.data_df[data_column_dict['MACDs']].max()))
-            plot_lim = (plot_lim[0]*0.9, plot_lim[1]*1.1)
+                0.9 * min([self.data_df[data_column_dict[i]].min() for i in ('MACD', 'MACDh', 'MACDs')]), 
+                1.1 * max([self.data_df[data_column_dict[i]].max() for i in ('MACD', 'MACDh', 'MACDs')]))
             plot_list = [
                 mpf.make_addplot(
                     self.data_df[data_column_dict['MACD']],
@@ -136,9 +142,8 @@ class Plot:
         def _stoch(panel_num):
             data_column_dict = get_data_columns_dict('STOCH')
             plot_lim = (
-                min(self.data_df[data_column_dict['STOCHk']].min(), self.data_df[data_column_dict['STOCHd']].min()), 
-                max(self.data_df[data_column_dict['STOCHk']].max(), self.data_df[data_column_dict['STOCHd']].max())) 
-            plot_lim = (plot_lim[0]*0.9, plot_lim[1]*1.1)
+                0.9 * min([self.data_df[data_column_dict[i]].min() for i in ('STOCHk', 'STOCHd')]), 
+                1.1 * max([self.data_df[data_column_dict[i]].max() for i in ('STOCHk', 'STOCHd')]))
             plot_list = [
                 mpf.make_addplot(
                     self.data_df[data],
@@ -172,9 +177,8 @@ class Plot:
         def _cksp(panel_num):
             data_column_dict = get_data_columns_dict('CKSP')
             plot_lim = (
-                min(self.data_df[data_column_dict['CKSPl']].min(), self.data_df[data_column_dict['CKSPs']].min()), 
-                max(self.data_df[data_column_dict['CKSPl']].max(), self.data_df[data_column_dict['CKSPs']].max())) 
-            plot_lim = (plot_lim[0]*0.9, plot_lim[1]*1.1)
+                0.9 * min([self.data_df[data_column_dict[i]].min() for i in ('CKSPl', 'CKSPs')]), 
+                1.1 * max([self.data_df[data_column_dict[i]].max() for i in ('CKSPl', 'CKSPs')]))
             plot_list = [
                 mpf.make_addplot(
                     self.data_df[data_column_dict['CKSPl']],
@@ -222,11 +226,12 @@ class Plot:
             'SUPERT': _supert,
             'CHOP': _chop,
             'CKSP': _cksp,
-            'MASSI': _massi}
+            'MASSI': _massi,
+            'HWC': _hwc}
 
         # Expected format "Stock: YadaYada - (Momentum) STOCH + (Trend) CHOP"
         strategy_components = [i.split(')')[1].strip() for i in self.title.split(' - ')[1].split('+')]
-        for i in ('PSAR', 'ALMA', 'ALMA_LONG', 'GHLA', 'SUPERT'):
+        for i in ('PSAR', 'ALMA', 'ALMA_LONG', 'GHLA', 'SUPERT', 'HWC'):
             if i in strategy_components:
                graphs_dict[i](0) 
 

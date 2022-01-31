@@ -184,6 +184,7 @@ class Auto:
                 orders_dict[order_type].append({
                     'account_id': order['account_id'],
                     'order_book_id': order['order_book_id'],
+                    'profit': '-',
                     'name': order['name'],
                     'price': stock_price_dict[order_type],
                     'volume': order['volume'],
@@ -232,18 +233,18 @@ class Auto:
                     'max_return': signal_dict['return']})
         
         # Create orders
-        ava_ctx.create_orders(orders_dict)
+        created_orders_dict = ava_ctx.create_orders(orders_dict)
 
         # Dump log to Telegram
         if account == 'bostad':
-            log_obj = Log(orders_dict, ava_ctx.portfolio_dict)
+            log_obj = Log(created_orders_dict, ava_ctx.portfolio_dict)
             log_obj.dump_to_telegram()
 
 
 def run(manual=False):
     if manual:
         Manual(
-            plot_tickers_list=[], 
+            plot_tickers_list=['AZA.ST', 'CRED-A.ST', 'ENQ.ST', 'LIFCO-B.ST', 'LUNE.ST', 'NDA-SE.ST'], 
             check_only_tickers_in_watch_lists=False,
             print_transactions_bool=False, 
             show_only_tickers_to_act_on=False,

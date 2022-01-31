@@ -75,9 +75,10 @@ class Context:
             orders_dict['buy'].sort(
                 key=lambda x: (int(x['budget']), int(x['max_return'])), 
                 reverse=True)
+            created_orders_list = list()
             reserved_budget = {account: 0 for account in self.accounts_dict}
             for buy_order_dict in orders_dict['buy']:
-                # Check accounts one by one is enough funds for the order
+                # Check accounts one by one if enough funds for the order
                 for account_name, account_id in self.accounts_dict.items():
                     if self.portfolio_dict['buying_power'][account_name] - reserved_budget[account_name] > buy_order_dict['budget']:
                         print(f'>> ({buy_order_dict["budget"]}) {buy_order_dict["name"]}')
@@ -91,8 +92,11 @@ class Context:
                             volume=buy_order_dict['volume'])
 
                         reserved_budget[account_name] += buy_order_dict['budget']
+                        created_orders_list.append(buy_order_dict)
                         break
-        
+            
+            orders_dict['buy'] = created_orders_list
+
         print('> Creating sell orders') 
         if len(orders_dict['sell']):
             for sell_order_dict in orders_dict['sell']:
@@ -104,6 +108,8 @@ class Context:
                     price=sell_order_dict['price'],
                     valid_until=(datetime.datetime.today() + datetime.timedelta(days=1)).date(),
                     volume=sell_order_dict['volume'])
+        
+        return orders_dict
 
     def get_stock_price(self, stock_id):
         stock_info_dict = self.ctx.get_stock_info(stock_id=stock_id)

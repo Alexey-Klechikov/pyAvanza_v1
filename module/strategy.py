@@ -71,6 +71,12 @@ class Strategy:
             'buy': lambda x: 26 < x['MASSI_9_25'] < 27,
             'sell': lambda x: 26 < x['MASSI_9_25'] < 27}
 
+        # HWC (Holt-Winter Channel)
+        history_df.ta.hwc(append=True)
+        conditions_dict['Volatility']["HWC"] = {
+            'buy': lambda x: x['Close'] > x["HWM"],
+            'sell': lambda x: x['Close'] < x["HWM"]}
+
         ''' Candle '''
         # HA (Heikin-Ashi)
         history_df.ta.ha(append=True)
@@ -160,7 +166,7 @@ class Strategy:
             "Overlap": ('ALMA', 'GHLA', 'SUPERT'),
             "Trend": ('PSAR', 'CKSP', 'CHOP'),
             "Candle": ('HA', ''),
-            "Volatility": ('MASSI', '')}
+            "Volatility": ('MASSI', 'HWC')}
         type_indicators_list = list()
         for indicator_type, indicators_list in indicators_dict.items():
             type_indicators_list += [(indicator_type, indicator) for indicator in indicators_list if indicator != '']
