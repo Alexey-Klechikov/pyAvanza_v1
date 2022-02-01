@@ -15,31 +15,7 @@ class Plot:
     def create_extra_panels(self):
         get_data_columns_dict = lambda x: {i.split('_')[0]:i for i in sorted(self.data_df.columns) if i.startswith(x)}
 
-        def _hwc(panel_num):
-            plot_list = [mpf.make_addplot(
-                self.data_df['HWM'],
-                color='brown', 
-                panel=panel_num,)]
-            self.plots_list += plot_list
-
-        def _ghla(panel_num):
-            data_column_dict = get_data_columns_dict('HILO')
-            plot_list = [
-                mpf.make_addplot(
-                    self.data_df[data_column_dict['HILO']],
-                    color='blue', 
-                    panel=panel_num)]
-            self.plots_list += plot_list
-
-        def _supert(panel_num):
-            data_column_dict = get_data_columns_dict('SUPERT')
-            plot_list = [
-                mpf.make_addplot(
-                    self.data_df[data_column_dict['SUPERT']],
-                    color='blue', 
-                    panel=panel_num)]
-            self.plots_list += plot_list 
-
+        # Plotted on top of the main plot
         def _psar(panel_num):
             data_column_dict = get_data_columns_dict('PSAR')
             plot_list = [
@@ -70,6 +46,32 @@ class Plot:
                     panel=panel_num)]
             self.plots_list += plot_list
 
+        def _ghla(panel_num):
+            data_column_dict = get_data_columns_dict('HILO')
+            plot_list = [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['HILO']],
+                    color='blue', 
+                    panel=panel_num)]
+            self.plots_list += plot_list
+
+        def _supert(panel_num):
+            data_column_dict = get_data_columns_dict('SUPERT')
+            plot_list = [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['SUPERT']],
+                    color='blue', 
+                    panel=panel_num)]
+            self.plots_list += plot_list 
+
+        def _hwc(panel_num):
+            plot_list = [mpf.make_addplot(
+                self.data_df['HWM'],
+                color='brown', 
+                panel=panel_num,)]
+            self.plots_list += plot_list
+
+        # Plotted each on a separate plot    
         def _rsi(panel_num):
             data_column_dict = get_data_columns_dict('RSI')
             plot_list = [
@@ -90,26 +92,6 @@ class Plot:
                         panel=panel_num))
             self.plots_list += plot_list
         
-        def _chop(panel_num):
-            data_column_dict = get_data_columns_dict('CHOP')
-            plot_list = [
-                mpf.make_addplot(
-                    self.data_df[data_column_dict['CHOP']],
-                    color='orange', 
-                    ylim=(0, 100),
-                    panel=panel_num,
-                    ylabel="CHOP")]
-            for level, color in ((60, 'red'), (40, 'black')):
-                self.data_df[f'hline_{level}'] = level
-                plot_list.append(
-                    mpf.make_addplot(
-                        self.data_df[f'hline_{level}'], 
-                        color=color, 
-                        ylim=(0, 100),
-                        secondary_y=False,
-                        panel=panel_num))
-            self.plots_list += plot_list
-
         def _macd(panel_num):
             data_column_dict = get_data_columns_dict('MACD')
             plot_lim = (
@@ -174,6 +156,26 @@ class Plot:
                     ylabel="HA")]
             self.plots_list += plot_list
         
+        def _chop(panel_num):
+            data_column_dict = get_data_columns_dict('CHOP')
+            plot_list = [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['CHOP']],
+                    color='orange', 
+                    ylim=(0, 100),
+                    panel=panel_num,
+                    ylabel="CHOP")]
+            for level, color in ((60, 'red'), (40, 'black')):
+                self.data_df[f'hline_{level}'] = level
+                plot_list.append(
+                    mpf.make_addplot(
+                        self.data_df[f'hline_{level}'], 
+                        color=color, 
+                        ylim=(0, 100),
+                        secondary_y=False,
+                        panel=panel_num))
+            self.plots_list += plot_list
+
         def _cksp(panel_num):
             data_column_dict = get_data_columns_dict('CKSP')
             plot_lim = (
@@ -214,32 +216,49 @@ class Plot:
                         panel=panel_num))
             self.plots_list += plot_list
 
+        def _pvt(panel_num):
+            data_column_dict = get_data_columns_dict('SMA')
+            plot_lim = (
+                0.9 * min([self.data_df[i].min() for i in (data_column_dict['SMA'], 'PVT')]), 
+                1.1 * max([self.data_df[i].max() for i in (data_column_dict['SMA'], 'PVT')]))
+            plot_list = [
+                mpf.make_addplot(
+                    self.data_df[data],
+                    ylim=plot_lim,
+                    color=color, 
+                    panel=panel_num,
+                    ylabel="PVT",
+                    secondary_y=False
+                    ) for data, color in (('PVT', 'green'), (data_column_dict['SMA'], 'red'))]
+            self.plots_list += plot_list
+
         graphs_dict = {
-            'PSAR': _psar,
-            'ALMA': _alma,
-            'ALMA_LONG': _alma_long,
-            'RSI': _rsi,
-            'MACD': _macd,
-            'STOCH': _stoch,
-            'HA': _ha,
-            'GHLA': _ghla,
-            'SUPERT': _supert,
-            'CHOP': _chop,
-            'CKSP': _cksp,
-            'MASSI': _massi,
-            'HWC': _hwc}
+            'main_plot': {
+                'PSAR': _psar,
+                'ALMA': _alma,
+                'ALMA_LONG': _alma_long,
+                'GHLA': _ghla,
+                'SUPERT': _supert,
+                'HWC': _hwc},
+            "separate_plots": {
+                'RSI': _rsi,
+                'MACD': _macd,
+                'STOCH': _stoch,
+                'HA': _ha,
+                'CHOP': _chop,
+                'CKSP': _cksp,
+                'MASSI': _massi,
+                'PVT': _pvt}}
 
         # Expected format "Stock: YadaYada - (Momentum) STOCH + (Trend) CHOP"
         strategy_components = [i.split(')')[1].strip() for i in self.title.split(' - ')[1].split('+')]
-        for i in ('PSAR', 'ALMA', 'ALMA_LONG', 'GHLA', 'SUPERT', 'HWC'):
-            if i in strategy_components:
-               graphs_dict[i](0) 
-
-        panel_number = 1
-        for i in ('RSI', 'MACD', 'STOCH', 'HA', 'CHOP', 'CKSP', 'MASSI'):
-            if i in strategy_components:
-               graphs_dict[i](panel_number) 
-               panel_number += 1
+        for plot_type, strategy_plots_dict in graphs_dict.items():
+            panel_number = 0 if plot_type == "main_plot" else 1
+            for strategy_name, plot_func in strategy_plots_dict.items(): 
+                if strategy_name not in strategy_components:
+                    continue
+                plot_func(panel_number)
+                panel_number += (0 if plot_type == "main_plot" else 1)
 
     def show_single_ticker(self):
         def _orders(panel_num):

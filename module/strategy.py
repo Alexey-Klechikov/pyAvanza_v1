@@ -56,14 +56,22 @@ class Strategy:
         return cache
 
     def prepare_conditions(self, history_df):
-        condition_types_list = ("Blank", "Volatility", "Trend", "Candle", "Overlap", "Momentum")
+        condition_types_list = ("Blank", "Volatility", "Trend", "Candle", "Overlap", "Momentum", "Volume")
         conditions_dict = {ct:dict() for ct in condition_types_list}
 
         ''' Blank '''
         conditions_dict['Blank']["HOLD"]= {
             "buy": lambda x: True,
             "sell": lambda x: False}
-            
+        
+        ''' Volume '''
+        # PVT (Price Volume Trend)
+        history_df.ta.pvt(append=True)
+        history_df.ta.sma(close='PVT', length=9, append=True)
+        conditions_dict['Volume']["PVT"] = {
+            'buy': lambda x: x['SMA_9'] < x['PVT'],
+            'sell': lambda x: x['SMA_9'] > x['PVT']}
+
         ''' Volatility '''
         # MASSI (Mass Index)
         history_df.ta.massi(append=True)
@@ -104,7 +112,7 @@ class Strategy:
             'sell': lambda x: x["CKSPl_10_3_20"] < x['CKSPs_10_3_20']}
 
         ''' Overlap '''
-        ## ALMA (Arnaud Legoux Moving Average)
+        # ALMA (Arnaud Legoux Moving Average)
         history_df.ta.alma(length=15, append=True)
         conditions_dict["Overlap"]["ALMA"] = {
             'buy': lambda x: x['Close'] > x['ALMA_15_6.0_0.85'],
@@ -115,13 +123,13 @@ class Strategy:
             'buy': lambda x: x['Close'] > x['ALMA-LONG_50_6.0_0.85'],
             'sell': lambda x: x['Close'] < x['ALMA-LONG_50_6.0_0.85']}
 
-        ## GHLA (Gann High-Low Activator)
+        # GHLA (Gann High-Low Activator)
         history_df.ta.hilo(append=True)
         conditions_dict["Overlap"]["GHLA"] = {
             'buy': lambda x: x['Close'] > x['HILO_13_21'],
             'sell': lambda x: x['Close'] < x['HILO_13_21']}
 
-        ## SUPERTREND
+        # SUPERT (Supertrand)
         history_df.ta.supertrend(append=True)
         conditions_dict["Overlap"]["SUPERT"] = {
             'buy': lambda x: x['Close'] > x['SUPERT_7_3.0'],
@@ -150,40 +158,24 @@ class Strategy:
 
     def generate_strategies(self, conditions_dict):
         strategies_list = [
-            [('Blank', 'HOLD')]]        
-        
-        # + Single indicator strategies
-        strategies_list += [
+            [('Blank', 'HOLD')],
             [('Momentum', 'MACD'), ('Momentum', 'RSI')],
             [('Momentum', 'MACD'), ('Momentum', 'RSI'), ('Momentum', 'STOCH')],
             [('Momentum', 'MACD'), ('Momentum', 'STOCH')],
             [("Overlap", 'ALMA'), ("Overlap", 'ALMA_LONG')],
-            [("Overlap", 'GHLA'), ("Overlap", 'ALMA')]]
+            [("Overlap", 'GHLA'), ("Overlap", 'ALMA')],
+            [('Overlap', 'SUPERT'), ('Momentum', 'RSI'), ('Momentum', 'STOCH')]]
 
-        # + Double indicator strategies (try all pairs of different types)
-        indicators_dict = {
-            "Momentum": ('RSI', 'MACD', 'STOCH'),
-            "Overlap": ('ALMA', 'GHLA', 'SUPERT'),
-            "Trend": ('PSAR', 'CKSP', 'CHOP'),
-            "Candle": ('HA', ''),
-            "Volatility": ('MASSI', 'HWC')}
+        # + Double indicator strategies (try every pair of different types)
         type_indicators_list = list()
-        for indicator_type, indicators_list in indicators_dict.items():
-            type_indicators_list += [(indicator_type, indicator) for indicator in indicators_list if indicator != '']
+        special_case_indicators_list = ('HOLD', 'ALMA_LONG') # should not participate in autogenerating strategies
+        for indicator_type, indicators_dict in conditions_dict.items():
+            type_indicators_list += [(indicator_type, indicator) for indicator in indicators_dict.keys() if indicator not in special_case_indicators_list]
         for i, type_indicators_1 in enumerate(type_indicators_list):
             for type_indicator_type_2 in type_indicators_list[i:]:
                 if type_indicators_1[0] == type_indicator_type_2[0]:
                     continue
                 strategies_list.append([type_indicators_1, type_indicator_type_2])
-
-        # + Extra strategies
-        strategies_list += [
-            [('Overlap', 'SUPERT'), ('Momentum', 'RSI'), ('Momentum', 'STOCH')]]
-
-        # - Useless strategies
-        useless_strategies = [
-            [("Overlap", "SUPERT"), ("Trend", "PSAR")]]
-        [strategies_list.pop(strategies_list.index(strategy)) for strategy in useless_strategies]
 
         strategies_dict = dict()
         for strategy_list in strategies_list:

@@ -244,7 +244,7 @@ class Auto:
 def run(manual=False):
     if manual:
         Manual(
-            plot_tickers_list=['AZA.ST', 'CRED-A.ST', 'ENQ.ST', 'LIFCO-B.ST', 'LUNE.ST', 'NDA-SE.ST'], 
+            plot_tickers_list=['BUFAB.ST', 'PFE.ST', 'SEB-C.ST'], 
             check_only_tickers_in_watch_lists=False,
             print_transactions_bool=False, 
             show_only_tickers_to_act_on=False,
