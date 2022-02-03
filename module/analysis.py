@@ -1,4 +1,10 @@
-from pprint import pprint
+"""
+This module is the "frontend" one. 
+It will import other modules to run the analysis on the stocks -> place orders -> dump log in Telegram.py
+It will be run from Telegram or automatically as cron-job.
+"""
+
+
 from .context import Context
 from .strategy import Strategy 
 from .log import Log
@@ -98,6 +104,7 @@ class Analysis:
             log_obj = Log(created_orders_dict, ava_ctx.portfolio_dict)
             log_obj.dump_to_telegram()
 
+
 def run():    
     walkthrough_obj = Analysis(
         user='ava_elbe',
@@ -112,6 +119,7 @@ def run():
             'Semester': 1732606},
         signals_dict=walkthrough_obj.signals_dict,
         log_to_telegram=False)
+
 
 if __name__ == '__main__':
     run()

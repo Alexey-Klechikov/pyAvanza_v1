@@ -1,4 +1,10 @@
+"""
+This module is used to process and dump execution logs to Telegram
+"""
+
+
 import telegram_send
+
 
 class Log:
     def __init__(self, orders_dict, portfolio_dict):

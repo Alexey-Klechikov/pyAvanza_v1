@@ -1,18 +1,15 @@
-from pprint import pprint
+"""
+This module contains all technical indicators and strategies generation routines
+"""
+
+
 import yfinance as yf
 import pandas_ta as ta
-import pandas as pd
 import os, pickle
 
-pd.options.mode.chained_assignment = None
-pd.set_option('display.max_columns', 500)
+import pandas as pd
 pd.options.mode.chained_assignment = None
 pd.set_option('display.expand_frame_repr', False)
-pd.set_option('max_colwidth', None)
-pd.options.display.max_rows = 99999
-pd.options.display.max_columns = 99999
-pd.options.display.encoding = 'UTF-8'
-pd.options.display.float_format = '{:.2f}'.format
 
 
 class Strategy:

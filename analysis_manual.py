@@ -1,3 +1,7 @@
+"""
+This module is used for manual runs (checkups, improvements, tests)
+"""
+
 from pprint import pprint
 from module import Context, Strategy, Plot
 import pandas as pd

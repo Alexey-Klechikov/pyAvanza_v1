@@ -1,4 +1,8 @@
-from pprint import pprint
+"""
+This module contains all tooling to communicate to Avanza
+"""
+
+
 from avanza import Avanza, OrderType
 import datetime, time, keyring
 import pandas as pd

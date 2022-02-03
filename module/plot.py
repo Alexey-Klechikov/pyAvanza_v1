@@ -1,9 +1,14 @@
+"""
+This module is used to plot tickers, indicators, and comparison graph
+"""
+
 
 import mplfinance as mpf
 import matplotlib.pyplot as plt
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
+
 
 class Plot:
     def __init__(self, data_df, title):
