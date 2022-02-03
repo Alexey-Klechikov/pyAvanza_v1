@@ -1,24 +1,22 @@
 from pprint import pprint
-from .context import Context
-from .strategy import Strategy
-from .log import Log
-from .plot import Plot
+from module import Context, Strategy, Plot
 import pandas as pd
 
-class Manual:
-    def __init__(self, print_transactions_bool, plot_tickers_list, check_only_tickers_in_watch_lists, show_only_tickers_to_act_on, show_total_algo_performance_vs_hold, plot_portfolio_tickers, cache):
+
+class Analysis:
+    def __init__(self, **kwargs):
         self.total_df = None
         self.visited_tickers = list()
         self.counter_per_strategy = {'-- MAX --': {'result': 0, 'transactions_counter': 0}}
 
-        self.plot_tickers_list = plot_tickers_list
-        self.plot_portfolio_tickers = plot_portfolio_tickers
-        self.print_transactions_bool = print_transactions_bool
-        self.show_only_tickers_to_act_on_bool = show_only_tickers_to_act_on
+        self.plot_tickers_list = kwargs['plot_tickers_list']
+        self.plot_portfolio_tickers = kwargs['plot_portfolio_tickers']
+        self.print_transactions_bool = kwargs['print_transactions_bool']
+        self.show_only_tickers_to_act_on_bool = kwargs['show_only_tickers_to_act_on']
 
-        self.run(check_only_tickers_in_watch_lists, cache)
+        self.run(kwargs['check_only_watchlist_bool'], kwargs['cache'])
         self.print_performance_per_strategy()
-        self.plot_performance_compared_to_hold(show_total_algo_performance_vs_hold)
+        self.plot_performance_compared_to_hold(kwargs['plot_total_algo_performance_vs_hold'])
 
     def plot_ticker(self, strategy_obj):
         plot_obj = Plot(
@@ -27,8 +25,8 @@ class Manual:
         plot_obj.create_extra_panels()
         plot_obj.show_single_ticker()
 
-    def plot_performance_compared_to_hold(self, show_total_algo_performance_vs_hold):
-        if not show_total_algo_performance_vs_hold:
+    def plot_performance_compared_to_hold(self, plot_total_algo_performance_vs_hold):
+        if not plot_total_algo_performance_vs_hold:
             return
         
         columns_dict = {
@@ -79,8 +77,8 @@ class Manual:
             return
 
         if self.show_only_tickers_to_act_on_bool and (
-            (in_portfolio_bool and strategy_obj.summary['max_output']['signal'] == 'buy') or 
-            (not in_portfolio_bool and strategy_obj.summary['max_output']['signal'] == 'sell')):
+            (in_portfolio_bool and strategy_obj.summary['top_3_signal'] == 'buy') or 
+            (not in_portfolio_bool and strategy_obj.summary['top_3_signal'] == 'sell')):
             return
 
         # Print the result for all strategies AND count per strategy performance
@@ -114,11 +112,15 @@ class Manual:
         # Create a DF with all best strategies vs HOLD
         self.record_ticker_performance(strategy_obj, ticker)
 
-    def run(self, check_only_new_tickers_bool, cache):
-        ava_ctx = Context('bostad')
+    def run(self, check_only_watchlist_bool, cache):
+        ava_ctx = Context(
+            user='ava_elbe',
+            accounts_dict={
+                'Bostad - Elena': 6574382, 
+                'Bostad - Alex': 9568450})
         
         in_portfolio_bool = False
-        if check_only_new_tickers_bool:
+        if check_only_watchlist_bool:
             # Watch lists
             for watch_list_name, tickers_list in ava_ctx.watch_lists_dict.items():
                 for ticker_dict in tickers_list:
@@ -147,110 +149,16 @@ class Manual:
                         in_portfolio_bool,
                         cache)
 
-class Auto:
-    def __init__(self, account, signals_dict=dict()):
-        self.signals_dict = signals_dict
-        self.run(account)
 
-    def get_signal_on_ticker(self, ticker):
-        if ticker not in self.signals_dict:
-            try:
-                strategy_obj = Strategy(ticker)
-            except Exception as e:
-                print(f'(!) There was a problem with the ticker "{ticker}": {e}')
-                return None 
-
-            self.signals_dict[ticker] = {
-                'signal': strategy_obj.summary["top_3_signal"],
-                'return': strategy_obj.summary['max_output']['result']}
-        return self.signals_dict[ticker]
-
-    def run(self, account):
-        ava_ctx = Context(account)
-        removed_orders_dict = ava_ctx.remove_active_orders()
-
-        orders_dict = {
-            'buy': list(),
-            'sell': list()}
+if __name__ == '__main__':
+    Analysis(
+        check_only_watchlist_bool=False,
+        show_only_tickers_to_act_on=False,
         
-        # Deleted orders
-        for order_type, orders_list in removed_orders_dict.items():
-            for order in orders_list:
-                signal_dict = self.get_signal_on_ticker(order["ticker_yahoo"])
-                if signal_dict is None or signal_dict['signal'] != order_type:
-                    continue
-
-                stock_price_dict = ava_ctx.get_stock_price(order['order_book_id'])
-                orders_dict[order_type].append({
-                    'account_id': order['account_id'],
-                    'order_book_id': order['order_book_id'],
-                    'profit': '-',
-                    'name': order['name'],
-                    'price': stock_price_dict[order_type],
-                    'volume': order['volume'],
-                    'budget': stock_price_dict[order_type] * order['volume'],
-                    'ticker_yahoo': order["ticker_yahoo"],
-                    'max_return': signal_dict['return']})
-
-        # Portfolio
-        portfolio_tickers_list = list()
-        if ava_ctx.portfolio_dict['positions']['df'] is not None:
-            for _, row in ava_ctx.portfolio_dict['positions']['df'].iterrows():
-                portfolio_tickers_list.append(row["ticker_yahoo"])
-
-                signal_dict = self.get_signal_on_ticker(row["ticker_yahoo"])
-                if signal_dict is None or signal_dict['signal'] == 'buy':
-                    continue
-
-                orders_dict['sell'].append({
-                    'account_id': row['accountId'], 
-                    'order_book_id': row['orderbookId'], 
-                    'volume': row['volume'], 
-                    'price': row['lastPrice'],
-                    'profit': row['profitPercent'],
-                    'name': row['name'],
-                    'ticker_yahoo': row["ticker_yahoo"],
-                    'max_return': signal_dict['return']})
-
-        # Budget lists
-        for budget_rule_name, tickers_list in ava_ctx.budget_rules_dict.items():
-            for ticker_dict in tickers_list:
-                if ticker_dict['ticker_yahoo'] in portfolio_tickers_list: 
-                    continue
+        print_transactions_bool=False, 
+        
+        plot_tickers_list=['BUFAB.ST', 'PFE.ST', 'SEB-C.ST'], 
+        plot_portfolio_tickers=False,
+        plot_total_algo_performance_vs_hold=True,
                 
-                signal_dict = self.get_signal_on_ticker(ticker_dict['ticker_yahoo'])
-                if signal_dict is None or signal_dict['signal'] == 'sell':
-                    continue
-
-                stock_price_dict = ava_ctx.get_stock_price(ticker_dict['order_book_id'])
-                orders_dict['buy'].append({
-                    'ticker_yahoo': ticker_dict['ticker_yahoo'],
-                    'order_book_id': ticker_dict['order_book_id'], 
-                    'budget': int(budget_rule_name) * 1000,
-                    'price': stock_price_dict['buy'],
-                    'volume': round(int(budget_rule_name) * 1000 / stock_price_dict['buy']),
-                    'name': ticker_dict['name'],
-                    'max_return': signal_dict['return']})
-        
-        # Create orders
-        created_orders_dict = ava_ctx.create_orders(orders_dict)
-
-        # Dump log to Telegram
-        if account == 'bostad':
-            log_obj = Log(created_orders_dict, ava_ctx.portfolio_dict)
-            log_obj.dump_to_telegram()
-
-
-def run(manual=False):
-    if manual:
-        Manual(
-            plot_tickers_list=['BUFAB.ST', 'PFE.ST', 'SEB-C.ST'], 
-            check_only_tickers_in_watch_lists=False,
-            print_transactions_bool=False, 
-            show_only_tickers_to_act_on=False,
-            plot_portfolio_tickers=False,
-            show_total_algo_performance_vs_hold=True,
-            cache=True)
-    else:
-        walkthrough_obj = Auto('bostad')
-        Auto('semester', signals_dict=walkthrough_obj.signals_dict)
+        cache=True)

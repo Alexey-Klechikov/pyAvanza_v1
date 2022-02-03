@@ -5,15 +5,9 @@ import pandas as pd
 
 
 class Context:
-    def __init__(self, account, user='ava_elbe'):
+    def __init__(self, user, accounts_dict):
         self.ctx = self.get_ctx(user)
-        all_accounts_dict = {
-            'bostad': {
-                'Bostad - Elena': 6574382, 
-                'Bostad - Alex': 9568450},
-            'semester': {
-                'Semester': 1732606}}
-        self.accounts_dict = all_accounts_dict[account]
+        self.accounts_dict = accounts_dict
         self.portfolio_dict = self.get_portfolio()
         self.budget_rules_dict, self.watch_lists_dict = self.process_watchlists()
 
