@@ -1,5 +1,7 @@
 from pprint import pprint
-from module import Context, Strategy, Log
+from .context import Context
+from .strategy import Strategy 
+from .log import Log
 
 
 class Analysis:
