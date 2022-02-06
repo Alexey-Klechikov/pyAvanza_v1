@@ -1,5 +1,5 @@
 """
-This module is the "frontend" one. 
+This module is the "frontend" meant for everyday run. It will perform analysis on stocks and trigger trades.
 It will import other modules to run the analysis on the stocks -> place orders -> dump log in Telegram.py
 It will be run from Telegram or automatically as cron-job.
 """
@@ -7,10 +7,11 @@ It will be run from Telegram or automatically as cron-job.
 
 from .context import Context
 from .strategy import Strategy 
+from .settings import Settings
 from .log import Log
 
 
-class Analysis:
+class Portfolio_Analysis:
     def __init__(self, **kwargs):
         self.signals_dict = kwargs.get('signals_dict', dict())
         self.run(kwargs['user'], kwargs['accounts_dict'], kwargs['log_to_telegram'])
@@ -30,36 +31,17 @@ class Analysis:
 
     def run(self, user, accounts_dict, log_to_telegram):
         print(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
-        ava_ctx = Context(user, accounts_dict)
-        removed_orders_dict = ava_ctx.remove_active_orders()
+        ava = Context(user, accounts_dict)
+        removed_orders_dict = ava.remove_active_orders()
 
         orders_dict = {
             'buy': list(),
             'sell': list()}
         
-        # Deleted orders
-        for order_type, orders_list in removed_orders_dict.items():
-            for order in orders_list:
-                signal_dict = self.get_signal_on_ticker(order["ticker_yahoo"])
-                if signal_dict is None or signal_dict['signal'] != order_type:
-                    continue
-
-                stock_price_dict = ava_ctx.get_stock_price(order['order_book_id'])
-                orders_dict[order_type].append({
-                    'account_id': order['account_id'],
-                    'order_book_id': order['order_book_id'],
-                    'profit': '-',
-                    'name': order['name'],
-                    'price': stock_price_dict[order_type],
-                    'volume': order['volume'],
-                    'budget': stock_price_dict[order_type] * order['volume'],
-                    'ticker_yahoo': order["ticker_yahoo"],
-                    'max_return': signal_dict['return']})
-
         # Portfolio
         portfolio_tickers_list = list()
-        if ava_ctx.portfolio_dict['positions']['df'] is not None:
-            for _, row in ava_ctx.portfolio_dict['positions']['df'].iterrows():
+        if ava.portfolio_dict['positions']['df'] is not None:
+            for _, row in ava.portfolio_dict['positions']['df'].iterrows():
                 portfolio_tickers_list.append(row["ticker_yahoo"])
 
                 signal_dict = self.get_signal_on_ticker(row["ticker_yahoo"])
@@ -77,8 +59,8 @@ class Analysis:
                     'max_return': signal_dict['return']})
 
         # Budget lists
-        for budget_rule_name, tickers_list in ava_ctx.budget_rules_dict.items():
-            for ticker_dict in tickers_list:
+        for budget_rule_name, watchlist_dict in ava.budget_rules_dict.items():
+            for ticker_dict in watchlist_dict['tickers']:
                 if ticker_dict['ticker_yahoo'] in portfolio_tickers_list: 
                     continue
                 
@@ -86,40 +68,40 @@ class Analysis:
                 if signal_dict is None or signal_dict['signal'] == 'sell':
                     continue
 
-                stock_price_dict = ava_ctx.get_stock_price(ticker_dict['order_book_id'])
+                stock_price_dict = ava.get_stock_price(ticker_dict['order_book_id'])
                 orders_dict['buy'].append({
                     'ticker_yahoo': ticker_dict['ticker_yahoo'],
                     'order_book_id': ticker_dict['order_book_id'], 
                     'budget': int(budget_rule_name) * 1000,
                     'price': stock_price_dict['buy'],
-                    'volume': round(int(budget_rule_name) * 1000 / stock_price_dict['buy']),
+                    'volume': int(int(budget_rule_name) * 1000 // stock_price_dict['buy']),
                     'name': ticker_dict['name'],
                     'max_return': signal_dict['return']})
         
-        # Create orders
-        created_orders_dict = ava_ctx.create_orders(orders_dict)
+        # Create orders 
+        created_orders_dict = ava.create_orders(orders_dict)
 
         # Dump log to Telegram
         if log_to_telegram:
-            log_obj = Log(created_orders_dict, ava_ctx.portfolio_dict)
+            log_obj = Log(
+                portfolio_dict=ava.portfolio_dict, 
+                orders_dict=created_orders_dict)
             log_obj.dump_to_telegram()
 
 
-def run():    
-    walkthrough_obj = Analysis(
-        user='ava_elbe',
-        accounts_dict={
-            'Bostad - Elena': 6574382, 
-            'Bostad - Alex': 9568450},
-        log_to_telegram=True)
+def run(): 
+    settings_obj = Settings()
+    settings_json = settings_obj.load()  
 
-    Analysis(
-        user='ava_elbe',
-        accounts_dict={
-            'Semester': 1732606},
-        signals_dict=walkthrough_obj.signals_dict,
-        log_to_telegram=False)
+    signals_dict = dict()
+    for user, settings_per_account_list in settings_json.items():
+        for settings_dict in settings_per_account_list:
+            if not settings_dict['run_script_daily']:
+                continue
 
-
-if __name__ == '__main__':
-    run()
+            walkthrough_obj = Portfolio_Analysis(
+                user=user,
+                accounts_dict=settings_dict["accounts"],
+                signals_dict=signals_dict,
+                log_to_telegram=settings_dict["log_to_telegram"])
+            signals_dict = walkthrough_obj.signals_dict

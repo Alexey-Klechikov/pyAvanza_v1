@@ -7,20 +7,33 @@ import telegram_send
 
 
 class Log:
-    def __init__(self, orders_dict, portfolio_dict):
-        self.message = self.parse(orders_dict, portfolio_dict)
+    def __init__(self, **kwargs):
+        self.message = ''
 
-    def parse(self, orders_dict, portfolio_dict):
+        if 'portfolio_dict' in kwargs:
+            self.parse_portfolio_dict(kwargs['portfolio_dict'])
+
+        if 'orders_dict' in kwargs:
+            self.parse_orders_dict(kwargs['orders_dict'])
+        
+        if 'watchlists_analysis_log_list' in kwargs:
+            self.parse_watchlists_analysis_log(kwargs['watchlists_analysis_log_list'])
+
+    def parse_portfolio_dict(self, portfolio_dict):
         free_funds = "\n".join([f"> {account}: {funds}" for account, funds in portfolio_dict["buying_power"].items()])
-        message = f'Total value: {portfolio_dict["total_own_capital"]}\nTotal free funds:\n{free_funds}\n\n'
+        self.message += f'Total value: {portfolio_dict["total_own_capital"]}\nTotal free funds:\n{free_funds}\n\n'
 
+    def parse_watchlists_analysis_log(self, watchlists_analysis_log_list):
+        self.message = '\n'.join(watchlists_analysis_log_list)
+
+    def parse_orders_dict(self, orders_dict):
         for order_type, orders_list in orders_dict.items():
             if len(orders_list) == 0:
                 continue
             
             # TODO - ticker - hyperlink
 
-            message += f'Type: {order_type}\n'
+            self.message += f'Type: {order_type}\n'
             for order in orders_list:
                 message_list = list()
                 if order_type == 'buy':
@@ -33,9 +46,8 @@ class Log:
                         f"Value: {round(float(order['price']) * int(order['volume']))} SEK",
                         f"Profit: {order['profit']} %"]
 
-                message += '\n'.join(message_list + ["\n"])
-            message += '\n'
-        return message
+                self.message += '\n'.join(message_list + ["\n"])
+        return self.message
 
     def dump_to_telegram(self):
         telegram_send.send(messages=[self.message])

@@ -3,11 +3,11 @@ This module is used for manual runs (checkups, improvements, tests)
 """
 
 from pprint import pprint
-from module import Context, Strategy, Plot
+from module import Context, Strategy, Plot, Settings
 import pandas as pd
 
 
-class Analysis:
+class Portfolio_Analysis:
     def __init__(self, **kwargs):
         self.total_df = None
         self.visited_tickers = list()
@@ -117,27 +117,28 @@ class Analysis:
         self.record_ticker_performance(strategy_obj, ticker)
 
     def run(self, check_only_watchlist_bool, cache):
-        ava_ctx = Context(
-            user='ava_elbe',
-            accounts_dict={
-                'Bostad - Elena': 6574382, 
-                'Bostad - Alex': 9568450})
+        settings_obj = Settings()
+        settings_json = settings_obj.load()  
+
+        ava = Context(
+            user=list(settings_json.keys())[0],
+            accounts_dict=list(settings_json.values())[0][0]['accounts'])
         
         in_portfolio_bool = False
         if check_only_watchlist_bool:
-            # Watch lists
-            for watch_list_name, tickers_list in ava_ctx.watch_lists_dict.items():
+            # Watchlists
+            for watchlist_name, tickers_list in ava.watchlists_dict.items():
                 for ticker_dict in tickers_list:
                     self.get_strategy_on_ticker(
                         ticker_dict['ticker_yahoo'], 
-                        f"{watch_list_name}: {ticker_dict['ticker_yahoo']}",
+                        f"{watchlist_name}: {ticker_dict['ticker_yahoo']}",
                         in_portfolio_bool,
                         cache)
         else:
             # Portfolio
             in_portfolio_bool = True
-            if ava_ctx.portfolio_dict['positions']['df'] is not None:
-                for _, row in ava_ctx.portfolio_dict['positions']['df'].iterrows():
+            if ava.portfolio_dict['positions']['df'] is not None:
+                for _, row in ava.portfolio_dict['positions']['df'].iterrows():
                     self.get_strategy_on_ticker(
                         row["ticker_yahoo"], 
                         f"Stock: {row['name']} - {row['ticker_yahoo']}",
@@ -145,8 +146,8 @@ class Analysis:
                         cache)
 
             # Budget lists
-            for budget_rule_name, tickers_list in ava_ctx.budget_rules_dict.items():
-                for ticker_dict in tickers_list:
+            for budget_rule_name, watchlist_dict in ava.budget_rules_dict.items():
+                for ticker_dict in watchlist_dict['tickers']:
                     self.get_strategy_on_ticker(
                         ticker_dict['ticker_yahoo'], 
                         f"Budget {budget_rule_name}K: {ticker_dict['ticker_yahoo']}",
@@ -155,7 +156,7 @@ class Analysis:
 
 
 if __name__ == '__main__':
-    Analysis(
+    Portfolio_Analysis(
         check_only_watchlist_bool=False,
         show_only_tickers_to_act_on=False,
         
