@@ -2,8 +2,9 @@
 This module is used for manual runs (checkups, improvements, tests)
 """
 
+
 from pprint import pprint
-from module import Context, Strategy, Plot, Settings
+from module.utils import Context, Strategy, Plot, Settings
 import pandas as pd
 
 
@@ -162,7 +163,7 @@ if __name__ == '__main__':
         
         print_transactions_bool=False, 
         
-        plot_tickers_list=['BUFAB.ST', 'PFE.ST', 'SEB-C.ST'], 
+        plot_tickers_list=['PFE.ST', 'SEB-C.ST'], 
         plot_portfolio_tickers=False,
         plot_total_algo_performance_vs_hold=True,
                 

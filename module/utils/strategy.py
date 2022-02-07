@@ -20,7 +20,7 @@ class Strategy:
         self.summary = self.get_signal(ticker_name, strategies_dict)
 
     def read_ticker(self, ticker_symbol, cache):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         pickle_path = f'{current_dir}/cache/{ticker_symbol}.pickle'
 
         directory_exists = os.path.exists('/'.join(pickle_path.split('/')[:-1]))

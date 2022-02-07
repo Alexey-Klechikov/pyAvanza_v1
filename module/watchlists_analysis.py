@@ -5,10 +5,10 @@ It will be run from Telegram or automatically as cron-job.
 """
 
 
-from .context import Context
-from .strategy import Strategy 
-from .log import Log
-from .settings import Settings
+from .utils.context import Context
+from .utils.strategy import Strategy
+from .utils.settings import Settings
+from .utils.log import Log
 
 
 class Watchlists_Analysis:
