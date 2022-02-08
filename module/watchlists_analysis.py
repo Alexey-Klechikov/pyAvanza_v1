@@ -74,8 +74,8 @@ def run():
     settings_obj = Settings()
     settings_json = settings_obj.load()  
 
-    for user, settings_per_account_list in settings_json.items():
-        for settings_dict in settings_per_account_list:
+    for user, settings_per_account_dict in settings_json.items():
+        for settings_dict in settings_per_account_dict.values():
             if not 'budget_list_threshold_dict' in settings_dict:
                 continue
 

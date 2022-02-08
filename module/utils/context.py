@@ -86,8 +86,8 @@ class Context:
                     valid_until=(datetime.datetime.today() + datetime.timedelta(days=1)).date(),
                     volume=sell_order_dict['volume'])
         
-        time.sleep(120) # wait for all sell orders to complete
-        self.portfolio_dict = self.get_portfolio()
+            time.sleep(120) # wait for some sell orders to complete
+            self.portfolio_dict = self.get_portfolio()
 
         print('> Creating buy orders') 
         if len(orders_dict['buy']) > 0:

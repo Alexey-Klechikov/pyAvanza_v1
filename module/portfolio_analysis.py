@@ -69,15 +69,21 @@ class Portfolio_Analysis:
                     continue
 
                 stock_price_dict = ava.get_stock_price(ticker_dict['order_book_id'])
+                try:
+                    volume = int(int(budget_rule_name) * 1000 // stock_price_dict['buy'])
+                except:
+                    print(f"There was a problem with fetching buy price for {ticker_dict['ticker_yahoo']}")
+                    continue
+
                 orders_dict['buy'].append({
                     'ticker_yahoo': ticker_dict['ticker_yahoo'],
                     'order_book_id': ticker_dict['order_book_id'], 
                     'budget': int(budget_rule_name) * 1000,
                     'price': stock_price_dict['buy'],
-                    'volume': int(int(budget_rule_name) * 1000 // stock_price_dict['buy']),
+                    'volume': volume,
                     'name': ticker_dict['name'],
                     'max_return': signal_dict['return']})
-        
+
         # Create orders 
         created_orders_dict = ava.create_orders(orders_dict)
 
@@ -94,8 +100,8 @@ def run():
     settings_json = settings_obj.load()  
 
     signals_dict = dict()
-    for user, settings_per_account_list in settings_json.items():
-        for settings_dict in settings_per_account_list:
+    for user, settings_per_account_dict in settings_json.items():
+        for settings_dict in settings_per_account_dict.values():
             if not settings_dict['run_script_daily']:
                 continue
 

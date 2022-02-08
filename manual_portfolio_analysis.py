@@ -123,7 +123,7 @@ class Portfolio_Analysis:
 
         ava = Context(
             user=list(settings_json.keys())[0],
-            accounts_dict=list(settings_json.values())[0][0]['accounts'])
+            accounts_dict=list(settings_json.values())[0]["1"]['accounts'])
         
         in_portfolio_bool = False
         if check_only_watchlist_bool:
@@ -163,7 +163,7 @@ if __name__ == '__main__':
         
         print_transactions_bool=False, 
         
-        plot_tickers_list=['PFE.ST', 'SEB-C.ST'], 
+        plot_tickers_list=["BELE.ST", 'BIOT.ST', "BOL.ST"], 
         plot_portfolio_tickers=False,
         plot_total_algo_performance_vs_hold=True,
                 
