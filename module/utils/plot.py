@@ -97,6 +97,23 @@ class Plot:
                         panel=panel_num))
             self.plots_list += plot_list
         
+        def _cmf(panel_num):
+            data_column_dict = get_data_columns_dict('CMF')
+            plot_list = [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['CMF']],
+                    color='orange', 
+                    panel=panel_num,
+                    secondary_y=False)]
+            self.data_df[f'hline_0'] = 0
+            plot_list.append(
+                mpf.make_addplot(
+                    self.data_df[f'hline_0'], 
+                    color='black', 
+                    secondary_y=False,
+                    panel=panel_num))
+            self.plots_list += plot_list
+
         def _macd(panel_num):
             data_column_dict = get_data_columns_dict('MACD')
             plot_lim = (
@@ -253,7 +270,8 @@ class Plot:
                 'CHOP': _chop,
                 'CKSP': _cksp,
                 'MASSI': _massi,
-                'PVT': _pvt}}
+                'PVT': _pvt,
+                'CMF': _cmf}}
 
         # Expected format "Stock: YadaYada - (Momentum) STOCH + (Trend) CHOP"
         strategy_components = [i.split(')')[1].strip() for i in self.title.split(' - ')[1].split('+')]

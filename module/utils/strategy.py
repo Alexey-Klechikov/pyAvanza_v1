@@ -36,11 +36,9 @@ class Strategy:
             try:
                 if not os.path.exists(pickle_path):
                     with open(pickle_path, 'wb') as pcl:
-                        ticker_obj = yf.Ticker(
-                            ticker_symbol)
-                        history_df = ticker_obj.history(
-                            period="18mo")
-
+                        ticker_obj = yf.Ticker(ticker_symbol)
+                        history_df = ticker_obj.history(period="18mo")
+                        
                         cache = (ticker_obj, history_df)
                         pickle.dump(cache, pcl)
                 with open(pickle_path, 'rb') as token:
@@ -68,6 +66,12 @@ class Strategy:
         conditions_dict['Volume']["PVT"] = {
             'buy': lambda x: x['SMA_9'] < x['PVT'],
             'sell': lambda x: x['SMA_9'] > x['PVT']}
+
+        # CMF (Chaikin Money Flow)
+        history_df.ta.cmf(append=True)
+        conditions_dict['Volume']["CMF"] = {
+            'buy': lambda x: x["CMF_20"] > 0,
+            'sell': lambda x: x["CMF_20"] < 0}
 
         ''' Volatility '''
         # MASSI (Mass Index)
@@ -126,7 +130,7 @@ class Strategy:
             'buy': lambda x: x['Close'] > x['HILO_13_21'],
             'sell': lambda x: x['Close'] < x['HILO_13_21']}
 
-        # SUPERT (Supertrand)
+        # SUPERT (Supertrend)
         history_df.ta.supertrend(append=True)
         conditions_dict["Overlap"]["SUPERT"] = {
             'buy': lambda x: x['Close'] > x['SUPERT_7_3.0'],
