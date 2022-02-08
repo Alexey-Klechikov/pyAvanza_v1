@@ -104,7 +104,7 @@ class Plot:
                     self.data_df[data_column_dict['CMF']],
                     color='orange', 
                     panel=panel_num,
-                    secondary_y=False)]
+                    ylabel="CMF")]
             self.data_df[f'hline_0'] = 0
             plot_list.append(
                 mpf.make_addplot(
