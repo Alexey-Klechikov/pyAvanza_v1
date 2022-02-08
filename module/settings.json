@@ -1,16 +1,25 @@
-{"ava_elbe": [
-    {"accounts": {
-        "Bostad - Elena": 6574382, 
-        "Bostad - Alex": 9568450},
-    "log_to_telegram": true,
-    "run_script_daily": true,
-    "budget_list_threshold_dict": {
-        "2000": "10",
-        "1800": "5",
-        "1600": "3",
-        "1500": "1"}},
-    {"accounts": {
-        "Semester": 1732606},
-    "log_to_telegram": false,
-    "run_script_daily": true}]
+{
+    "ava_elbe": {
+        "1": {
+            "accounts": {
+                "Bostad - Elena": 6574382,
+                "Bostad - Alex": 9568450
+            },
+            "log_to_telegram": true,
+            "run_script_daily": true,
+            "budget_list_threshold_dict": {
+                "2000": "10",
+                "1800": "5",
+                "1600": "3",
+                "1500": "1"
+            }
+        },
+        "2": {
+            "accounts": {
+                "Semester": 1732606
+            },
+            "log_to_telegram": false,
+            "run_script_daily": true
+        }
+    }
 }
