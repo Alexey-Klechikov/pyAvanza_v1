@@ -14,7 +14,7 @@ from .utils.log import Log
 class Portfolio_Analysis:
     def __init__(self, **kwargs):
         self.signals_dict = kwargs.get('signals_dict', dict())
-        self.run(kwargs['user'], kwargs['accounts_dict'], kwargs['log_to_telegram'])
+        self.run(kwargs['user'], kwargs['accounts_dict'], kwargs['log_to_telegram'], kwargs['buy_delay_after_sell'])
 
     def get_signal_on_ticker(self, ticker):
         if ticker not in self.signals_dict:
@@ -29,10 +29,10 @@ class Portfolio_Analysis:
                 'return': strategy_obj.summary['max_output']['result']}
         return self.signals_dict[ticker]
 
-    def run(self, user, accounts_dict, log_to_telegram):
+    def run(self, user, accounts_dict, log_to_telegram, buy_delay_after_sell):
         print(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
         ava = Context(user, accounts_dict)
-        removed_orders_dict = ava.remove_active_orders()
+        ava.remove_active_orders()
 
         orders_dict = {
             'buy': list(),
@@ -85,7 +85,7 @@ class Portfolio_Analysis:
                     'max_return': signal_dict['return']})
 
         # Create orders 
-        created_orders_dict = ava.create_orders(orders_dict)
+        created_orders_dict = ava.create_orders(orders_dict, buy_delay_after_sell)
 
         # Dump log to Telegram
         if log_to_telegram:
@@ -109,5 +109,6 @@ def run():
                 user=user,
                 accounts_dict=settings_dict["accounts"],
                 signals_dict=signals_dict,
-                log_to_telegram=settings_dict["log_to_telegram"])
+                log_to_telegram=settings_dict.get("log_to_telegram", True),
+                buy_delay_after_sell=settings_dict.get("buy_delay_after_sell", 2))
             signals_dict = walkthrough_obj.signals_dict

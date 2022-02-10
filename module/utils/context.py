@@ -73,7 +73,7 @@ class Context:
 
         return budget_rules_dict, watchlists_dict
 
-    def create_orders(self, orders_dict):
+    def create_orders(self, orders_dict, buy_delay_after_sell):
         print('> Creating sell orders') 
         if len(orders_dict['sell']):
             for sell_order_dict in orders_dict['sell']:
@@ -85,8 +85,8 @@ class Context:
                     price=sell_order_dict['price'],
                     valid_until=(datetime.datetime.today() + datetime.timedelta(days=1)).date(),
                     volume=sell_order_dict['volume'])
-        
-            time.sleep(120) # wait for some sell orders to complete
+       
+            time.sleep(round(float(buy_delay_after_sell) * 60)) # wait for some sell orders to complete
             self.portfolio_dict = self.get_portfolio()
 
         print('> Creating buy orders') 

@@ -7,6 +7,9 @@ import yfinance as yf
 import pandas_ta as ta
 import os, pickle
 
+import warnings
+warnings.filterwarnings("ignore")
+
 import pandas as pd
 pd.options.mode.chained_assignment = None
 pd.set_option('display.expand_frame_repr', False)
