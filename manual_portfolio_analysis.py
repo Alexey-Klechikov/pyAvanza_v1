@@ -163,7 +163,7 @@ if __name__ == '__main__':
         
         print_transactions_bool=False, 
         
-        plot_tickers_list=["BUFAB.ST", "KFAST-B.ST", "SCA-B.ST"], 
+        plot_tickers_list=["ANOD-B.ST", "INVE-A.ST", "RATO-A.ST", "MCOV-B.ST", "INTRUM.ST", "SEB-C.ST", "LUNE.ST"], 
         plot_portfolio_tickers=False,
         plot_total_algo_performance_vs_hold=True,
                 

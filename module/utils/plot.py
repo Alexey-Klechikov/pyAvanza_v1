@@ -114,6 +114,26 @@ class Plot:
                     panel=panel_num))
             self.plots_list += plot_list
 
+        def _rvgi(panel_num):
+            data_column_dict = get_data_columns_dict('RVGI')
+            plot_lim = (
+                0.9 * min([self.data_df[data_column_dict[i]].min() for i in ('RVGI', 'RVGIs')]), 
+                1.1 * max([self.data_df[data_column_dict[i]].max() for i in ('RVGI', 'RVGIs')]))
+            plot_list = [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['RVGI']],
+                    ylim=plot_lim,
+                    color='orange', 
+                    panel=panel_num,
+                    ylabel="RVGI"),
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['RVGIs']],
+                    ylim=plot_lim,
+                    color='black', 
+                    panel=panel_num,
+                    secondary_y=False)]
+            self.plots_list += plot_list
+
         def _macd(panel_num):
             data_column_dict = get_data_columns_dict('MACD')
             plot_lim = (
@@ -206,14 +226,14 @@ class Plot:
             plot_list = [
                 mpf.make_addplot(
                     self.data_df[data_column_dict['CKSPl']],
-                    color='green', 
+                    color='orange', 
                     ylim=plot_lim,
                     panel=panel_num,
                     ylabel="CKSP"
                     ),
                 mpf.make_addplot(
                     self.data_df[data_column_dict['CKSPs']],
-                    color='red', 
+                    color='black', 
                     ylim=plot_lim,
                     panel=panel_num,
                     secondary_y=False,
@@ -264,6 +284,7 @@ class Plot:
                 'HWC': _hwc},
             "separate_plots": {
                 'RSI': _rsi,
+                'RVGI': _rvgi,
                 'MACD': _macd,
                 'STOCH': _stoch,
                 'HA': _ha,
@@ -291,6 +312,20 @@ class Plot:
                     color='black', 
                     ylim=(1000 * 0.9, self.data_df['total'].max() * 1.1),
                     panel=panel_num,
+                    secondary_y=True),
+                mpf.make_addplot(
+                    self.data_df['buy_signal'], 
+                    scatter=True,
+                    markersize=100, 
+                    marker='o', 
+                    color='green',
+                    secondary_y=True),
+                mpf.make_addplot(
+                    self.data_df['sell_signal'], 
+                    scatter=True,
+                    markersize=20, 
+                    marker='o', 
+                    color='red',
                     secondary_y=True)]
             self.plots_list += orders_plot
 

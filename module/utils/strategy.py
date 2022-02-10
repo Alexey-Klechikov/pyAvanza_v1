@@ -6,6 +6,8 @@ This module contains all technical indicators and strategies generation routines
 import yfinance as yf
 import pandas_ta as ta
 import os, pickle
+from copy import copy
+import numpy as np
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -146,13 +148,19 @@ class Strategy:
             'buy': lambda x: x['RSI_14'] > 50,
             'sell': lambda x: x['RSI_14'] < 50}
 
-        ## MACD (Moving Average Convergence Divergence)
+        # RVGI (Relative Vigor Index)
+        history_df.ta.rvgi(append=True)
+        conditions_dict['Momentum']["RVGI"] = {
+            'buy': lambda x: x['RVGI_14_4'] > x['RVGIs_14_4'],
+            'sell': lambda x: x['RVGI_14_4'] < x['RVGIs_14_4']}
+
+        # MACD (Moving Average Convergence Divergence)
         history_df.ta.macd(fast=8, slow=21, signal=5, append=True)
         conditions_dict['Momentum']["MACD"] = {
             'buy': lambda x: x['MACD_8_21_5'] > x['MACDs_8_21_5'],
             'sell': lambda x: x['MACD_8_21_5'] < x['MACDs_8_21_5']}
 
-        ## STOCH (Stochastic Oscillator)
+        # STOCH (Stochastic Oscillator)
         history_df.ta.stoch(k=14, d=3, append=True)
         conditions_dict['Momentum']["STOCH"] = {
             'buy': lambda x: x["STOCHd_14_3_3"] < 80 and x["STOCHk_14_3_3"] < 80,
@@ -207,7 +215,9 @@ class Strategy:
                 'deposit': 1000,
                 'market': None,
                 'total': 1000,
-                'order_price': 0}
+                'order_price': 0,
+                'buy_signal': np.nan,
+                'sell_signal': np.nan}
             for i, row in self.history_df.iterrows():
                 date = str(i)[:10]
 
@@ -218,10 +228,12 @@ class Strategy:
                     balance_dict['deposit'] = balance_dict['market'] * (1 + price_change) * (1 - transaction_comission)
                     balance_dict['market'] = None
                     balance_dict['total'] = balance_dict['deposit']
+                    balance_dict['sell_signal'] = balance_dict['total']
 
                 # Buy event
                 elif all(map(lambda x: x(row), strategies_dict[strategy]["buy"])) and balance_dict['deposit'] is not None:
                     summary["strategies"][strategy]['transactions'].append(f'({date}) Buy at {row["Close"]}')
+                    balance_dict['buy_signal'] = balance_dict['total']
                     balance_dict['order_price'] = row["Close"]
                     balance_dict['market'] = balance_dict['deposit'] * (1 - transaction_comission)
                     balance_dict['deposit'] = None
@@ -229,17 +241,20 @@ class Strategy:
 
                 # Hold on market
                 else:
-                    if balance_dict['deposit'] == None:
+                    if balance_dict['deposit'] is None:
                         price_change = (row['Close'] - balance_dict['order_price']) / balance_dict['order_price']
                         balance_dict['total'] = balance_dict['market'] * (1 + price_change)
-                        
-                balance_list.append(balance_dict['total'])
+                        balance_dict['buy_signal'] = np.nan
+                        balance_dict['sell_signal'] = np.nan
+
+                balance_list.append(copy(balance_dict))
 
             summary["strategies"][strategy]['result'] = round(balance_dict['total'])
             summary["strategies"][strategy]['signal'] = 'sell' if balance_dict['market'] is None else 'buy'
             summary["strategies"][strategy]['transactions_counter'] = len(summary["strategies"][strategy]['transactions'])
             if balance_dict['total'] > summary['max_output'].get('result', 0) and strategy != "(Blank) HOLD":
-                self.history_df.loc[:, 'total'] = balance_list
+                for col in ['total', 'buy_signal', 'sell_signal']:
+                    self.history_df.loc[:, col] = [i[col] for i in balance_list]
 
                 summary['max_output'] = {
                     'strategy': strategy,
