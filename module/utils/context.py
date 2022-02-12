@@ -126,7 +126,7 @@ class Context:
 
         order_depth_df = pd.DataFrame(stock_info_dict['orderDepthLevels'])
         if not order_depth_df.empty: 
-            #stock_price_dict['sell'] = max(order_depth_df['buy'].apply(lambda x: x['price']))
+            stock_price_dict['sell'] = max(order_depth_df['buy'].apply(lambda x: x['price']))
             stock_price_dict['buy'] = min(order_depth_df['sell'].apply(lambda x: x['price']))
 
         return stock_price_dict
