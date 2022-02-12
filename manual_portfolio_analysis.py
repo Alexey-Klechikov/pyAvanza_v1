@@ -14,14 +14,16 @@ class Portfolio_Analysis:
         self.visited_tickers = list()
         self.counter_per_strategy = {'-- MAX --': {'result': 0, 'transactions_counter': 0}}
 
-        self.plot_tickers_list = kwargs['plot_tickers_list']
-        self.plot_portfolio_tickers = kwargs['plot_portfolio_tickers']
+        self.plot_extra_tickers_list = kwargs['plot_extra_tickers_list']
+        self.plot_portfolio_tickers_bool = kwargs['plot_portfolio_tickers_bool']
         self.print_transactions_bool = kwargs['print_transactions_bool']
-        self.show_only_tickers_to_act_on_bool = kwargs['show_only_tickers_to_act_on']
+
+        self.show_only_tickers_to_act_on_bool = kwargs['show_only_tickers_to_act_on_bool']
+        self.plot_tickers_to_act_on_bool = kwargs['plot_tickers_to_act_on_bool']
 
         self.run(kwargs['check_only_watchlist_bool'], kwargs['cache'])
         self.print_performance_per_strategy()
-        self.plot_performance_compared_to_hold(kwargs['plot_total_algo_performance_vs_hold'])
+        self.plot_performance_compared_to_hold(kwargs['plot_total_algo_performance_vs_hold_bool'])
 
     def plot_ticker(self, strategy_obj):
         plot_obj = Plot(
@@ -30,8 +32,8 @@ class Portfolio_Analysis:
         plot_obj.create_extra_panels()
         plot_obj.show_single_ticker()
 
-    def plot_performance_compared_to_hold(self, plot_total_algo_performance_vs_hold):
-        if not plot_total_algo_performance_vs_hold:
+    def plot_performance_compared_to_hold(self, plot_total_algo_performance_vs_hold_bool):
+        if not plot_total_algo_performance_vs_hold_bool:
             return
         
         columns_dict = {
@@ -111,7 +113,7 @@ class Portfolio_Analysis:
                 self.counter_per_strategy[strategy]['win_counter'][f'{i+1}'] += 1
 
         # Plot
-        if (ticker in self.plot_tickers_list) or (self.plot_portfolio_tickers and in_portfolio_bool):
+        if (ticker in self.plot_extra_tickers_list) or (self.plot_portfolio_tickers_bool and in_portfolio_bool) or self.plot_tickers_to_act_on_bool:
             self.plot_ticker(strategy_obj)
 
         # Create a DF with all best strategies vs HOLD
@@ -125,46 +127,45 @@ class Portfolio_Analysis:
             user=list(settings_json.keys())[0],
             accounts_dict=list(settings_json.values())[0]["1"]['accounts'])
         
-        in_portfolio_bool = False
         if check_only_watchlist_bool:
             # Watchlists
             for watchlist_name, tickers_list in ava.watchlists_dict.items():
                 for ticker_dict in tickers_list:
                     self.get_strategy_on_ticker(
                         ticker_dict['ticker_yahoo'], 
-                        f"{watchlist_name}: {ticker_dict['ticker_yahoo']}",
-                        in_portfolio_bool,
-                        cache)
+                        f"Watchlist ({watchlist_name}): {ticker_dict['ticker_yahoo']}",
+                        in_portfolio_bool=False,
+                        cache=cache)
         else:
             # Portfolio
-            in_portfolio_bool = True
             if ava.portfolio_dict['positions']['df'] is not None:
                 for _, row in ava.portfolio_dict['positions']['df'].iterrows():
                     self.get_strategy_on_ticker(
                         row["ticker_yahoo"], 
                         f"Stock: {row['name']} - {row['ticker_yahoo']}",
-                        in_portfolio_bool,
-                        cache)
+                        in_portfolio_bool=True,
+                        cache=cache)
 
             # Budget lists
             for budget_rule_name, watchlist_dict in ava.budget_rules_dict.items():
                 for ticker_dict in watchlist_dict['tickers']:
                     self.get_strategy_on_ticker(
                         ticker_dict['ticker_yahoo'], 
-                        f"Budget {budget_rule_name}K: {ticker_dict['ticker_yahoo']}",
-                        in_portfolio_bool,
-                        cache)
+                        f"Budget ({budget_rule_name}K): {ticker_dict['ticker_yahoo']}",
+                        in_portfolio_bool=False,
+                        cache=cache)
 
 
 if __name__ == '__main__':
     Portfolio_Analysis(
         check_only_watchlist_bool=False,
-        show_only_tickers_to_act_on=False,
+        show_only_tickers_to_act_on_bool=False,
         
         print_transactions_bool=False, 
         
-        plot_tickers_list=["ANOD-B.ST", "INVE-A.ST", "RATO-A.ST", "MCOV-B.ST", "INTRUM.ST", "SEB-C.ST", "LUNE.ST"], 
-        plot_portfolio_tickers=False,
-        plot_total_algo_performance_vs_hold=True,
+        plot_extra_tickers_list=["ANOD-B.ST", "INTRUM.ST", "SEB-C.ST", "LUNE.ST"], 
+        plot_portfolio_tickers_bool=False,
+        plot_total_algo_performance_vs_hold_bool=True,
+        plot_tickers_to_act_on_bool=False,
                 
         cache=True)
