@@ -21,6 +21,8 @@ class Plot:
     def add_horisontal_lines(self, level_color_list, panel_num):
         horisontal_lines_plots_list = list()
         for level, color in level_color_list:
+            if level is None:
+                continue
             self.data_df[f'hline_{level}'] = level
             horisontal_lines_plots_list.append(
                 mpf.make_addplot(
@@ -126,7 +128,7 @@ class Plot:
                     panel=panel_num,
                     ylabel="CMF")]
             self.add_horisontal_lines(
-                level_color_list=((0, 'black')), 
+                level_color_list=((0, 'black'), (None, None)), 
                 panel_num=panel_num)  
             return data_column_dict['CMF']
 
@@ -307,7 +309,8 @@ class Plot:
                 if strategy_name not in strategy_components:
                     continue
                 target_data_column = plotting_functions(panel_num)
-                self.add_buy_signals(panel_num, target_data_column)
+                if target_data_column is not None:
+                    self.add_buy_signals(panel_num, target_data_column)
                 panel_num += (0 if plot_type == "main_plot" else 1)
 
     def show_single_ticker(self):

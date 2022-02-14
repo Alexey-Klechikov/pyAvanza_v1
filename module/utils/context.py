@@ -82,7 +82,7 @@ class Context:
                     account_id=str(sell_order_dict['account_id']),
                     order_book_id=str(sell_order_dict['order_book_id']),
                     order_type=OrderType.SELL,
-                    price=sell_order_dict['price'],
+                    price=self.get_stock_price(sell_order_dict['order_book_id'])["sell"],
                     valid_until=(datetime.datetime.today() + datetime.timedelta(days=1)).date(),
                     volume=sell_order_dict['volume'])
        
@@ -106,7 +106,7 @@ class Context:
                             account_id=str(account_id),
                             order_book_id=str(buy_order_dict['order_book_id']),
                             order_type=OrderType.BUY,
-                            price=buy_order_dict['price'],
+                            price=self.get_stock_price(buy_order_dict['order_book_id'])["buy"],
                             valid_until=(datetime.datetime.today() + datetime.timedelta(days=1)).date(),
                             volume=buy_order_dict['volume'])
 
