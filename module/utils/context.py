@@ -73,50 +73,58 @@ class Context:
 
         return budget_rules_dict, watchlists_dict
 
-    def create_orders(self, orders_dict, buy_delay_after_sell):
-        print('> Creating sell orders') 
-        if len(orders_dict['sell']):
-            for sell_order_dict in orders_dict['sell']:
-                print(f'>> (profit {sell_order_dict["profit"]}%) {sell_order_dict["name"]}')
-                self.ctx.place_order(
-                    account_id=str(sell_order_dict['account_id']),
-                    order_book_id=str(sell_order_dict['order_book_id']),
-                    order_type=OrderType.SELL,
-                    price=self.get_stock_price(sell_order_dict['order_book_id'])["sell"],
-                    valid_until=(datetime.datetime.today() + datetime.timedelta(days=1)).date(),
-                    volume=sell_order_dict['volume'])
-       
-            time.sleep(round(float(buy_delay_after_sell) * 60)) # wait for some sell orders to complete
+    def create_orders(self, orders_list, type):
+        if type == 'sell':
+            print('> Creating sell orders') 
+            if len(orders_list):
+                for sell_order_dict in orders_list:
+                    print(f'>> (profit {sell_order_dict["profit"]}%) {sell_order_dict["name"]}')
+                    order_attr = {
+                        "account_id": str(sell_order_dict['account_id']),
+                        "order_book_id": str(sell_order_dict['order_book_id']),
+                        "order_type": OrderType.SELL,
+                        "price": self.get_stock_price(sell_order_dict['order_book_id'])["sell"],
+                        "valid_until": (datetime.datetime.today() + datetime.timedelta(days=1)).date(),
+                        "volume": sell_order_dict['volume']}
+                    
+                    self.ctx.place_order(**order_attr)
+                    try:
+                        pass
+                    except Exception as e:
+                        print(f'Exception: {e} - {order_attr}')
+
+        elif type == 'buy':
+            print('> Creating buy orders') 
             self.portfolio_dict = self.get_portfolio()
-
-        print('> Creating buy orders') 
-        if len(orders_dict['buy']) > 0:
-            orders_dict['buy'].sort(
-                key=lambda x: (int(x['budget']), int(x['max_return'])), 
-                reverse=True)
             created_orders_list = list()
-            reserved_budget = {account: 0 for account in self.accounts_dict}
-            for buy_order_dict in orders_dict['buy']:
-                # Check accounts one by one if enough funds for the order
-                for account_name, account_id in self.accounts_dict.items():
-                    if self.portfolio_dict['buying_power'][account_name] - reserved_budget[account_name] > buy_order_dict['budget']:
-                        print(f'>> ({buy_order_dict["budget"]}) {buy_order_dict["name"]}')
+            if len(orders_list) > 0:
+                orders_list.sort(
+                    key=lambda x: (int(x['budget']), int(x['max_return'])), 
+                    reverse=True)
+                reserved_budget = {account: 0 for account in self.accounts_dict}
+                for buy_order_dict in orders_list:
+                    # Check accounts one by one if enough funds for the order
+                    for account_name, account_id in self.accounts_dict.items():
+                        if self.portfolio_dict['buying_power'][account_name] - reserved_budget[account_name] > buy_order_dict['budget']:
+                            print(f'>> ({buy_order_dict["budget"]}) {buy_order_dict["name"]}')
+                            order_attr = {
+                                "account_id": str(account_id),
+                                "order_book_id": str(buy_order_dict['order_book_id']),
+                                "order_type": OrderType.BUY,
+                                "price": self.get_stock_price(buy_order_dict['order_book_id'])["buy"],
+                                "valid_until": (datetime.datetime.today() + datetime.timedelta(days=1)).date(),
+                                "volume": buy_order_dict['volume']}
 
-                        self.ctx.place_order(
-                            account_id=str(account_id),
-                            order_book_id=str(buy_order_dict['order_book_id']),
-                            order_type=OrderType.BUY,
-                            price=self.get_stock_price(buy_order_dict['order_book_id'])["buy"],
-                            valid_until=(datetime.datetime.today() + datetime.timedelta(days=1)).date(),
-                            volume=buy_order_dict['volume'])
+                            try:
+                                self.ctx.place_order(**order_attr)
+                            except Exception as e:
+                                print(f'Exception: {e} - {order_attr}')
 
-                        reserved_budget[account_name] += buy_order_dict['budget']
-                        created_orders_list.append(buy_order_dict)
-                        break
-            
-            orders_dict['buy'] = created_orders_list
-
-        return orders_dict
+                            reserved_budget[account_name] += buy_order_dict['budget']
+                            created_orders_list.append(buy_order_dict)
+                            break
+                
+            return created_orders_list
 
     def get_stock_price(self, stock_id):
         stock_info_dict = self.ctx.get_stock_info(stock_id=stock_id)

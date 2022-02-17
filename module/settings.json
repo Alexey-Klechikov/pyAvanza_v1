@@ -7,7 +7,6 @@
             },
             "log_to_telegram": true,
             "run_script_daily": true,
-            "buy_delay_after_sell": 5,
             "budget_list_threshold_dict": {
                 "2000": "10",
                 "1800": "5",
@@ -20,8 +19,7 @@
                 "Semester": 1732606
             },
             "log_to_telegram": false,
-            "run_script_daily": true,
-            "buy_delay_after_sell": 5
+            "run_script_daily": true
         }
     }
 }
