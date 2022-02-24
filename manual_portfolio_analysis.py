@@ -163,9 +163,9 @@ if __name__ == '__main__':
         
         print_transactions_bool=False, 
         
-        plot_extra_tickers_list=[], 
-        plot_portfolio_tickers_bool=True,
-        plot_total_algo_performance_vs_hold_bool=True,
+        plot_extra_tickers_list=["ENQ.ST", "PCOM-B.ST", "LEX.ST", "SNM.ST", "ALCA.ST", "MSAB-B.ST", "BORG.ST", "KDEV.ST", "HANZA.ST", "XANO-B.ST", "NEWA-B.ST", "MANG.ST", "JOSE.ST"], 
+        plot_portfolio_tickers_bool=False,
+        plot_total_algo_performance_vs_hold_bool=False,
         plot_tickers_to_act_on_bool=False,
                 
         cache=True)

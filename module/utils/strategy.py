@@ -56,7 +56,7 @@ class Strategy:
         return cache
 
     def prepare_conditions(self, history_df):
-        condition_types_list = ("Blank", "Volatility", "Trend", "Candle", "Overlap", "Momentum", "Volume")
+        condition_types_list = ("Blank", "Volatility", "Trend", "Candle", "Overlap", "Momentum", "Volume", "Cycles")
         conditions_dict = {ct:dict() for ct in condition_types_list}
 
         ''' Blank '''
@@ -64,6 +64,13 @@ class Strategy:
             "buy": lambda x: True,
             "sell": lambda x: False}
         
+        ''' Cycles '''
+        # EBSW (Even Better Sinewave)
+        history_df.ta.ebsw(append=True)
+        conditions_dict['Cycles']["EBSW"] = {
+            'buy': lambda x: x['EBSW_40_10'] > 0.5,
+            'sell': lambda x: x['EBSW_40_10'] < -0.5}
+
         ''' Volume '''
         # PVT (Price Volume Trend)
         history_df.ta.pvt(append=True)

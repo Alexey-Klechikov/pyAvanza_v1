@@ -14,7 +14,7 @@ from .utils.log import Log
 class Portfolio_Analysis:
     def __init__(self, **kwargs):
         self.signals_dict = kwargs.get('signals_dict', dict())
-        self.run(kwargs['user'], kwargs['accounts_dict'], kwargs['log_to_telegram'], kwargs['buy_delay_after_sell'])
+        self.run(kwargs['user'], kwargs['accounts_dict'], kwargs['log_to_telegram'])
 
     def get_signal_on_ticker(self, ticker):
         if ticker not in self.signals_dict:
@@ -30,10 +30,11 @@ class Portfolio_Analysis:
         return self.signals_dict[ticker]
 
     def create_sell_orders(self, ava):
+        print(f'> Walk through portfolio')
         orders_list, portfolio_tickers_list = list(), list()
         if ava.portfolio_dict['positions']['df'] is not None:
             for i, row in ava.portfolio_dict['positions']['df'].iterrows():
-                print(f'> Portfolio ({int(i) + 1}/{ava.portfolio_dict["positions"]["df"].shape[0]}): {row["ticker_yahoo"]}')
+                print(f'>> Portfolio ({int(i) + 1}/{ava.portfolio_dict["positions"]["df"].shape[0]}): {row["ticker_yahoo"]}')
 
                 portfolio_tickers_list.append(row["ticker_yahoo"])
 
@@ -55,13 +56,14 @@ class Portfolio_Analysis:
         return orders_list, portfolio_tickers_list
 
     def create_buy_orders(self, ava, portfolio_tickers_list):
+        print(f'> Walk through budget lists')
         orders_list = list()
         for budget_rule_name, watchlist_dict in ava.budget_rules_dict.items():
             for ticker_dict in watchlist_dict['tickers']:
                 if ticker_dict['ticker_yahoo'] in portfolio_tickers_list: 
                     continue
 
-                print(f'> Budget_list {budget_rule_name}: {ticker_dict["ticker_yahoo"]}')
+                print(f'>> Budget list "{budget_rule_name}": {ticker_dict["ticker_yahoo"]}')
                 
                 signal_dict = self.get_signal_on_ticker(ticker_dict['ticker_yahoo'])
                 if signal_dict is None or signal_dict['signal'] == 'sell':
@@ -86,7 +88,7 @@ class Portfolio_Analysis:
         created_orders_list = ava.create_orders(orders_list, 'buy')
         return created_orders_list
 
-    def run(self, user, accounts_dict, log_to_telegram, buy_delay_after_sell):
+    def run(self, user, accounts_dict, log_to_telegram):
         print(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
         ava = Context(user, accounts_dict)
         ava.remove_active_orders()

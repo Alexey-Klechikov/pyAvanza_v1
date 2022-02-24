@@ -100,7 +100,22 @@ class Plot:
                 color='brown', 
                 panel=panel_num,)]
 
-        # Plotted each on a separate plot    
+        # Plotted each on a separate plot
+        def _ebsw(panel_num):
+            data_column_dict = get_data_columns_dict('EBSW')
+            plot_lim = (-1.1, 1.1)
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['EBSW']],
+                    color='orange', 
+                    ylim=plot_lim,
+                    panel=panel_num,
+                    ylabel="EBSW")]
+            self.add_horisontal_lines(
+                level_color_list=((0.5, 'red'), (-0.5, 'blue')), 
+                panel_num=panel_num)        
+            return data_column_dict['EBSW']
+
         def _rsi(panel_num):
             data_column_dict = get_data_columns_dict('RSI')
             plot_lim = (0, 100)
@@ -290,6 +305,7 @@ class Plot:
                 'SUPERT': _supert,
                 'HWC': _hwc},
             "separate_plots": {
+                'EBSW': _ebsw,
                 'RSI': _rsi,
                 'RVGI': _rvgi,
                 'MACD': _macd,

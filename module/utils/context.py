@@ -74,8 +74,8 @@ class Context:
         return budget_rules_dict, watchlists_dict
 
     def create_orders(self, orders_list, type):
+        print(f'> Creating {type} orders') 
         if type == 'sell':
-            print('> Creating sell orders') 
             if len(orders_list):
                 for sell_order_dict in orders_list:
                     print(f'>> (profit {sell_order_dict["profit"]}%) {sell_order_dict["name"]}')
@@ -94,7 +94,6 @@ class Context:
                         print(f'Exception: {e} - {order_attr}')
 
         elif type == 'buy':
-            print('> Creating buy orders') 
             self.portfolio_dict = self.get_portfolio()
             created_orders_list = list()
             if len(orders_list) > 0:
