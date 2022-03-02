@@ -178,23 +178,25 @@ class Strategy:
     def generate_strategies(self, conditions_dict):
         strategies_list = [
             [('Blank', 'HOLD')],
-            [('Momentum', 'MACD'), ('Momentum', 'RSI')],
             [('Momentum', 'MACD'), ('Momentum', 'RSI'), ('Momentum', 'STOCH')],
             [('Momentum', 'MACD'), ('Momentum', 'STOCH')],
-            [("Overlap", 'ALMA'), ("Overlap", 'ALMA_LONG')],
-            [("Overlap", 'GHLA'), ("Overlap", 'ALMA')],
-            [('Overlap', 'SUPERT'), ('Momentum', 'RSI'), ('Momentum', 'STOCH')]]
+            [("Overlap", 'ALMA'), ("Overlap", 'ALMA_LONG')]]
 
-        # + Double indicator strategies (try every pair of different types)
-        type_indicators_list = list()
+        # + Triple indicator strategies (try every combination of different types)
+        indicators_list = list()
         special_case_indicators_list = ('HOLD', 'ALMA_LONG') # should not participate in autogenerating strategies
         for indicator_type, indicators_dict in conditions_dict.items():
-            type_indicators_list += [(indicator_type, indicator) for indicator in indicators_dict.keys() if indicator not in special_case_indicators_list]
-        for i, type_indicators_1 in enumerate(type_indicators_list):
-            for type_indicator_type_2 in type_indicators_list[i:]:
-                if type_indicators_1[0] == type_indicator_type_2[0]:
+            indicators_list += [(indicator_type, indicator) for indicator in indicators_dict.keys() if indicator not in special_case_indicators_list]
+        
+        for i_1, indicator_1 in enumerate(indicators_list):
+            temp_indicators_list = indicators_list[i_1:]
+            for i_2, indicator_2 in enumerate(temp_indicators_list):
+                if indicator_1[0] == indicator_2[0]:
                     continue
-                strategies_list.append([type_indicators_1, type_indicator_type_2])
+                for indicator_3 in temp_indicators_list[i_2:]:
+                    if indicator_2[0] == indicator_3[0]:
+                        continue
+                    strategies_list.append([indicator_1, indicator_2, indicator_3])              
 
         strategies_dict = dict()
         for strategy_list in strategies_list:

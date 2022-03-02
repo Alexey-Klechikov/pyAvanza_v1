@@ -113,7 +113,12 @@ class Portfolio_Analysis:
                 self.counter_per_strategy[strategy]['win_counter'][f'{i+1}'] += 1
 
         # Plot
-        if (ticker in self.plot_extra_tickers_list) or (self.plot_portfolio_tickers_bool and in_portfolio_bool) or self.plot_tickers_to_act_on_bool:
+        plot_conditions_list = [
+            ticker in self.plot_extra_tickers_list,
+            in_portfolio_bool and self.plot_portfolio_tickers_bool,
+            (in_portfolio_bool and top_3_signal == 'sell') and self.plot_tickers_to_act_on_bool,
+            (not in_portfolio_bool and top_3_signal == 'buy') and self.plot_tickers_to_act_on_bool]
+        if any(plot_conditions_list):
             self.plot_ticker(strategy_obj)
 
         # Create a DF with all best strategies vs HOLD
@@ -163,9 +168,9 @@ if __name__ == '__main__':
         
         print_transactions_bool=False, 
         
-        plot_extra_tickers_list=["ENQ.ST", "PCOM-B.ST", "LEX.ST", "SNM.ST", "ALCA.ST", "MSAB-B.ST", "BORG.ST", "KDEV.ST", "HANZA.ST", "XANO-B.ST", "NEWA-B.ST", "MANG.ST", "JOSE.ST"], 
+        plot_extra_tickers_list=[], 
         plot_portfolio_tickers_bool=False,
-        plot_total_algo_performance_vs_hold_bool=False,
+        plot_total_algo_performance_vs_hold_bool=True,
         plot_tickers_to_act_on_bool=False,
                 
-        cache=True)
+        cache=False)

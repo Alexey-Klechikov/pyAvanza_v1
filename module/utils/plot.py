@@ -133,9 +133,6 @@ class Plot:
 
         def _cmf(panel_num):
             data_column_dict = get_data_columns_dict('CMF')
-            plot_lim = (
-                0.9 * min(self.data_df[data_column_dict['CMF']]), 
-                1.1 * max(self.data_df[data_column_dict['CMF']]))
             self.plots_list += [
                 mpf.make_addplot(
                     self.data_df[data_column_dict['CMF']],
@@ -216,9 +213,6 @@ class Plot:
 
         def _ha(panel_num):
             df = self.data_df[['HA_open', 'HA_high', 'HA_low', 'HA_close']]
-            plot_lim = (
-                0.9 * min(self.data_df["HA_high"]), 
-                1.1 * max(self.data_df['HA_low']))
             for col in df.columns:
                 df[col.replace('HA_', '').capitalize()] = df[col]
             self.plots_list += [
@@ -265,10 +259,8 @@ class Plot:
             return data_column_dict['CKSPl']
 
         def _massi(panel_num):
+            # TODO: Fix
             data_column_dict = get_data_columns_dict('MASSI')
-            plot_lim = (
-                0.9 * min(self.data_df[data_column_dict['MASSI']]), 
-                1.1 * max(self.data_df[data_column_dict['MASSI']]))
             self.plots_list += [
                 mpf.make_addplot(
                     self.data_df[data_column_dict['MASSI']],
