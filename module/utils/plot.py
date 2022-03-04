@@ -34,12 +34,12 @@ class Plot:
         self.plots_list += horisontal_lines_plots_list
 
     def add_buy_signals(self, panel_num, target_data_column='Open'):
-        self.data_df['temp'] = self.data_df.apply(
-            lambda x: np.nan if str(x['buy_signal']) == 'nan' else x[target_data_column], axis=1)
+        self.data_df[f'temp_{panel_num}'] = self.data_df.apply(
+            lambda x: np.nan if str(x['buy_signal']) == 'nan' else round(x[target_data_column], 2), axis=1)
 
         self.plots_list += [
             mpf.make_addplot(
-                self.data_df['temp'], 
+                self.data_df[f'temp_{panel_num}'], 
                 type='scatter',
                 marker='o', 
                 markersize=100, 
@@ -259,7 +259,6 @@ class Plot:
             return data_column_dict['CKSPl']
 
         def _massi(panel_num):
-            # TODO: Fix
             data_column_dict = get_data_columns_dict('MASSI')
             self.plots_list += [
                 mpf.make_addplot(
@@ -311,15 +310,16 @@ class Plot:
 
         # Expected format "Stock: YadaYada - (Momentum) STOCH + (Trend) CHOP"
         strategy_components = [i.split(')')[1].strip() for i in self.title.split(' - ')[1].split('+')]
+        add_panel_num = lambda plot_type: 0 if plot_type == "main_plot" else 1
         for plot_type, strategy_plots_dict in graphs_dict.items():
-            panel_num = 0 if plot_type == "main_plot" else 1
+            panel_num = add_panel_num(plot_type)
             for strategy_name, plotting_functions in strategy_plots_dict.items(): 
                 if strategy_name not in strategy_components:
                     continue
                 target_data_column = plotting_functions(panel_num)
                 if target_data_column is not None:
                     self.add_buy_signals(panel_num, target_data_column)
-                panel_num += (0 if plot_type == "main_plot" else 1)
+                panel_num += add_panel_num(plot_type)
 
     def show_single_ticker(self):
         def _orders(panel_num):

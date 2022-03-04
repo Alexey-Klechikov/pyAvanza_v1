@@ -168,9 +168,9 @@ if __name__ == '__main__':
         
         print_transactions_bool=False, 
         
-        plot_extra_tickers_list=[], 
-        plot_portfolio_tickers_bool=False,
+        plot_extra_tickers_list=['B3.ST'], 
+        plot_portfolio_tickers_bool=True,
         plot_total_algo_performance_vs_hold_bool=True,
         plot_tickers_to_act_on_bool=False,
                 
-        cache=False)
+        cache=True)
