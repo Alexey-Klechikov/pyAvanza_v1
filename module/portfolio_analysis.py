@@ -100,7 +100,7 @@ class Portfolio_Analysis:
         # Dump log to Telegram
         if log_to_telegram:
             log_obj = Log(
-                portfolio_dict=ava.portfolio_dict, 
+                portfolio_dict=ava.get_portfolio(), 
                 orders_dict=created_orders_dict)
             log_obj.dump_to_telegram()
 
