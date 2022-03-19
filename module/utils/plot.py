@@ -60,7 +60,7 @@ class Plot:
                     panel=panel_num,
                     type='scatter',
                     markersize=5,
-                    ) for data, color in ((data_column_dict['PSARl'], 'orange'), (data_column_dict['PSARs'], 'blue'))]
+                    ) for data, color in ((data_column_dict['PSARl'], 'dimgray'), (data_column_dict['PSARs'], 'dimgray'))]
 
         def _alma(panel_num):
             data_column_dict = get_data_columns_dict('ALMA')
@@ -99,6 +99,15 @@ class Plot:
                 self.data_df['HWM'],
                 color='brown', 
                 panel=panel_num,)]
+
+        def _bbands(panel_num):
+            data_column_dict = get_data_columns_dict('BB')
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data],
+                    color=color, 
+                    panel=panel_num,
+                    ) for data, color in ((data_column_dict['BBL'], 'orange'), (data_column_dict['BBU'], 'orange'))]
 
         # Plotted each on a separate plot
         def _ebsw(panel_num):
@@ -294,7 +303,8 @@ class Plot:
                 'ALMA_LONG': _alma_long,
                 'GHLA': _ghla,
                 'SUPERT': _supert,
-                'HWC': _hwc},
+                'HWC': _hwc,
+                'BBANDS': _bbands},
             "separate_plots": {
                 'EBSW': _ebsw,
                 'RSI': _rsi,

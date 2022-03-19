@@ -56,7 +56,7 @@ class Portfolio_Analysis:
         result_dict = self.counter_per_strategy.pop('-- MAX --')
         result_message = [f'-- MAX -- : {str(result_dict)}']
         sorted_strategies = sorted(self.counter_per_strategy.items(), key=lambda x: int(x[1]["total_sum"]), reverse=True)
-        print('\n' + '\n'.join(result_message + [f'{strategy[0]}: {strategy[1]}' for strategy in sorted_strategies]))
+        print('\n' + '\n'.join(result_message + [f'{i+1}. {strategy[0]}: {strategy[1]}' for i, strategy in enumerate(sorted_strategies)]))
 
     def record_ticker_performance(self, strategy_obj, ticker):
         self.total_df = strategy_obj.history_df if self.total_df is None else pd.merge(
@@ -168,8 +168,8 @@ if __name__ == '__main__':
         
         print_transactions_bool=False, 
         
-        plot_extra_tickers_list=['B3.ST'], 
-        plot_portfolio_tickers_bool=True,
+        plot_extra_tickers_list=['BEGR.ST', 'DIAH.ST', 'JOSE.ST', 'LIFCO-B.ST'], 
+        plot_portfolio_tickers_bool=False,
         plot_total_algo_performance_vs_hold_bool=True,
         plot_tickers_to_act_on_bool=False,
                 

@@ -97,6 +97,12 @@ class Strategy:
         conditions_dict['Volatility']["HWC"] = {
             'buy': lambda x: x['Close'] > x["HWM"],
             'sell': lambda x: x['Close'] < x["HWM"]}
+        
+        # BBANDS (Bollinger Bands)
+        history_df.ta.bbands(length=20, std=2, append=True)
+        conditions_dict['Volatility']["BBANDS"] = {
+            'buy': lambda x: x['Close'] > x["BBL_20_2.0"],
+            'sell': lambda x: x['Close'] < x["BBU_20_2.0"]}
 
         ''' Candle '''
         # HA (Heikin-Ashi)
@@ -115,8 +121,8 @@ class Strategy:
         # CHOP (Choppiness Index)
         history_df.ta.chop(append=True)
         conditions_dict["Trend"]["CHOP"] = {
-            'buy': lambda x: x["CHOP_14_1_100"] < 60,
-            'sell': lambda x: x["CHOP_14_1_100"] > 60}
+            'buy': lambda x: x["CHOP_14_1_100"] < 61.8,
+            'sell': lambda x: x["CHOP_14_1_100"] > 61.8}
 
         # CKSP (Chande Kroll Stop)
         history_df.ta.cksp(append=True)
@@ -273,7 +279,10 @@ class Strategy:
 
         summary["hold_result"] = summary["strategies"].pop('(Blank) HOLD')["result"]
         summary["sorted_strategies_list"] = sorted(summary['strategies'].items(), key=lambda x: int(x[1]["result"]), reverse=True)
+        summary["top_3_signal"] = summary['max_output']["signal"]
+        
         sorted_signals_list = [i[1]["signal"] for i in summary["sorted_strategies_list"]]
-        summary["top_3_signal"] = 'buy' if sorted_signals_list[:3].count('buy') >= 2 else 'sell'
-            
+        if summary['max_output']['transactions_counter'] == 1:
+            summary["top_3_signal"] = 'buy' if sorted_signals_list[:3].count('buy') >= 2 else 'sell'
+
         return summary 
