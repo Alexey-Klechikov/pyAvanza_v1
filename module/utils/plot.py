@@ -99,15 +99,6 @@ class Plot:
                     color='orange', 
                     panel=panel_num)]
 
-        ## Overlap
-        def _hma(panel_num):
-            data_column_dict = get_data_columns_dict('HMA')
-            self.plots_list += [
-                mpf.make_addplot(
-                    self.data_df[data_column_dict['HMA']],
-                    color='orange', 
-                    panel=panel_num)]
-
         ## Volatility
         def _hwc(panel_num):
             self.plots_list += [mpf.make_addplot(
@@ -352,8 +343,7 @@ class Plot:
                 'GHLA': _ghla,
                 'SUPERT': _supert,
                 'HWC': _hwc,
-                'BBANDS': _bbands,
-                'HMA': _hma},
+                'BBANDS': _bbands},
             "separate_plots": {
                 'EBSW': _ebsw,
                 'RSI': _rsi,

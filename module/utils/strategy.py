@@ -167,14 +167,6 @@ class Strategy:
             'buy': lambda x: x['Close'] > x['SUPERT_7_3.0'],
             'sell': lambda x: x['Close'] < x['SUPERT_7_3.0']}
 
-        # HMA (Hull Exponential Moving Average)
-        history_df.ta.hma(append=True, offset=1, length=20)
-        history_df['_HMA_20+1'] = history_df['HMA_20']
-        history_df.ta.hma(append=True, length=20)
-        conditions_dict['Momentum']["RVGI"] = {
-            'buy': lambda x: x['HMA_20'] > x['_HMA_20+1'],
-            'sell': lambda x: x['HMA_20'] < x['_HMA_20+1']}
-
         ''' Momentum '''
         # RSI (Relative Strength Index)
         history_df.ta.rsi(length=14, append=True)
