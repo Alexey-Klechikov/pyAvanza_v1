@@ -21,7 +21,7 @@ class Portfolio_Analysis:
         self.show_only_tickers_to_act_on_bool = kwargs['show_only_tickers_to_act_on_bool']
         self.plot_tickers_to_act_on_bool = kwargs['plot_tickers_to_act_on_bool']
 
-        self.run(kwargs['check_only_watchlist_bool'], kwargs['cache'])
+        self.run_analysis(kwargs['check_only_watchlist_bool'], kwargs['cache'])
         self.print_performance_per_strategy()
         self.plot_performance_compared_to_hold(kwargs['plot_total_algo_performance_vs_hold_bool'])
 
@@ -78,20 +78,20 @@ class Portfolio_Analysis:
         self.visited_tickers.append(ticker)
 
         try:
-            strategy_obj = Strategy(ticker, comment, cache)
+            strategy_obj = Strategy(ticker, ticker_name=comment, cache=cache)
         except Exception as e: 
             print(f'\n--- (!) There was a problem with the ticker "{ticker}": {e} ---')
             return
 
         if self.show_only_tickers_to_act_on_bool and (
-            (in_portfolio_bool and strategy_obj.summary['top_3_signal'] == 'buy') or 
-            (not in_portfolio_bool and strategy_obj.summary['top_3_signal'] == 'sell')):
+            (in_portfolio_bool and strategy_obj.summary['signal'] == 'buy') or 
+            (not in_portfolio_bool and strategy_obj.summary['signal'] == 'sell')):
             return
 
         # Print the result for all strategies AND count per strategy performance
         top_signal = strategy_obj.summary["max_output"].pop("signal")
-        top_3_signal = strategy_obj.summary["top_3_signal"]
-        signal = top_signal if top_signal == top_3_signal else f"{top_signal} ->> {top_3_signal}"
+        signal = strategy_obj.summary["signal"]
+        signal = top_signal if top_signal == signal else f"{top_signal} ->> {signal}"
         max_output_summary = f'signal: {signal} / ' + ' / '.join([f'{k}: {v}' for k, v in strategy_obj.summary["max_output"].items() if k in ("result", "transactions_counter")])
         print(f'\n--- {strategy_obj.summary["ticker_name"]} ({max_output_summary}) (HOLD: {strategy_obj.summary["hold_result"]}) ---\n')
 
@@ -116,15 +116,15 @@ class Portfolio_Analysis:
         plot_conditions_list = [
             ticker in self.plot_extra_tickers_list,
             in_portfolio_bool and self.plot_portfolio_tickers_bool,
-            (in_portfolio_bool and top_3_signal == 'sell') and self.plot_tickers_to_act_on_bool,
-            (not in_portfolio_bool and top_3_signal == 'buy') and self.plot_tickers_to_act_on_bool]
+            (in_portfolio_bool and signal == 'sell') and self.plot_tickers_to_act_on_bool,
+            (not in_portfolio_bool and signal == 'buy') and self.plot_tickers_to_act_on_bool]
         if any(plot_conditions_list):
             self.plot_ticker(strategy_obj)
 
         # Create a DF with all best strategies vs HOLD
         self.record_ticker_performance(strategy_obj, ticker)
 
-    def run(self, check_only_watchlist_bool, cache):
+    def run_analysis(self, check_only_watchlist_bool, cache):
         settings_obj = Settings()
         settings_json = settings_obj.load()  
 
@@ -168,7 +168,7 @@ if __name__ == '__main__':
         
         print_transactions_bool=False, 
         
-        plot_extra_tickers_list=['BEGR.ST', 'DIAH.ST', 'JOSE.ST', 'LIFCO-B.ST'], 
+        plot_extra_tickers_list=['ENQ.ST'], 
         plot_portfolio_tickers_bool=False,
         plot_total_algo_performance_vs_hold_bool=True,
         plot_tickers_to_act_on_bool=False,

@@ -13,19 +13,21 @@ from .utils.log import Log
 
 class Portfolio_Analysis:
     def __init__(self, **kwargs):
+        self.strategies_dict = Strategy.load()
         self.signals_dict = kwargs.get('signals_dict', dict())
-        self.run(kwargs['user'], kwargs['accounts_dict'], kwargs['log_to_telegram'])
+
+        self.run_analysis(kwargs['user'], kwargs['accounts_dict'], kwargs['log_to_telegram'])
 
     def get_signal_on_ticker(self, ticker):
         if ticker not in self.signals_dict:
             try:
-                strategy_obj = Strategy(ticker)
+                strategy_obj = Strategy(ticker, strategies_list=self.strategies_dict.get(ticker, list()))
             except Exception as e:
                 print(f'(!) There was a problem with the ticker "{ticker}": {e}')
-                return None 
+                return None
 
             self.signals_dict[ticker] = {
-                'signal': strategy_obj.summary["top_3_signal"],
+                'signal': strategy_obj.summary["signal"],
                 'return': strategy_obj.summary['max_output']['result']}
         return self.signals_dict[ticker]
 
@@ -53,6 +55,7 @@ class Portfolio_Analysis:
                     'max_return': signal_dict['return']})
 
         ava.create_orders(orders_list, 'sell')
+
         return orders_list, portfolio_tickers_list
 
     def create_buy_orders(self, ava, portfolio_tickers_list):
@@ -86,9 +89,10 @@ class Portfolio_Analysis:
                     'max_return': signal_dict['return']})
 
         created_orders_list = ava.create_orders(orders_list, 'buy')
+        
         return created_orders_list
 
-    def run(self, user, accounts_dict, log_to_telegram):
+    def run_analysis(self, user, accounts_dict, log_to_telegram):
         print(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
         ava = Context(user, accounts_dict)
         ava.remove_active_orders()

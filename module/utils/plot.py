@@ -50,7 +50,8 @@ class Plot:
     def create_extra_panels(self):
         get_data_columns_dict = lambda x: {i.split('_')[0]:i for i in sorted(self.data_df.columns) if i.startswith(x)}
 
-        # Plotted on top of the main plot
+        ''' Plotted on top of the main plot '''
+        ## Trend
         def _psar(panel_num):
             data_column_dict = get_data_columns_dict('PSAR')
             self.plots_list += [
@@ -59,9 +60,10 @@ class Plot:
                     color=color, 
                     panel=panel_num,
                     type='scatter',
-                    markersize=5,
-                    ) for data, color in ((data_column_dict['PSARl'], 'dimgray'), (data_column_dict['PSARs'], 'dimgray'))]
-
+                    markersize=10,
+                    ) for data, color in ((data_column_dict['PSARl'], 'navy'), (data_column_dict['PSARs'], 'navy'))]
+        
+        ## Overlap
         def _alma(panel_num):
             data_column_dict = get_data_columns_dict('ALMA')
             self.plots_list += [
@@ -70,36 +72,50 @@ class Plot:
                     color='orange', 
                     panel=panel_num)]
 
+        ## Overlap
         def _alma_long(panel_num):
             data_column_dict = get_data_columns_dict('ALMA-LONG')
             self.plots_list += [
                 mpf.make_addplot(
                     self.data_df[data_column_dict['ALMA-LONG']],
-                    color='blue', 
+                    color='gold', 
                     panel=panel_num)]
 
+        ## Overlap
         def _ghla(panel_num):
             data_column_dict = get_data_columns_dict('HILO')
             self.plots_list += [
                 mpf.make_addplot(
                     self.data_df[data_column_dict['HILO']],
-                    color='blue', 
+                    color='orange', 
                     panel=panel_num)]
-
+    
+        ## Overlap
         def _supert(panel_num):
             data_column_dict = get_data_columns_dict('SUPERT')
             self.plots_list += [
                 mpf.make_addplot(
                     self.data_df[data_column_dict['SUPERT']],
-                    color='blue', 
+                    color='orange', 
                     panel=panel_num)]
 
+        ## Overlap
+        def _hma(panel_num):
+            data_column_dict = get_data_columns_dict('HMA')
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['HMA']],
+                    color='orange', 
+                    panel=panel_num)]
+
+        ## Volatility
         def _hwc(panel_num):
             self.plots_list += [mpf.make_addplot(
                 self.data_df['HWM'],
                 color='brown', 
                 panel=panel_num,)]
 
+        ## Volatility
         def _bbands(panel_num):
             data_column_dict = get_data_columns_dict('BB')
             self.plots_list += [
@@ -107,9 +123,10 @@ class Plot:
                     self.data_df[data],
                     color=color, 
                     panel=panel_num,
-                    ) for data, color in ((data_column_dict['BBL'], 'orange'), (data_column_dict['BBU'], 'orange'))]
+                    ) for data, color in ((data_column_dict['BBL'], 'brown'), (data_column_dict['BBU'], 'brown'))]
 
-        # Plotted each on a separate plot
+        ''' Plotted each on a separate plot '''
+        ## Cycles
         def _ebsw(panel_num):
             data_column_dict = get_data_columns_dict('EBSW')
             plot_lim = (-1.1, 1.1)
@@ -125,6 +142,7 @@ class Plot:
                 panel_num=panel_num)        
             return data_column_dict['EBSW']
 
+        ## Momentum
         def _rsi(panel_num):
             data_column_dict = get_data_columns_dict('RSI')
             plot_lim = (0, 100)
@@ -140,19 +158,7 @@ class Plot:
                 panel_num=panel_num)        
             return data_column_dict['RSI']
 
-        def _cmf(panel_num):
-            data_column_dict = get_data_columns_dict('CMF')
-            self.plots_list += [
-                mpf.make_addplot(
-                    self.data_df[data_column_dict['CMF']],
-                    color='orange', 
-                    panel=panel_num,
-                    ylabel="CMF")]
-            self.add_horisontal_lines(
-                level_color_list=((0, 'black'), (None, None)), 
-                panel_num=panel_num)  
-            return data_column_dict['CMF']
-
+        ## Momentum
         def _rvgi(panel_num):
             data_column_dict = get_data_columns_dict('RVGI')
             plot_lim = (
@@ -173,6 +179,7 @@ class Plot:
                     secondary_y=False)]
             return data_column_dict["RVGI"]
 
+        ## Momentum
         def _macd(panel_num):
             data_column_dict = get_data_columns_dict('MACD')
             plot_lim = (
@@ -203,6 +210,7 @@ class Plot:
                     panel=panel_num)]
             return data_column_dict["MACD"]
 
+        ## Momentum
         def _stoch(panel_num):
             data_column_dict = get_data_columns_dict('STOCH')
             plot_lim = (
@@ -220,6 +228,7 @@ class Plot:
                 panel_num=panel_num)       
             return data_column_dict["STOCHk"]
 
+        ## Candle
         def _ha(panel_num):
             df = self.data_df[['HA_open', 'HA_high', 'HA_low', 'HA_close']]
             for col in df.columns:
@@ -232,6 +241,7 @@ class Plot:
                     ylabel="HA")]
             return 'HA_open'
 
+        ## Trend
         def _chop(panel_num):
             data_column_dict = get_data_columns_dict('CHOP')
             plot_lim = (0, 100)
@@ -247,6 +257,7 @@ class Plot:
                 panel_num=panel_num)  
             return data_column_dict['CHOP']
 
+        ## Trend
         def _cksp(panel_num):
             data_column_dict = get_data_columns_dict('CKSP')
             plot_lim = (
@@ -267,6 +278,28 @@ class Plot:
                     secondary_y=False)]
             return data_column_dict['CKSPl']
 
+        ## Trend
+        def _adx(panel_num):
+            data_column_dict = get_data_columns_dict('DM')
+            plot_lim = (
+                0.9 * min([self.data_df[data_column_dict[i]].min() for i in ('DMP', 'DMN')]), 
+                1.1 * max([self.data_df[data_column_dict[i]].max() for i in ('DMP', 'DMN')]))
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['DMP']],
+                    color='orange', 
+                    ylim=plot_lim,
+                    panel=panel_num,
+                    ylabel="ADX"),
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['DMN']],
+                    color='black', 
+                    ylim=plot_lim,
+                    panel=panel_num,
+                    secondary_y=False)]
+            return data_column_dict['DMP']
+
+        ## Volatility
         def _massi(panel_num):
             data_column_dict = get_data_columns_dict('MASSI')
             self.plots_list += [
@@ -279,7 +312,22 @@ class Plot:
                 level_color_list=((27, 'red'), (26, 'black'), (24, 'blue')), 
                 panel_num=panel_num)  
             return data_column_dict['MASSI']
-
+        
+        ## Volume
+        def _cmf(panel_num):
+            data_column_dict = get_data_columns_dict('CMF')
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['CMF']],
+                    color='orange', 
+                    panel=panel_num,
+                    ylabel="CMF")]
+            self.add_horisontal_lines(
+                level_color_list=((0, 'black'), (None, None)), 
+                panel_num=panel_num)  
+            return data_column_dict['CMF']
+            
+        ## Volume
         def _pvt(panel_num):
             data_column_dict = get_data_columns_dict('SMA')
             plot_lim = (
@@ -304,7 +352,8 @@ class Plot:
                 'GHLA': _ghla,
                 'SUPERT': _supert,
                 'HWC': _hwc,
-                'BBANDS': _bbands},
+                'BBANDS': _bbands,
+                'HMA': _hma},
             "separate_plots": {
                 'EBSW': _ebsw,
                 'RSI': _rsi,
@@ -316,7 +365,8 @@ class Plot:
                 'CKSP': _cksp,
                 'MASSI': _massi,
                 'PVT': _pvt,
-                'CMF': _cmf}}
+                'CMF': _cmf,
+                'ADX': _adx}}
 
         # Expected format "Stock: YadaYada - (Momentum) STOCH + (Trend) CHOP"
         strategy_components = [i.split(')')[1].strip() for i in self.title.split(' - ')[1].split('+')]

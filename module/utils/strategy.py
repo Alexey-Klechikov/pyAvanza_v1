@@ -5,9 +5,10 @@ This module contains all technical indicators and strategies generation routines
 
 import yfinance as yf
 import pandas_ta as ta
-import os, pickle
+import os, pickle, json
 from copy import copy
 import numpy as np
+from pprint import pprint
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -18,11 +19,17 @@ pd.set_option('display.expand_frame_repr', False)
 
 
 class Strategy:
-    def __init__(self, ticker_id, ticker_name='', cache=False):
-        self.ticker_obj, history_df = self.read_ticker(ticker_id, cache)
+    def __init__(self, ticker_id, **kwargs):
+        self.ticker_obj, history_df = self.read_ticker(ticker_id, kwargs.get("cache", False))
         self.history_df, conditions_dict = self.prepare_conditions(history_df)
-        strategies_dict = self.generate_strategies(conditions_dict)
-        self.summary = self.get_signal(ticker_name, strategies_dict)
+        
+        if 'strategies_list' in kwargs and kwargs["strategies_list"] != list():
+            strategies_list = self.parse_strategies_list(kwargs["strategies_list"])
+        else:
+            strategies_list = self.generate_strategies_list(conditions_dict)
+
+        strategies_dict = self.generate_strategies_dict(conditions_dict, strategies_list)
+        self.summary = self.get_signal(kwargs.get("ticker_name", False), strategies_dict)
 
     def read_ticker(self, ticker_symbol, cache):
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -130,6 +137,12 @@ class Strategy:
             'buy': lambda x: x["CKSPl_10_3_20"] > x['CKSPs_10_3_20'],
             'sell': lambda x: x["CKSPl_10_3_20"] < x['CKSPs_10_3_20']}
 
+        # ADX (Average Directional Movement Index)
+        history_df.ta.adx(append=True)
+        conditions_dict["Trend"]["ADX"] = {
+            'buy': lambda x: x["DMP_14"] > x['DMN_14'],
+            'sell': lambda x: x["DMP_14"] < x['DMN_14']}
+
         ''' Overlap '''
         # ALMA (Arnaud Legoux Moving Average)
         history_df.ta.alma(length=15, append=True)
@@ -153,6 +166,14 @@ class Strategy:
         conditions_dict["Overlap"]["SUPERT"] = {
             'buy': lambda x: x['Close'] > x['SUPERT_7_3.0'],
             'sell': lambda x: x['Close'] < x['SUPERT_7_3.0']}
+
+        # HMA (Hull Exponential Moving Average)
+        history_df.ta.hma(append=True, offset=1, length=20)
+        history_df['_HMA_20+1'] = history_df['HMA_20']
+        history_df.ta.hma(append=True, length=20)
+        conditions_dict['Momentum']["RVGI"] = {
+            'buy': lambda x: x['HMA_20'] > x['_HMA_20+1'],
+            'sell': lambda x: x['HMA_20'] < x['_HMA_20+1']}
 
         ''' Momentum '''
         # RSI (Relative Strength Index)
@@ -181,7 +202,7 @@ class Strategy:
 
         return history_df.iloc[100:], conditions_dict
 
-    def generate_strategies(self, conditions_dict):
+    def generate_strategies_list(self, conditions_dict):
         strategies_list = [
             [('Blank', 'HOLD')],
             [('Momentum', 'MACD'), ('Momentum', 'RSI'), ('Momentum', 'STOCH')],
@@ -202,14 +223,27 @@ class Strategy:
                 for indicator_3 in temp_indicators_list[i_2:]:
                     if indicator_2[0] == indicator_3[0]:
                         continue
-                    strategies_list.append([indicator_1, indicator_2, indicator_3])              
+                    strategies_list.append([indicator_1, indicator_2, indicator_3])        
+        
+        return strategies_list
 
+    def parse_strategies_list(self, strategies_str_list):
+        strategies_list = [[('Blank', 'HOLD')]]
+        for strategy_str in strategies_str_list: # "(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH"
+            strategy_components_list = [i.strip().split(' ') for i in strategy_str.split('+')] # [['(Trend)', 'CKSP'], ['(Overlap)', 'SUPERT'], ['(Momentum)', 'STOCH']]
+            strategy = [(i[0][1:-1], i[1]) for i in strategy_components_list] #[('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')]
+            strategies_list.append(strategy)
+        
+        return strategies_list
+
+    def generate_strategies_dict(self, conditions_dict, strategies_list):
         strategies_dict = dict()
         for strategy_list in strategies_list:
             strategy_dict = dict()
             for order_type in ('buy', 'sell'):
                 strategy_dict[order_type] = [conditions_dict[strategy_component[0]][strategy_component[1]][order_type] for strategy_component in strategy_list]
             strategies_dict[' + '.join([f"({i[0]}) {i[1]}" for i in strategy_list])] = strategy_dict
+        
         return strategies_dict
 
     def get_signal(self, ticker_name, strategies_dict):   
@@ -218,12 +252,12 @@ class Strategy:
             "strategies": dict(),
             "max_output": dict()}
         
-        for strategy in strategies_dict:
+        for strategy in strategies_dict:           
             summary["strategies"][strategy] = {
                 'transactions': list(),
                 'result': 0}
 
-            transaction_comission = 0.0025
+            TRANSACTION_COMISSION = 0.0025
 
             balance_list = list()
             balance_dict = {
@@ -240,7 +274,7 @@ class Strategy:
                 if  all(map(lambda x: x(row), strategies_dict[strategy]["sell"])) and balance_dict['market'] is not None:
                     summary["strategies"][strategy]['transactions'].append(f'({date}) Sell at {row["Close"]}')
                     price_change = (row["Close"] - balance_dict['order_price']) / balance_dict['order_price']
-                    balance_dict['deposit'] = balance_dict['market'] * (1 + price_change) * (1 - transaction_comission)
+                    balance_dict['deposit'] = balance_dict['market'] * (1 + price_change) * (1 - TRANSACTION_COMISSION)
                     balance_dict['market'] = None
                     balance_dict['total'] = balance_dict['deposit']
                     balance_dict['sell_signal'] = balance_dict['total']
@@ -250,7 +284,7 @@ class Strategy:
                     summary["strategies"][strategy]['transactions'].append(f'({date}) Buy at {row["Close"]}')
                     balance_dict['buy_signal'] = balance_dict['total']
                     balance_dict['order_price'] = row["Close"]
-                    balance_dict['market'] = balance_dict['deposit'] * (1 - transaction_comission)
+                    balance_dict['market'] = balance_dict['deposit'] * (1 - TRANSACTION_COMISSION)
                     balance_dict['deposit'] = None
                     balance_dict['total'] = balance_dict['market']
 
@@ -279,10 +313,27 @@ class Strategy:
 
         summary["hold_result"] = summary["strategies"].pop('(Blank) HOLD')["result"]
         summary["sorted_strategies_list"] = sorted(summary['strategies'].items(), key=lambda x: int(x[1]["result"]), reverse=True)
-        summary["top_3_signal"] = summary['max_output']["signal"]
+        summary["signal"] = summary['max_output']["signal"]
         
         sorted_signals_list = [i[1]["signal"] for i in summary["sorted_strategies_list"]]
         if summary['max_output']['transactions_counter'] == 1:
-            summary["top_3_signal"] = 'buy' if sorted_signals_list[:3].count('buy') >= 2 else 'sell'
+            summary["signal"] = 'buy' if sorted_signals_list[:3].count('buy') >= 2 else 'sell'
 
         return summary 
+
+    @staticmethod
+    def load():
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        try:
+            with open(f'{current_dir}/strategies.json', 'r') as f:
+                strategies_json = json.load(f)
+        except:
+            strategies_json = dict()
+            
+        return strategies_json
+ 
+    @staticmethod
+    def dump(strategies_json):
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(f'{current_dir}/strategies.json', 'w') as f:
+            json.dump(strategies_json, f, indent=4)

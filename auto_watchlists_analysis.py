@@ -1,5 +1,5 @@
 """
-This module is used by crontab (for once per month run)
+This module is used by crontab (for once per week run)
 """
 
 from module import run_watchlists_analysis

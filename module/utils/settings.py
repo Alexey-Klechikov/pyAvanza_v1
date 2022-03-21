@@ -13,6 +13,7 @@ class Settings:
     def load(self):
         with open(f'{self.current_dir}/settings.json', 'r') as f:
             settings_json = json.load(f)
+            
         return settings_json
     
     def dump(self, settings_json):
