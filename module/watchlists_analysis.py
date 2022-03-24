@@ -23,7 +23,7 @@ class Watchlists_Analysis:
         self.run_analysis(kwargs['log_to_telegram'], kwargs['budget_list_threshold_dict'])
 
     def record_strategies(self, ticker, strategy_obj):
-        for strategy_item_list in strategy_obj.summary["sorted_strategies_list"][:10]:
+        for strategy_item_list in strategy_obj.summary["sorted_strategies_list"][:20]:
             self.top_strategies_per_ticket_dict.setdefault(ticker, list()).append(strategy_item_list[0])
 
     def move_ticker_to_suitable_budgetlist(self, initial_watchlist_name, ticker_dict, max_output, budget_list_threshold_dict):

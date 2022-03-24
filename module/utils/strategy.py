@@ -167,6 +167,14 @@ class Strategy:
             'buy': lambda x: x['Close'] > x['SUPERT_7_3.0'],
             'sell': lambda x: x['Close'] < x['SUPERT_7_3.0']}
 
+        # LINREG (Linear Regression)
+        history_df.ta.linreg(append=True, r=True, offset=1)
+        history_df['LRrLag_14'] = history_df['LRr_14']
+        history_df.ta.linreg(append=True, r=True)
+        conditions_dict["Overlap"]["LINREG"] = {
+            'buy': lambda x: x['LRr_14'] > x['LRrLag_14'],
+            'sell': lambda x: x['LRr_14'] < x['LRrLag_14']}
+
         ''' Momentum '''
         # RSI (Relative Strength Index)
         history_df.ta.rsi(length=14, append=True)
@@ -216,7 +224,7 @@ class Strategy:
                     if indicator_2[0] == indicator_3[0]:
                         continue
                     strategies_list.append([indicator_1, indicator_2, indicator_3])        
-        
+                
         return strategies_list
 
     def parse_strategies_list(self, strategies_str_list):
@@ -321,9 +329,9 @@ class Strategy:
                 strategies_json = json.load(f)
         except:
             strategies_json = dict()
-            
+
         return strategies_json
- 
+
     @staticmethod
     def dump(strategies_json):
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

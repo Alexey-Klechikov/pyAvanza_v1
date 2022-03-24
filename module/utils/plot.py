@@ -117,6 +117,22 @@ class Plot:
                     ) for data, color in ((data_column_dict['BBL'], 'brown'), (data_column_dict['BBU'], 'brown'))]
 
         ''' Plotted each on a separate plot '''
+        ## Overlap
+        def _linreg(panel_num):
+            data_column_dict = get_data_columns_dict('LR')
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['LRr']],
+                    color='orange',
+                    panel=panel_num,
+                    ylabel="LINREG"),
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['LRrLag']],
+                    color='red',
+                    panel=panel_num,
+                    secondary_y=False)]
+            return data_column_dict['LRr']
+
         ## Cycles
         def _ebsw(panel_num):
             data_column_dict = get_data_columns_dict('EBSW')
@@ -345,6 +361,7 @@ class Plot:
                 'HWC': _hwc,
                 'BBANDS': _bbands},
             "separate_plots": {
+                'LINREG': _linreg,
                 'EBSW': _ebsw,
                 'RSI': _rsi,
                 'RVGI': _rvgi,
