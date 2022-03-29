@@ -21,14 +21,14 @@ pd.set_option('display.expand_frame_repr', False)
 class Strategy:
     def __init__(self, ticker_id, **kwargs):
         self.ticker_obj, history_df = self.read_ticker(ticker_id, kwargs.get("cache", False))
-        self.history_df, conditions_dict = self.prepare_conditions(history_df)
+        self.history_df, self.conditions_dict = self.prepare_conditions(history_df)
         
         if 'strategies_list' in kwargs and kwargs["strategies_list"] != list():
             strategies_list = self.parse_strategies_list(kwargs["strategies_list"])
         else:
-            strategies_list = self.generate_strategies_list(conditions_dict)
+            strategies_list = self.generate_strategies_list()
 
-        strategies_dict = self.generate_strategies_dict(conditions_dict, strategies_list)
+        strategies_dict = self.generate_strategies_dict(strategies_list)
         self.summary = self.get_signal(kwargs.get("ticker_name", False), strategies_dict)
 
     def read_ticker(self, ticker_symbol, cache):
@@ -92,6 +92,12 @@ class Strategy:
             'buy': lambda x: x["CMF_20"] > 0,
             'sell': lambda x: x["CMF_20"] < 0}
 
+        # KVO (Klinger Volume Oscillator)
+        history_df.ta.kvo(append=True)
+        conditions_dict['Volume']["KVO"] = {
+            'buy': lambda x: x['KVO_34_55_13'] > x['KVOs_34_55_13'],
+            'sell': lambda x: x['KVO_34_55_13'] < x['KVOs_34_55_13']}
+
         ''' Volatility '''
         # MASSI (Mass Index)
         history_df.ta.massi(append=True)
@@ -149,11 +155,6 @@ class Strategy:
         conditions_dict["Overlap"]["ALMA"] = {
             'buy': lambda x: x['Close'] > x['ALMA_15_6.0_0.85'],
             'sell': lambda x: x['Close'] < x['ALMA_15_6.0_0.85']}
-        history_df.ta.alma(length=50, append=True)
-        history_df.rename(columns={'ALMA_50_6.0_0.85': 'ALMA-LONG_50_6.0_0.85'}, inplace=True)
-        conditions_dict["Overlap"]["ALMA_LONG"] = {
-            'buy': lambda x: x['Close'] > x['ALMA-LONG_50_6.0_0.85'],
-            'sell': lambda x: x['Close'] < x['ALMA-LONG_50_6.0_0.85']}
 
         # GHLA (Gann High-Low Activator)
         history_df.ta.hilo(append=True)
@@ -200,19 +201,21 @@ class Strategy:
             'buy': lambda x: x["STOCHd_14_3_3"] < 80 and x["STOCHk_14_3_3"] < 80,
             'sell': lambda x: x["STOCHd_14_3_3"] > 20 and x["STOCHk_14_3_3"] > 20}
 
+        # UO (Ultimate Oscillator)
+        history_df.ta.uo(append=True)
+        conditions_dict['Momentum']["UO"] = {
+            'buy': lambda x: x['UO_7_14_28'] < 30,
+            'sell': lambda x: x['UO_7_14_28'] > 70}
+
         return history_df.iloc[100:], conditions_dict
 
-    def generate_strategies_list(self, conditions_dict):
-        strategies_list = [
-            [('Blank', 'HOLD')],
-            [('Momentum', 'MACD'), ('Momentum', 'RSI'), ('Momentum', 'STOCH')],
-            [('Momentum', 'MACD'), ('Momentum', 'STOCH')],
-            [("Overlap", 'ALMA'), ("Overlap", 'ALMA_LONG')]]
+    def generate_strategies_list(self):
+        strategies_list = [[('Blank', 'HOLD')]]
 
         # + Triple indicator strategies (try every combination of different types)
         indicators_list = list()
-        special_case_indicators_list = ('HOLD', 'ALMA_LONG') # should not participate in autogenerating strategies
-        for indicator_type, indicators_dict in conditions_dict.items():
+        special_case_indicators_list = ('HOLD') # should not participate in autogenerating strategies
+        for indicator_type, indicators_dict in self.conditions_dict.items():
             indicators_list += [(indicator_type, indicator) for indicator in indicators_dict.keys() if indicator not in special_case_indicators_list]
         
         for i_1, indicator_1 in enumerate(indicators_list):
@@ -236,12 +239,12 @@ class Strategy:
         
         return strategies_list
 
-    def generate_strategies_dict(self, conditions_dict, strategies_list):
+    def generate_strategies_dict(self, strategies_list):
         strategies_dict = dict()
         for strategy_list in strategies_list:
             strategy_dict = dict()
             for order_type in ('buy', 'sell'):
-                strategy_dict[order_type] = [conditions_dict[strategy_component[0]][strategy_component[1]][order_type] for strategy_component in strategy_list]
+                strategy_dict[order_type] = [self.conditions_dict[strategy_component[0]][strategy_component[1]][order_type] for strategy_component in strategy_list]
             strategies_dict[' + '.join([f"({i[0]}) {i[1]}" for i in strategy_list])] = strategy_dict
         
         return strategies_dict
@@ -320,7 +323,7 @@ class Strategy:
             summary["signal"] = 'buy' if sorted_signals_list[:3].count('buy') >= 2 else 'sell'
 
         return summary 
-
+    
     @staticmethod
     def load():
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

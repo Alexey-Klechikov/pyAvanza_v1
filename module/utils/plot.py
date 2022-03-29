@@ -73,15 +73,6 @@ class Plot:
                     panel=panel_num)]
 
         ## Overlap
-        def _alma_long(panel_num):
-            data_column_dict = get_data_columns_dict('ALMA-LONG')
-            self.plots_list += [
-                mpf.make_addplot(
-                    self.data_df[data_column_dict['ALMA-LONG']],
-                    color='gold', 
-                    panel=panel_num)]
-
-        ## Overlap
         def _ghla(panel_num):
             data_column_dict = get_data_columns_dict('HILO')
             self.plots_list += [
@@ -234,6 +225,22 @@ class Plot:
                 level_color_list=((80, 'red'), (20, 'blue')), 
                 panel_num=panel_num)       
             return data_column_dict["STOCHk"]
+        
+        ## Momentum
+        def _uo(panel_num):
+            data_column_dict = get_data_columns_dict('UO')
+            plot_lim = (0, 100)
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['UO']],
+                    color='orange', 
+                    ylim=plot_lim,
+                    panel=panel_num,
+                    ylabel="UO")]
+            self.add_horisontal_lines(
+                level_color_list=((70, 'red'), (30, 'blue')), 
+                panel_num=panel_num)        
+            return data_column_dict['UO']
 
         ## Candle
         def _ha(panel_num):
@@ -351,11 +358,32 @@ class Plot:
                     ) for data, color in (('PVT', 'green'), (data_column_dict['SMA'], 'red'))]
             return "PVT"
 
+        ## Volume
+        def _kvo(panel_num):
+            data_column_dict = get_data_columns_dict('KVO')
+            plot_lim = (
+                0.9 * min([self.data_df[data_column_dict[i]].min() for i in ('KVO', 'KVOs')]), 
+                1.1 * max([self.data_df[data_column_dict[i]].max() for i in ('KVO', 'KVOs')]))
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['KVO']],
+                    ylim=plot_lim,
+                    color='orange', 
+                    panel=panel_num,
+                    ylabel="KVO",
+                    ),
+                mpf.make_addplot(
+                    self.data_df[data_column_dict['KVOs']],
+                    ylim=plot_lim,
+                    color='black', 
+                    panel=panel_num,
+                    secondary_y=False)]
+            return data_column_dict["KVO"]
+
         graphs_dict = {
             'main_plot': {
                 'PSAR': _psar,
                 'ALMA': _alma,
-                'ALMA_LONG': _alma_long,
                 'GHLA': _ghla,
                 'SUPERT': _supert,
                 'HWC': _hwc,
@@ -373,10 +401,12 @@ class Plot:
                 'MASSI': _massi,
                 'PVT': _pvt,
                 'CMF': _cmf,
-                'ADX': _adx}}
+                'ADX': _adx,
+                'KVO': _kvo,
+                'UO': _uo}}
 
         # Expected format "Stock: YadaYada - (Momentum) STOCH + (Trend) CHOP"
-        strategy_components = [i.split(')')[1].strip() for i in self.title.split(' - ')[1].split('+')]
+        strategy_components = [i.split(')')[1].strip() for i in self.title.split(' - ')[1].split('+')] + ['UO']
         add_panel_num = lambda plot_type: 0 if plot_type == "main_plot" else 1
         for plot_type, strategy_plots_dict in graphs_dict.items():
             panel_num = add_panel_num(plot_type)

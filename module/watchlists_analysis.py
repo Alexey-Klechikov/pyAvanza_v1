@@ -1,7 +1,7 @@
 """
 This module is the "frontend" meant for every week use. It will: 
 - analyse every stock to pick the best performing once and place them in one of budget lists.
-- record top 10 performing strategies for every stock and record it to the file "strategies.json"
+- record top 20 performing strategies for every stock and record it to the file "strategies.json"
 It will import other modules to run the analysis on the stocks -> move it to the watchlist -> dump log in Telegram.py
 It will be run from Telegram or automatically as cron-job.
 """
