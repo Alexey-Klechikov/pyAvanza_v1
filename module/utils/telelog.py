@@ -3,10 +3,12 @@ This module is used to process and dump execution logs to Telegram
 """
 
 
-import telegram_send
+import telegram_send, logging
+
+log = logging.getLogger('main.telelog')
 
 
-class Log:
+class TeleLog:
     def __init__(self, **kwargs):
         self.message = ''
 
@@ -20,13 +22,19 @@ class Log:
             self.parse_watchlists_analysis_log(kwargs['watchlists_analysis_log_list'])
 
     def parse_portfolio_dict(self, portfolio_dict):
+        log.info('Parse portfolio_dict')
+
         free_funds = "\n".join([f"> {account}: {funds}" for account, funds in portfolio_dict["buying_power"].items()])
         self.message += f'Total value: {portfolio_dict["total_own_capital"]}\nTotal free funds:\n{free_funds}\n\n'
 
     def parse_watchlists_analysis_log(self, watchlists_analysis_log_list):
+        log.info('Parse watchlists_analysis_log_list')
+
         self.message = '\n'.join(watchlists_analysis_log_list)
 
     def parse_orders_dict(self, orders_dict):
+        log.info('Parse orders_dict')
+
         for order_type, orders_list in orders_dict.items():
             if len(orders_list) == 0:
                 continue
@@ -50,4 +58,6 @@ class Log:
         return self.message
 
     def dump_to_telegram(self):
+        log.info('Dump to Telegram')
+
         telegram_send.send(messages=[self.message])

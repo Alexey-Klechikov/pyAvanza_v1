@@ -4,11 +4,14 @@ It will import other modules to run the analysis on the stocks -> place orders -
 It will be run from Telegram or automatically as cron-job.
 """
 
+import logging
 
 from .utils.context import Context
 from .utils.strategy import Strategy
 from .utils.settings import Settings
-from .utils.log import Log
+from .utils.telelog import TeleLog
+
+log = logging.getLogger('main.portfolio_analysis')
 
 
 class Portfolio_Analysis:
@@ -16,34 +19,38 @@ class Portfolio_Analysis:
         self.strategies_dict = Strategy.load()
         self.signals_dict = kwargs.get('signals_dict', dict())
 
-        self.run_analysis(kwargs['user'], kwargs['accounts_dict'], kwargs['log_to_telegram'])
+        self.ava = Context(kwargs['user'], kwargs['accounts_dict'])
+        self.run_analysis(kwargs['accounts_dict'], kwargs['log_to_telegram'])
 
-    def get_signal_on_ticker(self, ticker):
-        if ticker not in self.signals_dict:
+    def get_signal_on_ticker(self, ticker_yahoo, ticker_ava):
+        log.info(f'Getting signal for ticker "{ticker_yahoo}"')
+
+        if ticker_yahoo not in self.signals_dict:
             try:
-                strategy_obj = Strategy(ticker, strategies_list=self.strategies_dict.get(ticker, list()))
+                strategy_obj = Strategy(ticker_yahoo, ticker_ava, self.ava, strategies_list=self.strategies_dict.get(ticker_yahoo, list()))
             except Exception as e:
-                print(f'(!) There was a problem with the ticker "{ticker}": {e}')
+                log.error(f'There was a problem with the ticker "{ticker_yahoo}": {e}')
                 return None
 
-            self.signals_dict[ticker] = {
+            self.signals_dict[ticker_yahoo] = {
                 'signal': strategy_obj.summary["signal"],
                 'return': strategy_obj.summary['max_output']['result']}
-        return self.signals_dict[ticker]
+        return self.signals_dict[ticker_yahoo]
 
-    def create_sell_orders(self, ava):
-        print(f'> Walk through portfolio')
+    def create_sell_orders(self):
+        log.info(f'Walk through portfolio')
         orders_list, portfolio_tickers_list = list(), list()
-        if ava.portfolio_dict['positions']['df'] is not None:
-            for i, row in ava.portfolio_dict['positions']['df'].iterrows():
-                print(f'>> Portfolio ({int(i) + 1}/{ava.portfolio_dict["positions"]["df"].shape[0]}): {row["ticker_yahoo"]}')
+        if self.ava.portfolio_dict['positions']['df'] is not None:
+            for i, row in self.ava.portfolio_dict['positions']['df'].iterrows():
+                log.info(f'Portfolio ({int(i) + 1}/{self.ava.portfolio_dict["positions"]["df"].shape[0]}): {row["ticker_yahoo"]}')
 
                 portfolio_tickers_list.append(row["ticker_yahoo"])
 
-                signal_dict = self.get_signal_on_ticker(row["ticker_yahoo"])
+                signal_dict = self.get_signal_on_ticker(row["ticker_yahoo"], row["orderbookId"])
                 if signal_dict is None or signal_dict['signal'] == 'buy':
                     continue
-
+                
+                log.info('> SELL')
                 orders_list.append({
                     'account_id': row['accountId'], 
                     'order_book_id': row['orderbookId'], 
@@ -54,31 +61,32 @@ class Portfolio_Analysis:
                     'ticker_yahoo': row["ticker_yahoo"],
                     'max_return': signal_dict['return']})
 
-        ava.create_orders(orders_list, 'sell')
+        self.ava.create_orders(orders_list, 'sell')
 
         return orders_list, portfolio_tickers_list
 
-    def create_buy_orders(self, ava, portfolio_tickers_list):
-        print(f'> Walk through budget lists')
+    def create_buy_orders(self, portfolio_tickers_list):
+        log.info(f'Walk through budget lists')
         orders_list = list()
-        for budget_rule_name, watchlist_dict in ava.budget_rules_dict.items():
+        for budget_rule_name, watchlist_dict in self.ava.budget_rules_dict.items():
             for ticker_dict in watchlist_dict['tickers']:
                 if ticker_dict['ticker_yahoo'] in portfolio_tickers_list: 
                     continue
 
-                print(f'>> Budget list "{budget_rule_name}": {ticker_dict["ticker_yahoo"]}')
+                log.info(f'> Budget list "{budget_rule_name}": {ticker_dict["ticker_yahoo"]}')
                 
-                signal_dict = self.get_signal_on_ticker(ticker_dict['ticker_yahoo'])
+                signal_dict = self.get_signal_on_ticker(ticker_dict['ticker_yahoo'], ticker_dict['order_book_id'])
                 if signal_dict is None or signal_dict['signal'] == 'sell':
                     continue
 
-                stock_price_dict = ava.get_stock_price(ticker_dict['order_book_id'])
+                stock_price_dict = self.ava.get_stock_price(ticker_dict['order_book_id'])
                 try:
                     volume = int(int(budget_rule_name) * 1000 // stock_price_dict['buy'])
                 except:
-                    print(f"There was a problem with fetching buy price for {ticker_dict['ticker_yahoo']}")
+                    log.error(f"There was a problem with fetching buy price for {ticker_dict['ticker_yahoo']}")
                     continue
-
+                
+                log.info('> BUY')
                 orders_list.append({
                     'ticker_yahoo': ticker_dict['ticker_yahoo'],
                     'order_book_id': ticker_dict['order_book_id'], 
@@ -88,23 +96,22 @@ class Portfolio_Analysis:
                     'name': ticker_dict['name'],
                     'max_return': signal_dict['return']})
 
-        created_orders_list = ava.create_orders(orders_list, 'buy')
+        created_orders_list = self.ava.create_orders(orders_list, 'buy')
         
         return created_orders_list
 
-    def run_analysis(self, user, accounts_dict, log_to_telegram):
-        print(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
-        ava = Context(user, accounts_dict)
-        ava.remove_active_orders()
+    def run_analysis(self, accounts_dict, log_to_telegram):
+        log.info(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
+        self.ava.remove_active_orders()
 
         created_orders_dict = dict()
-        created_orders_dict['sell'], portfolio_tickers_list = self.create_sell_orders(ava)
-        created_orders_dict['buy'] = self.create_buy_orders(ava, portfolio_tickers_list)
+        created_orders_dict['sell'], portfolio_tickers_list = self.create_sell_orders()
+        created_orders_dict['buy'] = self.create_buy_orders(portfolio_tickers_list)
 
         # Dump log to Telegram
         if log_to_telegram:
-            log_obj = Log(
-                portfolio_dict=ava.get_portfolio(), 
+            log_obj = TeleLog(
+                portfolio_dict=self.ava.get_portfolio(), 
                 orders_dict=created_orders_dict)
             log_obj.dump_to_telegram()
 

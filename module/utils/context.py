@@ -3,9 +3,14 @@ This module contains all tooling to communicate to Avanza
 """
 
 
-from avanza import Avanza, OrderType
-import datetime, time, keyring
+import datetime, time, keyring, logging
+
 import pandas as pd
+
+from avanza import Avanza, OrderType
+from pprint import pprint
+
+log = logging.getLogger('main.context')
 
 
 class Context:
@@ -16,6 +21,8 @@ class Context:
         self.budget_rules_dict, self.watchlists_dict = self.process_watchlists()
 
     def get_ctx(self, user):
+        log.info('Getting context')
+
         i = 1
         while True:
             try:
@@ -25,35 +32,54 @@ class Context:
                     'totpSecret': keyring.get_password(user, 'totp')})
                 break
             except Exception as e:
-                print(e)
+                log.error(e)
                 i += 1
                 time.sleep(i*2)   
 
         return ctx
 
     def get_portfolio(self):  
+        log.info('Getting portfolio')
+
         positions_dict = self.ctx.get_positions()  
         portfolio_dict = {
-            'buying_power': {k:self.ctx.get_account_overview(v)["buyingPower"] for k,v in self.accounts_dict.items()},
-            'total_own_capital': round(sum([self.ctx.get_account_overview(v)["ownCapital"] for v in self.accounts_dict.values()])),
+            'buying_power': {
+                k : self.ctx.get_account_overview(v)["buyingPower"] for k, v in self.accounts_dict.items()},
+            'total_own_capital': round(sum([
+                self.ctx.get_account_overview(v)["ownCapital"] for v in self.accounts_dict.values()])),
             'positions': {
                 'dict': None,
                 'df': None}}
 
-        positions_list = [i for i in positions_dict['instrumentPositions'][0]['positions'] if int(i['accountId']) in self.accounts_dict.values()]
+        positions_list = list()
+        for p in positions_dict['instrumentPositions'][0]['positions']:
+            if not int(p['accountId']) in self.accounts_dict.values():
+                continue
+            
+            if p.get('orderbookId', None) is None:
+                log.warning(f"{p['name']} has no orderbookId")
+                continue
+
+            positions_list.append(p)
+
         if len(positions_list) != 0:
             portfolio_dict['positions'] = {
                 'dict': positions_list,
                 'df': pd.DataFrame(positions_list)}
+            
             portfolio_dict['positions']['df']['ticker_yahoo'] = portfolio_dict['positions']['df']['orderbookId'].apply(
                 lambda x: f"{self.ctx.get_stock_info(x)['tickerSymbol'].replace(' ', '-')}.ST")
 
         return portfolio_dict
 
     def process_watchlists(self):
+        log.info('Process watchlists')
+
         watchlists_dict, budget_rules_dict = dict(), dict()
+
         for watchlist_dict in self.ctx.get_watchlists():
             tickers_list = list()
+
             for order_book_id in watchlist_dict['orderbooks']:
                 stock_info_dict = self.ctx.get_stock_info(order_book_id)
                 ticker_dict = {
@@ -74,38 +100,40 @@ class Context:
         return budget_rules_dict, watchlists_dict
 
     def create_orders(self, orders_list, type):
-        print(f'> Creating {type} orders') 
+        log.info(f'Creating {type} orders') 
+
         if type == 'sell':
-            if len(orders_list):
-                for sell_order_dict in orders_list:
-                    print(f'>> (profit {sell_order_dict["profit"]}%) {sell_order_dict["name"]}')
-                    order_attr = {
-                        "account_id": str(sell_order_dict['account_id']),
-                        "order_book_id": str(sell_order_dict['order_book_id']),
-                        "order_type": OrderType.SELL,
-                        "price": self.get_stock_price(sell_order_dict['order_book_id'])["sell"],
-                        "valid_until": (datetime.datetime.today() + datetime.timedelta(days=1)).date(),
-                        "volume": sell_order_dict['volume']}
-                    
+            for sell_order_dict in orders_list:
+                log.info(f'> (profit {sell_order_dict["profit"]}%) {sell_order_dict["name"]}')
+                order_attr = {
+                    "account_id": str(sell_order_dict['account_id']),
+                    "order_book_id": str(sell_order_dict['order_book_id']),
+                    "order_type": OrderType.SELL,
+                    "price": self.get_stock_price(sell_order_dict['order_book_id'])["sell"],
+                    "valid_until": (datetime.datetime.today() + datetime.timedelta(days=1)).date(),
+                    "volume": sell_order_dict['volume']}
+                
+                try:
                     self.ctx.place_order(**order_attr)
-                    try:
-                        pass
-                    except Exception as e:
-                        print(f'Exception: {e} - {order_attr}')
+                except Exception as e:
+                    log.error(f'Exception: {e} - {order_attr}')
 
         elif type == 'buy':
             self.portfolio_dict = self.get_portfolio()
             created_orders_list = list()
+
             if len(orders_list) > 0:
                 orders_list.sort(
                     key=lambda x: (int(x['budget']), int(x['max_return'])), 
                     reverse=True)
-                reserved_budget = {account: 0 for account in self.accounts_dict}
+                reserved_budget = {
+                    account: 0 for account in self.accounts_dict}
+                    
                 for buy_order_dict in orders_list:
                     # Check accounts one by one if enough funds for the order
                     for account_name, account_id in self.accounts_dict.items():
                         if self.portfolio_dict['buying_power'][account_name] - reserved_budget[account_name] > buy_order_dict['budget']:
-                            print(f'>> ({buy_order_dict["budget"]}) {buy_order_dict["name"]}')
+                            log.info(f'({buy_order_dict["budget"]}) {buy_order_dict["name"]}')
                             order_attr = {
                                 "account_id": str(account_id),
                                 "order_book_id": str(buy_order_dict['order_book_id']),
@@ -117,7 +145,7 @@ class Context:
                             try:
                                 self.ctx.place_order(**order_attr)
                             except Exception as e:
-                                print(f'Exception: {e} - {order_attr}')
+                                log.error(f'Exception: {e} - {order_attr}')
 
                             reserved_budget[account_name] += buy_order_dict['budget']
                             created_orders_list.append(buy_order_dict)
@@ -126,7 +154,13 @@ class Context:
             return created_orders_list
 
     def get_stock_price(self, stock_id):
+        log.info(f'Getting stock price {stock_id}')
+
         stock_info_dict = self.ctx.get_stock_info(stock_id=stock_id)
+
+        if stock_info_dict is None:
+            raise Exception(f'Stock {stock_id} not found')
+
         stock_price_dict = {
             'buy': stock_info_dict['lastPrice'],
             'sell': stock_info_dict['lastPrice']}
@@ -138,8 +172,27 @@ class Context:
 
         return stock_price_dict
 
+    def get_todays_ochl(self, history_df, stock_id):
+        log.warning(f'Getting todays OCHL')
+
+        stock_info_dict = self.ctx.get_stock_info(stock_id=stock_id)
+
+        if stock_info_dict is None:
+            raise Exception(f'Stock {stock_id} not found')
+        
+        last_row_index = history_df.tail(1).index 
+        history_df.loc[last_row_index, 'Open'] = max(
+            min(
+                stock_info_dict['lastPrice'] + stock_info_dict['change'], stock_info_dict['highestPrice']), 
+            stock_info_dict['lowestPrice'])
+        history_df.loc[last_row_index, 'Close'] = stock_info_dict['lastPrice']
+        history_df.loc[last_row_index, 'High'] = stock_info_dict['highestPrice']
+        history_df.loc[last_row_index, 'Low'] = stock_info_dict['lowestPrice']
+        history_df.loc[last_row_index, 'Volume'] = stock_info_dict['totalVolumeTraded']
+
     def remove_active_orders(self):
-        print('> Removing active orders')
+        log.info('Removing active orders')
+
         active_orders_list = self.ctx.get_deals_and_orders()['orders']
         removed_orders_dict = {
             'buy': list(),
@@ -150,7 +203,7 @@ class Context:
                 if int(order['account']['id']) not in list(self.accounts_dict.values()):
                     continue
                 
-                print(f">> ({order['sum']}) {order['orderbook']['name']}")
+                log.info(f"({order['sum']}) {order['orderbook']['name']}")
                 self.ctx.delete_order(
                     account_id=order['account']['id'],
                     order_id=order['orderId'])

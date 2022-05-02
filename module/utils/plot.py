@@ -3,13 +3,15 @@ This module is used to plot tickers, indicators, and comparison graph
 """
 
 
-import mplfinance as mpf
+import warnings, logging
+
 import matplotlib.pyplot as plt
+import mplfinance as mpf
 import numpy as np
 
-import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+log = logging.getLogger('main.plot')
 
 class Plot:
     def __init__(self, data_df, title):

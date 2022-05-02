@@ -3,24 +3,26 @@ This module contains all technical indicators and strategies generation routines
 """
 
 
-import yfinance as yf
-import pandas_ta as ta
-import os, pickle, json
-from copy import copy
-import numpy as np
-from pprint import pprint
+import os, pickle, json, warnings, logging
 
-import warnings
+import pandas_ta as ta
+import yfinance as yf
+import pandas as pd
+import numpy as np
+
+from pprint import pprint
+from copy import copy
+
+
+pd.set_option('display.expand_frame_repr', False)
+pd.options.mode.chained_assignment = None
 warnings.filterwarnings("ignore")
 
-import pandas as pd
-pd.options.mode.chained_assignment = None
-pd.set_option('display.expand_frame_repr', False)
-
+log = logging.getLogger('main.strategy')
 
 class Strategy:
-    def __init__(self, ticker_id, **kwargs):
-        self.ticker_obj, history_df = self.read_ticker(ticker_id, kwargs.get("cache", False))
+    def __init__(self, ticker_yahoo, ticker_ava, ava, **kwargs):
+        self.ticker_obj, history_df = self.read_ticker(ticker_yahoo, ticker_ava, ava, kwargs.get("cache", False))
         self.history_df, self.conditions_dict = self.prepare_conditions(history_df)
         
         if 'strategies_list' in kwargs and kwargs["strategies_list"] != list():
@@ -31,9 +33,11 @@ class Strategy:
         strategies_dict = self.generate_strategies_dict(strategies_list)
         self.summary = self.get_signal(kwargs.get("ticker_name", False), strategies_dict)
 
-    def read_ticker(self, ticker_symbol, cache):
+    def read_ticker(self, ticker_yahoo, ticker_ava, ava, cache):
+        log.info(f"Reading ticker")
+
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        pickle_path = f'{current_dir}/cache/{ticker_symbol}.pickle'
+        pickle_path = f'{current_dir}/cache/{ticker_yahoo}.pickle'
 
         directory_exists = os.path.exists('/'.join(pickle_path.split('/')[:-1]))
         if not directory_exists:
@@ -48,21 +52,27 @@ class Strategy:
             try:
                 if not os.path.exists(pickle_path):
                     with open(pickle_path, 'wb') as pcl:
-                        ticker_obj = yf.Ticker(ticker_symbol)
+                        ticker_obj = yf.Ticker(ticker_yahoo)
                         history_df = ticker_obj.history(period="18mo")
                         
+                        if str(history_df.iloc[-1]['Close']) == 'nan':
+                            ava.get_todays_ochl(cache[1], ticker_ava)
+
                         cache = (ticker_obj, history_df)
                         pickle.dump(cache, pcl)
-                with open(pickle_path, 'rb') as token:
-                    cache = pickle.load(token)
+
+                with open(pickle_path, 'rb') as pcl:
+                    cache = pickle.load(pcl)
                     break
+
             except EOFError:
-                # If cache was not created properly earlier - delete it and try again
                 os.remove(pickle_path)
 
         return cache
 
     def prepare_conditions(self, history_df):
+        log.info("Preparing conditions")
+
         condition_types_list = ("Blank", "Volatility", "Trend", "Candle", "Overlap", "Momentum", "Volume", "Cycles")
         conditions_dict = {ct:dict() for ct in condition_types_list}
 
@@ -210,6 +220,8 @@ class Strategy:
         return history_df.iloc[100:], conditions_dict
 
     def generate_strategies_list(self):
+        log.info('Generating strategies list')
+
         strategies_list = [[('Blank', 'HOLD')]]
 
         # + Triple indicator strategies (try every combination of different types)
@@ -231,6 +243,8 @@ class Strategy:
         return strategies_list
 
     def parse_strategies_list(self, strategies_str_list):
+        log.info('Parsing strategies list')
+
         strategies_list = [[('Blank', 'HOLD')]]
         for strategy_str in strategies_str_list: # "(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH"
             strategy_components_list = [i.strip().split(' ') for i in strategy_str.split('+')] # [['(Trend)', 'CKSP'], ['(Overlap)', 'SUPERT'], ['(Momentum)', 'STOCH']]
@@ -240,6 +254,8 @@ class Strategy:
         return strategies_list
 
     def generate_strategies_dict(self, strategies_list):
+        log.info('Generating strategies dict')
+
         strategies_dict = dict()
         for strategy_list in strategies_list:
             strategy_dict = dict()
@@ -250,6 +266,8 @@ class Strategy:
         return strategies_dict
 
     def get_signal(self, ticker_name, strategies_dict):   
+        log.info('Getting signal')
+
         summary = {
             "ticker_name": ticker_name,
             "strategies": dict(),
@@ -320,12 +338,15 @@ class Strategy:
         
         sorted_signals_list = [i[1]["signal"] for i in summary["sorted_strategies_list"]]
         if summary['max_output']['transactions_counter'] == 1:
+            log.info('Top 3 strategies were considered')
             summary["signal"] = 'buy' if sorted_signals_list[:3].count('buy') >= 2 else 'sell'
 
         return summary 
     
     @staticmethod
     def load():
+        log.info('Loading strategies.json')
+
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         try:
             with open(f'{current_dir}/strategies.json', 'r') as f:
@@ -337,6 +358,8 @@ class Strategy:
 
     @staticmethod
     def dump(strategies_json):
+        log.info('Dump strategies.json')
+
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         with open(f'{current_dir}/strategies.json', 'w') as f:
             json.dump(strategies_json, f, indent=4)
