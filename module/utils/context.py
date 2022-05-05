@@ -102,7 +102,7 @@ class Context:
     def create_orders(self, orders_list, type):
         log.info(f'Creating {type} orders') 
 
-        if type == 'sell':
+        if type in ['sell', 'take_profit']:
             for sell_order_dict in orders_list:
                 log.info(f'> (profit {sell_order_dict["profit"]}%) {sell_order_dict["name"]}')
                 order_attr = {

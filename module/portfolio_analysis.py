@@ -35,16 +35,18 @@ class Portfolio_Analysis:
             self.signals_dict[ticker_yahoo] = {
                 'signal': strategy_obj.summary["signal"],
                 'return': strategy_obj.summary['max_output']['result']}
+
         return self.signals_dict[ticker_yahoo]
 
     def create_sell_orders(self):
-        log.info(f'Walk through portfolio')
-        orders_list, portfolio_tickers_list = list(), list()
+        log.info(f'Walk through portfolio (sell)')
+
+        orders_list, portfolio_tickers_dict = list(), dict()
         if self.ava.portfolio_dict['positions']['df'] is not None:
             for i, row in self.ava.portfolio_dict['positions']['df'].iterrows():
                 log.info(f'Portfolio ({int(i) + 1}/{self.ava.portfolio_dict["positions"]["df"].shape[0]}): {row["ticker_yahoo"]}')
 
-                portfolio_tickers_list.append(row["ticker_yahoo"])
+                portfolio_tickers_dict[row["ticker_yahoo"]] = {'row': row}
 
                 signal_dict = self.get_signal_on_ticker(row["ticker_yahoo"], row["orderbookId"])
                 if signal_dict is None or signal_dict['signal'] == 'buy':
@@ -63,14 +65,16 @@ class Portfolio_Analysis:
 
         self.ava.create_orders(orders_list, 'sell')
 
-        return orders_list, portfolio_tickers_list
+        return orders_list, portfolio_tickers_dict
 
-    def create_buy_orders(self, portfolio_tickers_list):
-        log.info(f'Walk through budget lists')
+    def create_buy_orders(self, portfolio_tickers_dict):
+        log.info(f'Walk through budget lists (buy)')
+
         orders_list = list()
         for budget_rule_name, watchlist_dict in self.ava.budget_rules_dict.items():
             for ticker_dict in watchlist_dict['tickers']:
-                if ticker_dict['ticker_yahoo'] in portfolio_tickers_list: 
+                if ticker_dict['ticker_yahoo'] in portfolio_tickers_dict: 
+                    portfolio_tickers_dict[ticker_dict['ticker_yahoo']]['budget_rule_name'] = budget_rule_name
                     continue
 
                 log.info(f'> Budget list "{budget_rule_name}": {ticker_dict["ticker_yahoo"]}')
@@ -100,13 +104,52 @@ class Portfolio_Analysis:
         
         return created_orders_list
 
+    def create_take_profit_orders(self, portfolio_tickers_dict, created_sell_orders_list):
+        log.info(f'Walk through portfolio (take profit)')
+
+        MIN_PROFIT = 1.1
+
+        for sell_order_dict in created_sell_orders_list:
+            if sell_order_dict['ticker_yahoo'] in portfolio_tickers_dict:
+                portfolio_tickers_dict.pop(sell_order_dict['ticker_yahoo'])
+
+        orders_list = list()
+        for ticker_dict in portfolio_tickers_dict.values():
+            log.info(f'> Checking ticker: {ticker_dict["row"]["ticker_yahoo"]}')
+            
+            skip_conditions_list = [
+                ticker_dict['row']['profitPercent'] < 0,
+                ticker_dict['row']["value"] / (int(ticker_dict.get('budget_rule_name', 100)) * 1000) < MIN_PROFIT,
+                ticker_dict['row']["value"] - (int(ticker_dict.get('budget_rule_name', 100)) * 1000) < ticker_dict['row']["lastPrice"]]
+            
+            if any(skip_conditions_list):
+                continue
+            
+            log.info('> TAKE PROFIT')
+            volume_sell = (ticker_dict['row']["value"] - (int(ticker_dict['budget_rule_name']) * 1000)) // ticker_dict['row']["lastPrice"]
+            orders_list.append({
+                'account_id': ticker_dict['row']['accountId'], 
+                'order_book_id': ticker_dict['row']['orderbookId'], 
+                'volume': volume_sell, 
+                'price': ticker_dict['row']['lastPrice'],
+                'profit': round(((volume_sell * ticker_dict['row']['lastPrice']) / ticker_dict['row']['acquiredValue']) * 100, 1),
+                'name': ticker_dict['row']['name'],
+                'ticker_yahoo': ticker_dict['row']["ticker_yahoo"]})
+
+            print(orders_list)
+
+        self.ava.create_orders(orders_list, 'take_profit')
+
+        return orders_list
+
     def run_analysis(self, accounts_dict, log_to_telegram):
         log.info(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
         self.ava.remove_active_orders()
 
         created_orders_dict = dict()
-        created_orders_dict['sell'], portfolio_tickers_list = self.create_sell_orders()
-        created_orders_dict['buy'] = self.create_buy_orders(portfolio_tickers_list)
+        created_orders_dict['sell'], portfolio_tickers_dict = self.create_sell_orders()
+        created_orders_dict['buy'] = self.create_buy_orders(portfolio_tickers_dict)
+        created_orders_dict['take_profit'] = self.create_take_profit_orders(portfolio_tickers_dict, created_orders_dict['sell'])
 
         # Dump log to Telegram
         if log_to_telegram:
