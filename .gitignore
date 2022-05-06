@@ -2,6 +2,6 @@
 cache/
 __pycache__/
 *.pickle
-strategies.py
+strategies.json
 .venv/
 logs/
