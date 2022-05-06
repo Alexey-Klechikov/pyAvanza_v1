@@ -46,7 +46,7 @@ class Portfolio_Analysis:
             for i, row in self.ava.portfolio_dict['positions']['df'].iterrows():
                 log.info(f'Portfolio ({int(i) + 1}/{self.ava.portfolio_dict["positions"]["df"].shape[0]}): {row["ticker_yahoo"]}')
 
-                portfolio_tickers_dict[row["ticker_yahoo"]] = {'row': row}
+                portfolio_tickers_dict[row["ticker_yahoo"]] = row
 
                 signal_dict = self.get_signal_on_ticker(row["ticker_yahoo"], row["orderbookId"])
                 if signal_dict is None or signal_dict['signal'] == 'buy':
@@ -74,7 +74,6 @@ class Portfolio_Analysis:
         for budget_rule_name, watchlist_dict in self.ava.budget_rules_dict.items():
             for ticker_dict in watchlist_dict['tickers']:
                 if ticker_dict['ticker_yahoo'] in portfolio_tickers_dict: 
-                    portfolio_tickers_dict[ticker_dict['ticker_yahoo']]['budget_rule_name'] = budget_rule_name
                     continue
 
                 log.info(f'> Budget list "{budget_rule_name}": {ticker_dict["ticker_yahoo"]}')
@@ -107,36 +106,32 @@ class Portfolio_Analysis:
     def create_take_profit_orders(self, portfolio_tickers_dict, created_sell_orders_list):
         log.info(f'Walk through portfolio (take profit)')
 
-        MIN_PROFIT = 1.1
-
         for sell_order_dict in created_sell_orders_list:
             if sell_order_dict['ticker_yahoo'] in portfolio_tickers_dict:
                 portfolio_tickers_dict.pop(sell_order_dict['ticker_yahoo'])
 
         orders_list = list()
-        for ticker_dict in portfolio_tickers_dict.values():
-            log.info(f'> Checking ticker: {ticker_dict["row"]["ticker_yahoo"]}')
+        for ticker_row in portfolio_tickers_dict.values():
+            log.info(f'> Checking ticker: {ticker_row["ticker_yahoo"]}')
             
+            volume_sell = (ticker_row["value"] - ticker_row['acquiredValue']) // ticker_row["lastPrice"]
+
             skip_conditions_list = [
-                ticker_dict['row']['profitPercent'] < 0,
-                ticker_dict['row']["value"] / (int(ticker_dict.get('budget_rule_name', 100)) * 1000) < MIN_PROFIT,
-                ticker_dict['row']["value"] - (int(ticker_dict.get('budget_rule_name', 100)) * 1000) < ticker_dict['row']["lastPrice"]]
+                ticker_row['profitPercent'] < 10,
+                volume_sell == 0]
             
             if any(skip_conditions_list):
                 continue
             
             log.info('> TAKE PROFIT')
-            volume_sell = (ticker_dict['row']["value"] - (int(ticker_dict['budget_rule_name']) * 1000)) // ticker_dict['row']["lastPrice"]
             orders_list.append({
-                'account_id': ticker_dict['row']['accountId'], 
-                'order_book_id': ticker_dict['row']['orderbookId'], 
+                'account_id': ticker_row['accountId'], 
+                'order_book_id': ticker_row['orderbookId'], 
                 'volume': volume_sell, 
-                'price': ticker_dict['row']['lastPrice'],
-                'profit': round(((volume_sell * ticker_dict['row']['lastPrice']) / ticker_dict['row']['acquiredValue']) * 100, 1),
-                'name': ticker_dict['row']['name'],
-                'ticker_yahoo': ticker_dict['row']["ticker_yahoo"]})
-
-            print(orders_list)
+                'price': ticker_row['lastPrice'],
+                'profit': round(((volume_sell * ticker_row['lastPrice']) / ticker_row['acquiredValue']) * 100, 1),
+                'name': ticker_row['name'],
+                'ticker_yahoo': ticker_row["ticker_yahoo"]})
 
         self.ava.create_orders(orders_list, 'take_profit')
 
