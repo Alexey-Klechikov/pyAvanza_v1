@@ -11,7 +11,7 @@ from pprint import pprint
 
 from module.utils import Context, Strategy, Plot, Settings, Logger
 
-log = logging.getLogger('main')
+log = logging.getLogger("main")
 
 
 class Portfolio_Analysis:
@@ -19,72 +19,84 @@ class Portfolio_Analysis:
         self.total_df = None
         self.visited_tickers = list()
         self.counter_per_strategy_dict = {
-            '-- MAX --': {
-                'result': 0, 
-                'transactions_counter': 0}}
+            "-- MAX --": {"result": 0, "transactions_counter": 0}
+        }
 
-        self.plot_extra_tickers_list = kwargs['plot_extra_tickers_list']
-        self.plot_portfolio_tickers_bool = kwargs['plot_portfolio_tickers_bool']
-        self.print_transactions_bool = kwargs['print_transactions_bool']
+        self.plot_extra_tickers_list = kwargs["plot_extra_tickers_list"]
+        self.plot_portfolio_tickers_bool = kwargs["plot_portfolio_tickers_bool"]
+        self.print_transactions_bool = kwargs["print_transactions_bool"]
 
-        self.show_only_tickers_to_act_on_bool = kwargs['show_only_tickers_to_act_on_bool']
-        self.plot_tickers_to_act_on_bool = kwargs['plot_tickers_to_act_on_bool']
+        self.show_only_tickers_to_act_on_bool = kwargs[
+            "show_only_tickers_to_act_on_bool"
+        ]
+        self.plot_tickers_to_act_on_bool = kwargs["plot_tickers_to_act_on_bool"]
 
         self.ava = self.get_settings_and_context()
 
-        self.run_analysis(
-            kwargs['check_only_watchlist_bool'], 
-            kwargs['cache'])
+        self.run_analysis(kwargs["check_only_watchlist_bool"], kwargs["cache"])
         self.print_performance_per_strategy()
         self.print_performance_per_indicator()
-        self.plot_performance_compared_to_hold(kwargs['plot_total_algo_performance_vs_hold_bool'])
+        self.plot_performance_compared_to_hold(
+            kwargs["plot_total_algo_performance_vs_hold_bool"]
+        )
 
     def plot_ticker(self, strategy_obj):
         log.info(f'Plotting {strategy_obj.summary["ticker"]}')
 
         plot_obj = Plot(
-            data_df=strategy_obj.history_df, 
-            title=f'{strategy_obj.ticker_obj.info["symbol"]} ({strategy_obj.ticker_obj.info["shortName"]}) - {strategy_obj.summary["max_output"]["strategy"]}')
+            data_df=strategy_obj.history_df,
+            title=f'{strategy_obj.ticker_obj.info["symbol"]} ({strategy_obj.ticker_obj.info["shortName"]}) - {strategy_obj.summary["max_output"]["strategy"]}',
+        )
         plot_obj.create_extra_panels()
         plot_obj.show_single_ticker()
 
-    def plot_performance_compared_to_hold(self, plot_total_algo_performance_vs_hold_bool):
+    def plot_performance_compared_to_hold(
+        self, plot_total_algo_performance_vs_hold_bool
+    ):
         if not plot_total_algo_performance_vs_hold_bool:
             return
 
-        log.info(f'Plotting total algo performance vs hold')
-        
-        columns_dict = {
-            'Close': list(),
-            'total': list()}
+        log.info(f"Plotting total algo performance vs hold")
+
+        columns_dict = {"Close": list(), "total": list()}
         for col in self.total_df.columns:
             for column_to_merge in columns_dict:
                 if col.startswith(column_to_merge):
                     columns_dict[column_to_merge].append(col)
-        
+
         for result_column, columns_to_merge_list in columns_dict.items():
-            self.total_df[result_column] = self.total_df[columns_to_merge_list].sum(axis=1)
-        
+            self.total_df[result_column] = self.total_df[columns_to_merge_list].sum(
+                axis=1
+            )
+
         plot_obj = Plot(
-            data_df=self.total_df, 
-            title=f'Total HOLD (red) vs Total algo (black)')
+            data_df=self.total_df, title=f"Total HOLD (red) vs Total algo (black)"
+        )
         plot_obj.show_entire_portfolio()
-    
+
     def print_performance_per_strategy(self):
-        log.info(f'Performance per strategy')
+        log.info(f"Performance per strategy")
 
-        result_dict = self.counter_per_strategy_dict.pop('-- MAX --')
-        result_message = [f'-- MAX -- : {str(result_dict)}']
+        result_dict = self.counter_per_strategy_dict.pop("-- MAX --")
+        result_message = [f"-- MAX -- : {str(result_dict)}"]
         sorted_strategies_list = sorted(
-            self.counter_per_strategy_dict.items(), 
-            key=lambda x: int(x[1]["total_sum"]), 
-            reverse=True)
+            self.counter_per_strategy_dict.items(),
+            key=lambda x: int(x[1]["total_sum"]),
+            reverse=True,
+        )
 
-        log.info('\n'.join(result_message + [
-            f'{i+1}. {strategy[0]}: {strategy[1]}' for i, strategy in enumerate(sorted_strategies_list)]))
+        log.info(
+            "\n".join(
+                result_message
+                + [
+                    f"{i+1}. {strategy[0]}: {strategy[1]}"
+                    for i, strategy in enumerate(sorted_strategies_list)
+                ]
+            )
+        )
 
     def print_performance_per_indicator(self):
-        log.info(f'Performance per indicator')
+        log.info(f"Performance per indicator")
 
         performance_per_indicator_dict = dict()
         for strategy, statistics_dict in self.counter_per_strategy_dict.items():
@@ -92,53 +104,78 @@ class Portfolio_Analysis:
             if statistics_dict["win_counter"] != dict():
                 counter = sum(statistics_dict["win_counter"].values())
 
-            for indicator in strategy.split(' + '):
+            for indicator in strategy.split(" + "):
                 performance_per_indicator_dict.setdefault(indicator, 0)
                 performance_per_indicator_dict[indicator] += counter
 
         sorted_indicators_list = sorted(
-            performance_per_indicator_dict.items(), 
-            key=lambda x: x[1], 
-            reverse=True)
+            performance_per_indicator_dict.items(), key=lambda x: x[1], reverse=True
+        )
 
-        log.info('\n'.join([
-            f'{i+1}. {indicator[0]}: {indicator[1]}' for i, indicator in enumerate(sorted_indicators_list)]))
+        log.info(
+            "\n".join(
+                [
+                    f"{i+1}. {indicator[0]}: {indicator[1]}"
+                    for i, indicator in enumerate(sorted_indicators_list)
+                ]
+            )
+        )
 
     def record_ticker_performance(self, strategy_obj, ticker):
-        log.info(f'Recording performance for {ticker}')
+        log.info(f"Recording performance for {ticker}")
 
-        self.total_df = strategy_obj.history_df if self.total_df is None else pd.merge(
-            self.total_df, strategy_obj.history_df,
-            how='outer',
-            left_index=True, 
-            right_index=True)
+        self.total_df = (
+            strategy_obj.history_df
+            if self.total_df is None
+            else pd.merge(
+                self.total_df,
+                strategy_obj.history_df,
+                how="outer",
+                left_index=True,
+                right_index=True,
+            )
+        )
 
-        self.total_df['Close'] = self.total_df['Close'] / (self.total_df['Close'].values[0] / 1000)
+        self.total_df["Close"] = self.total_df["Close"] / (
+            self.total_df["Close"].values[0] / 1000
+        )
         self.total_df.rename(
             columns={
-                'Close': f'Close / {ticker}',
-                'total': f'total / {ticker} / {strategy_obj.summary["max_output"]["strategy"]}'}, 
-            inplace=True)
+                "Close": f"Close / {ticker}",
+                "total": f'total / {ticker} / {strategy_obj.summary["max_output"]["strategy"]}',
+            },
+            inplace=True,
+        )
 
-        self.total_df = self.total_df[[
-            i for i in self.total_df.columns if (i.startswith('Close') or i.startswith('total'))]]
+        self.total_df = self.total_df[
+            [
+                i
+                for i in self.total_df.columns
+                if (i.startswith("Close") or i.startswith("total"))
+            ]
+        ]
 
-    def get_strategy_on_ticker(self, ticker_yahoo, ticker_ava, comment, in_portfolio_bool, cache):
+    def get_strategy_on_ticker(
+        self, ticker_yahoo, ticker_ava, comment, in_portfolio_bool, cache
+    ):
         if ticker_yahoo not in self.visited_tickers:
-            log.info(f'Getting strategy on {ticker_yahoo}')
+            log.info(f"Getting strategy on {ticker_yahoo}")
             self.visited_tickers.append(ticker_yahoo)
         else:
-            return 
+            return
 
         try:
-            strategy_obj = Strategy(ticker_yahoo, ticker_ava, self.ava, ticker_name=comment, cache=cache)
-        except Exception as e: 
+            strategy_obj = Strategy(
+                ticker_yahoo, ticker_ava, self.ava, ticker_name=comment, cache=cache
+            )
+        except Exception as e:
             log.error(f'There was a problem with the ticker "{ticker_yahoo}": {e}')
             return
 
         if self.show_only_tickers_to_act_on_bool and (
-            (in_portfolio_bool and strategy_obj.summary['signal'] == 'buy') or 
-            (not in_portfolio_bool and strategy_obj.summary['signal'] == 'sell')):
+            (in_portfolio_bool and strategy_obj.summary["signal"] == "buy")
+            or (not in_portfolio_bool and strategy_obj.summary["signal"] == "sell")
+        ):
             return
 
         # Print the result for all strategies AND count per strategy performance
@@ -147,103 +184,129 @@ class Portfolio_Analysis:
 
         if top_signal != signal:
             signal = f"{top_signal} ->> {signal}"
-            log.warning(f'Signal override: {signal}')
+            log.warning(f"Signal override: {signal}")
 
-        max_output_summary = f'signal: {signal} / ' + ' / '.join([
-            f'{k}: {v}' for k, v in strategy_obj.summary["max_output"].items() if k in ("result", "transactions_counter")])
-        log.info(f'--- {strategy_obj.summary["ticker_name"]} ({max_output_summary}) (HOLD: {strategy_obj.summary["hold_result"]}) ---')
+        max_output_summary = f"signal: {signal} / " + " / ".join(
+            [
+                f"{k}: {v}"
+                for k, v in strategy_obj.summary["max_output"].items()
+                if k in ("result", "transactions_counter")
+            ]
+        )
+        log.info(
+            f'--- {strategy_obj.summary["ticker_name"]} ({max_output_summary}) (HOLD: {strategy_obj.summary["hold_result"]}) ---'
+        )
 
-        for parameter in ('result', 'transactions_counter'):
-            self.counter_per_strategy_dict['-- MAX --'][parameter] += strategy_obj.summary["max_output"][parameter]
+        for parameter in ("result", "transactions_counter"):
+            self.counter_per_strategy_dict["-- MAX --"][
+                parameter
+            ] += strategy_obj.summary["max_output"][parameter]
 
-        for i, strategy_item_list in enumerate(strategy_obj.summary["sorted_strategies_list"]):
+        for i, strategy_item_list in enumerate(
+            strategy_obj.summary["sorted_strategies_list"]
+        ):
             strategy, strategy_data_dict = strategy_item_list[0], strategy_item_list[1]
-            
-            self.counter_per_strategy_dict.setdefault(strategy, {
-                'total_sum': 0, 
-                'win_counter': dict(), 
-                'transactions_counter': 0})
-            self.counter_per_strategy_dict[strategy]['total_sum'] += strategy_data_dict["result"]
-            self.counter_per_strategy_dict[strategy]['transactions_counter'] += len(strategy_data_dict["transactions"])
-            
-            if i < 3: 
-                log.info(f'Strategy: {strategy} -> {strategy_data_dict["result"]} (number_transactions: {len(strategy_data_dict["transactions"])}) (signal: {strategy_data_dict["signal"]})')
-                [log.info(t) for t in strategy_data_dict["transactions"] if self.print_transactions_bool]
-                
-                self.counter_per_strategy_dict[strategy]['win_counter'].setdefault(f'{i+1}', 0)
-                self.counter_per_strategy_dict[strategy]['win_counter'][f'{i+1}'] += 1
+
+            self.counter_per_strategy_dict.setdefault(
+                strategy,
+                {"total_sum": 0, "win_counter": dict(), "transactions_counter": 0},
+            )
+            self.counter_per_strategy_dict[strategy]["total_sum"] += strategy_data_dict[
+                "result"
+            ]
+            self.counter_per_strategy_dict[strategy]["transactions_counter"] += len(
+                strategy_data_dict["transactions"]
+            )
+
+            if i < 3:
+                log.info(
+                    f'Strategy: {strategy} -> {strategy_data_dict["result"]} (number_transactions: {len(strategy_data_dict["transactions"])}) (signal: {strategy_data_dict["signal"]})'
+                )
+                [
+                    log.info(t)
+                    for t in strategy_data_dict["transactions"]
+                    if self.print_transactions_bool
+                ]
+
+                self.counter_per_strategy_dict[strategy]["win_counter"].setdefault(
+                    f"{i+1}", 0
+                )
+                self.counter_per_strategy_dict[strategy]["win_counter"][f"{i+1}"] += 1
 
         # Plot
         plot_conditions_list = [
             ticker_yahoo in self.plot_extra_tickers_list,
             in_portfolio_bool and self.plot_portfolio_tickers_bool,
-            (in_portfolio_bool and signal == 'sell') and self.plot_tickers_to_act_on_bool,
-            (not in_portfolio_bool and signal == 'buy') and self.plot_tickers_to_act_on_bool]
+            (in_portfolio_bool and signal == "sell")
+            and self.plot_tickers_to_act_on_bool,
+            (not in_portfolio_bool and signal == "buy")
+            and self.plot_tickers_to_act_on_bool,
+        ]
         if any(plot_conditions_list):
             self.plot_ticker(strategy_obj)
 
         # Create a DF with all best strategies vs HOLD
         self.record_ticker_performance(strategy_obj, ticker_yahoo)
-    
+
     def get_settings_and_context(self):
-        log.info('Getting settings and context')
+        log.info("Getting settings and context")
 
         settings_obj = Settings()
-        settings_json = settings_obj.load()  
+        settings_json = settings_obj.load()
 
         return Context(
             user=list(settings_json.keys())[0],
-            accounts_dict=list(settings_json.values())[0]["1"]['accounts'])
+            accounts_dict=list(settings_json.values())[0]["1"]["accounts"],
+        )
 
     def run_analysis(self, check_only_watchlist_bool, cache):
-        log.info('Running analysis')
+        log.info("Running analysis")
 
         if check_only_watchlist_bool:
-            log.info('Checking watch_list')
+            log.info("Checking watch_list")
             for watchlist_name, tickers_list in self.ava.watchlists_dict.items():
                 for ticker_dict in tickers_list:
                     self.get_strategy_on_ticker(
-                        ticker_dict['ticker_yahoo'], 
-                        ticker_dict['order_book_id'],
+                        ticker_dict["ticker_yahoo"],
+                        ticker_dict["order_book_id"],
                         f"Watchlist ({watchlist_name}): {ticker_dict['ticker_yahoo']}",
                         in_portfolio_bool=False,
-                        cache=cache)
+                        cache=cache,
+                    )
         else:
-            log.info('Checking portfolio')
-            if self.ava.portfolio_dict['positions']['df'] is not None:
-                for _, row in self.ava.portfolio_dict['positions']['df'].iterrows():
+            log.info("Checking portfolio")
+            if self.ava.portfolio_dict["positions"]["df"] is not None:
+                for _, row in self.ava.portfolio_dict["positions"]["df"].iterrows():
                     self.get_strategy_on_ticker(
-                        row["ticker_yahoo"], 
+                        row["ticker_yahoo"],
                         row["orderbookId"],
                         f"Stock: {row['name']} - {row['ticker_yahoo']}",
                         in_portfolio_bool=True,
-                        cache=cache)
+                        cache=cache,
+                    )
 
-            log.info('Checking budget_lists')
+            log.info("Checking budget_lists")
             for budget_rule_name, watchlist_dict in self.ava.budget_rules_dict.items():
-                for ticker_dict in watchlist_dict['tickers']:
+                for ticker_dict in watchlist_dict["tickers"]:
                     self.get_strategy_on_ticker(
-                        ticker_dict['ticker_yahoo'], 
-                        ticker_dict['order_book_id'],
+                        ticker_dict["ticker_yahoo"],
+                        ticker_dict["order_book_id"],
                         f"Budget ({budget_rule_name}K): {ticker_dict['ticker_yahoo']}",
                         in_portfolio_bool=False,
-                        cache=cache)
+                        cache=cache,
+                    )
 
 
-if __name__ == '__main__':
-    Logger(
-        logger_name='main', 
-        file_prefix='manual')
-    
+if __name__ == "__main__":
+    Logger(logger_name="main", file_prefix="manual")
+
     Portfolio_Analysis(
         check_only_watchlist_bool=False,
         show_only_tickers_to_act_on_bool=True,
-        
-        print_transactions_bool=False, 
-        
-        plot_extra_tickers_list=[], 
+        print_transactions_bool=False,
+        plot_extra_tickers_list=[],
         plot_portfolio_tickers_bool=False,
         plot_total_algo_performance_vs_hold_bool=True,
         plot_tickers_to_act_on_bool=False,
-                
-        cache=False)
+        cache=False,
+    )
