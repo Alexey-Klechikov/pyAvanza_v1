@@ -87,11 +87,11 @@ class Portfolio_Analysis:
         for budget_rule_name, watchlist_dict in self.ava.budget_rules_dict.items():
             for ticker_dict in watchlist_dict["tickers"]:
                 if ticker_dict["ticker_yahoo"] in portfolio_tickers_dict:
-                    continue
+                    portfolio_tickers_dict[ticker_dict["ticker_yahoo"]]["budget"] = (
+                        int(budget_rule_name) * 1000
+                    )
 
-                portfolio_tickers_dict[ticker_dict["ticker_yahoo"]]["budget"] = (
-                    int(budget_rule_name) * 1000
-                )
+                    continue
 
                 log.info(
                     f'> Budget list "{budget_rule_name}": {ticker_dict["ticker_yahoo"]}'
@@ -144,7 +144,11 @@ class Portfolio_Analysis:
 
         orders_list = list()
         for ticker_dict in portfolio_tickers_dict.values():
-            ticker_row, ticker_budget = ticker_dict["row"], ticker_dict["budget"]
+            ticker_row, ticker_budget = ticker_dict["row"], ticker_dict.get("budget", None)
+
+            if ticker_budget is None:
+                log.error(f'Ticker "{ticker_row["ticker_yahoo"]}" has no budget')
+                continue
 
             log.info(f'> Checking ticker: {ticker_row["ticker_yahoo"]}')
 
