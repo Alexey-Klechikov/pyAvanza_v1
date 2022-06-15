@@ -16,10 +16,10 @@
         },
         "2": {
             "accounts": {
-                "Semester": 1732606
+                "DT": 1732606
             },
             "log_to_telegram": false,
-            "run_script_daily": true
+            "run_script_daily": false
         }
     }
 }

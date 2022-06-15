@@ -2,9 +2,9 @@
 This module is used to process and dump execution logs to Telegram
 """
 
-from pprint import pprint
+import logging
+import telegram_send
 
-import telegram_send, logging
 
 log = logging.getLogger("main.telelog")
 

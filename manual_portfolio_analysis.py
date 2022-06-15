@@ -4,12 +4,10 @@ This module is used for manual runs (checkups, improvements, tests)
 
 
 import logging
-
 import pandas as pd
 
-from pprint import pprint
-
 from module.utils import Context, Strategy, Plot, Settings, Logger
+
 
 log = logging.getLogger("main")
 
@@ -59,6 +57,11 @@ class Portfolio_Analysis:
         log.info(f"Plotting total algo performance vs hold")
 
         columns_dict = {"Close": list(), "total": list()}
+
+        if not self.total_df:
+            log.error("No total_df found")
+            return
+
         for col in self.total_df.columns:
             for column_to_merge in columns_dict:
                 if col.startswith(column_to_merge):
@@ -101,7 +104,7 @@ class Portfolio_Analysis:
         performance_per_indicator_dict = dict()
         for strategy, statistics_dict in self.counter_per_strategy_dict.items():
             counter = 0
-            if statistics_dict["win_counter"] != dict():
+            if isinstance(statistics_dict["win_counter"], dict):
                 counter = sum(statistics_dict["win_counter"].values())
 
             for indicator in strategy.split(" + "):
@@ -136,9 +139,10 @@ class Portfolio_Analysis:
             )
         )
 
-        self.total_df["Close"] = self.total_df["Close"] / (
-            self.total_df["Close"].values[0] / 1000
-        )
+        first_value = self.total_df["Close"].values[0]
+        if first_value:
+            self.total_df["Close"] = self.total_df["Close"] / (first_value / 1000)
+
         self.total_df.rename(
             columns={
                 "Close": f"Close / {ticker}",
@@ -207,16 +211,9 @@ class Portfolio_Analysis:
         ):
             strategy, strategy_data_dict = strategy_item_list[0], strategy_item_list[1]
 
-            self.counter_per_strategy_dict.setdefault(
-                strategy,
-                {"total_sum": 0, "win_counter": dict(), "transactions_counter": 0},
-            )
-            self.counter_per_strategy_dict[strategy]["total_sum"] += strategy_data_dict[
-                "result"
-            ]
-            self.counter_per_strategy_dict[strategy]["transactions_counter"] += len(
-                strategy_data_dict["transactions"]
-            )
+            self.counter_per_strategy_dict.setdefault(strategy, {"total_sum": 0, "transactions_counter": 0})
+            self.counter_per_strategy_dict[strategy]["total_sum"] += strategy_data_dict["result"]
+            self.counter_per_strategy_dict[strategy]["transactions_counter"] += len(strategy_data_dict["transactions"])
 
             if i < 3:
                 log.info(
@@ -228,10 +225,11 @@ class Portfolio_Analysis:
                     if self.print_transactions_bool
                 ]
 
-                self.counter_per_strategy_dict[strategy]["win_counter"].setdefault(
-                    f"{i+1}", 0
-                )
-                self.counter_per_strategy_dict[strategy]["win_counter"][f"{i+1}"] += 1
+                win_counter_dict = self.counter_per_strategy_dict[strategy].get("win_counter", dict())
+                if not isinstance(win_counter_dict, dict):
+                    win_counter_dict = dict()
+                win_counter_dict[f"{i+1}"] = win_counter_dict.get(f"{i+1}", 0) + 1
+                self.counter_per_strategy_dict[strategy]["win_counter"] = win_counter_dict  # type: ignore
 
         # Plot
         plot_conditions_list = [

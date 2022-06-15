@@ -3,20 +3,23 @@ This module contains all technical indicators and strategies generation routines
 """
 
 
-import os, pickle, json, warnings, logging
-
-import pandas_ta as ta
-import yfinance as yf
-import pandas as pd
+import os
+import json
+import pickle
+import logging
+import warnings
 import numpy as np
+import pandas as pd
+import yfinance as yf
+import pandas_ta as ta
 
-from pprint import pprint
 from copy import copy
+from pprint import pprint
 
 
-pd.set_option("display.expand_frame_repr", False)
-pd.options.mode.chained_assignment = None
 warnings.filterwarnings("ignore")
+pd.options.mode.chained_assignment = None
+pd.set_option("display.expand_frame_repr", False)
 
 log = logging.getLogger("main.strategy")
 
@@ -24,7 +27,7 @@ log = logging.getLogger("main.strategy")
 class Strategy:
     def __init__(self, ticker_yahoo, ticker_ava, ava, **kwargs):
         self.ticker_obj, history_df = self.read_ticker(
-            ticker_yahoo, ticker_ava, ava, kwargs.get("cache", False)
+            ticker_yahoo, ticker_ava, ava, kwargs.get("cache", False), period=kwargs.get("period", '18mo'), interval=kwargs.get("period", '1d')
         )
         self.history_df, self.conditions_dict = self.prepare_conditions(history_df)
 
@@ -38,7 +41,7 @@ class Strategy:
             kwargs.get("ticker_name", False), strategies_dict
         )
 
-    def read_ticker(self, ticker_yahoo, ticker_ava, ava, cache):
+    def read_ticker(self, ticker_yahoo, ticker_ava, ava, cache, period, interval):
         log.info(f"Reading ticker")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -58,7 +61,7 @@ class Strategy:
                 if not os.path.exists(pickle_path):
                     with open(pickle_path, "wb") as pcl:
                         ticker_obj = yf.Ticker(ticker_yahoo)
-                        history_df = ticker_obj.history(period="18mo")
+                        history_df = ticker_obj.history(period=period, interval=interval)
 
                         if str(history_df.iloc[-1]["Close"]) == "nan":
                             ava.get_todays_ochl(cache[1], ticker_ava)
@@ -443,12 +446,12 @@ class Strategy:
         return summary
 
     @staticmethod
-    def load():
-        log.info("Loading strategies.json")
+    def load(filename_prefix):
+        log.info(f"Loading {filename_prefix}_strategies.json")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         try:
-            with open(f"{current_dir}/strategies.json", "r") as f:
+            with open(f"{current_dir}/{filename_prefix}_strategies.json", "r") as f:
                 strategies_json = json.load(f)
         except:
             strategies_json = dict()
@@ -456,9 +459,9 @@ class Strategy:
         return strategies_json
 
     @staticmethod
-    def dump(strategies_json):
-        log.info("Dump strategies.json")
+    def dump(filename_prefix, strategies_json):
+        log.info(f"Dump {filename_prefix}_strategies.json")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        with open(f"{current_dir}/strategies.json", "w") as f:
+        with open(f"{current_dir}/{filename_prefix}_strategies.json", "w") as f:
             json.dump(strategies_json, f, indent=4)

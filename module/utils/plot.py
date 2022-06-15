@@ -3,11 +3,12 @@ This module is used to plot tickers, indicators, and comparison graph
 """
 
 
-import warnings, logging
-
-import matplotlib.pyplot as plt
-import mplfinance as mpf
+import logging
+import warnings
 import numpy as np
+import mplfinance as mpf
+import matplotlib.pyplot as plt
+
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 

@@ -3,7 +3,10 @@ Logging events.
 (File logger + Colored Console logger)
 """
 
-import logging, datetime, os, copy
+import os
+import copy
+import logging
+import datetime
 
 
 class ColoredFormatter(logging.Formatter):

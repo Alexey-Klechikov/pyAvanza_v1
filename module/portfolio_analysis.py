@@ -1,22 +1,22 @@
 """
 This module is the "frontend" meant for everyday run. It will perform analysis on stocks and trigger trades.
 It will import other modules to run the analysis on the stocks -> place orders -> dump log in Telegram.py
-It will be run from Telegram or automatically as cron-job.
 """
 
 import logging
 
 from .utils.context import Context
-from .utils.strategy import Strategy
-from .utils.settings import Settings
 from .utils.telelog import TeleLog
+from .utils.settings import Settings
+from .utils.strategy import Strategy
+
 
 log = logging.getLogger("main.portfolio_analysis")
 
 
 class Portfolio_Analysis:
     def __init__(self, **kwargs):
-        self.strategies_dict = Strategy.load()
+        self.strategies_dict = Strategy.load('TA')
         self.signals_dict = kwargs.get("signals_dict", dict())
 
         self.ava = Context(kwargs["user"], kwargs["accounts_dict"])

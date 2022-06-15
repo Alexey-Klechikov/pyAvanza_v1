@@ -3,7 +3,10 @@ This module is operating 'settings.json' file, that is responsible for the scrip
 """
 
 
-import os, json, logging
+import os
+import json
+import logging
+
 
 log = logging.getLogger("main.settings")
 
@@ -13,21 +16,21 @@ class Settings:
         self.current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     def load(self):
-        log.info("Loading settings.json")
+        log.info("Loading TA_settings.json")
 
-        with open(f"{self.current_dir}/settings.json", "r") as f:
+        with open(f"{self.current_dir}/TA_settings.json", "r") as f:
             settings_json = json.load(f)
 
         return settings_json
 
     def dump(self, settings_json):
-        log.info("Dump settings.json")
+        log.info("Dump TA_settings.json")
 
-        with open(f"{self.current_dir}/settings.json", "w") as f:
+        with open(f"{self.current_dir}/TA_settings.json", "w") as f:
             json.dump(settings_json, f, indent=4)
 
     def read(self, account):
-        log.info(f"Read settings.json")
+        log.info(f"Read TA_settings.json")
 
         settings_json = self.load()[account]
 
@@ -52,7 +55,7 @@ class Settings:
         return "\n".join(message_list)
 
     def write(self, parameter, value):
-        log.info(f"Write settings.json")
+        log.info(f"Write TA_settings.json")
 
         keys_path_list = parameter.split(".")
         settings_json = self.load()

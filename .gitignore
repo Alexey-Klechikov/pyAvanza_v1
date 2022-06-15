@@ -4,4 +4,4 @@ __pycache__/
 *.pickle
 .venv/
 logs/
-module/strategies.json
+module/TA_strategies.json

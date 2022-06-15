@@ -2,8 +2,8 @@
 This module is used by crontab (for every day run)
 """
 
-from module import run_portfolio_analysis
 from module.utils import Logger
+from module import run_portfolio_analysis
 
 
 if __name__ == "__main__":

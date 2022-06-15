@@ -1,0 +1,9 @@
+pandas
+pandas-ta
+avanza-api
+matplotlib
+mplfinance
+numpy
+yfinance
+telegram-send
+keyring
