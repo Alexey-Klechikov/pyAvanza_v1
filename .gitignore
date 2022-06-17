@@ -5,3 +5,6 @@ __pycache__/
 .venv/
 logs/
 module/TA_strategies.json
+module/DT_strategies.json
+launch.json
+.DS_Store

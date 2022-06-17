@@ -6,7 +6,11 @@ This module is used for manual runs (checkups, improvements, tests)
 import logging
 import pandas as pd
 
-from module.utils import Context, Strategy, Plot, Settings, Logger
+from module.utils import Plot
+from module.utils import Logger
+from module.utils import Context
+from module.utils import Settings
+from module.utils import Strategy
 
 
 log = logging.getLogger("main")

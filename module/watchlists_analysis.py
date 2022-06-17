@@ -7,10 +7,10 @@ It will import other modules to run the analysis on the stocks -> move it to the
 
 import logging
 
-from .utils.context import Context
-from .utils.telelog import TeleLog
-from .utils.settings import Settings
-from .utils.strategy import Strategy
+from .utils import Settings
+from .utils import Strategy
+from .utils import Context
+from .utils import TeleLog
 
 
 log = logging.getLogger("main.watchlists_analysis")
@@ -120,8 +120,7 @@ class Watchlists_Analysis:
 
 
 def run():
-    settings_obj = Settings()
-    settings_json = settings_obj.load()
+    settings_json = Settings().load()
 
     for user, settings_per_account_dict in settings_json.items():
         for settings_dict in settings_per_account_dict.values():

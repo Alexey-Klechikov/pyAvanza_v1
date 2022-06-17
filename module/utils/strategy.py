@@ -27,9 +27,27 @@ log = logging.getLogger("main.strategy")
 class Strategy:
     def __init__(self, ticker_yahoo, ticker_ava, ava, **kwargs):
         self.ticker_obj, history_df = self.read_ticker(
-            ticker_yahoo, ticker_ava, ava, kwargs.get("cache", False), period=kwargs.get("period", '18mo'), interval=kwargs.get("period", '1d')
+            ticker_yahoo,
+            ticker_ava,
+            ava,
+            kwargs.get("cache", False),
+            period=kwargs.get("period", "18mo"),
+            interval=kwargs.get("interval", "1d"),
         )
-        self.history_df, self.conditions_dict = self.prepare_conditions(history_df)
+
+        if "adjust_history_dict" in kwargs:
+            shift = history_df.iloc[0]["Open"] - kwargs["adjust_history_dict"]["base"]
+            for col in ["Open", "High", "Low", "Close"]:
+                history_df[col] = history_df[col] - shift
+                if kwargs["adjust_history_dict"]["inverse"]:
+                    history_df[col] = (-1 * history_df[col]) + (
+                        2 * kwargs["adjust_history_dict"]["base"]
+                    )
+
+        skip_points = kwargs.get("skip_points", 100)
+        self.history_df, self.conditions_dict = self.prepare_conditions(
+            history_df, skip_points
+        )
 
         if "strategies_list" in kwargs and kwargs["strategies_list"] != list():
             strategies_list = self.parse_strategies_list(kwargs["strategies_list"])
@@ -61,7 +79,9 @@ class Strategy:
                 if not os.path.exists(pickle_path):
                     with open(pickle_path, "wb") as pcl:
                         ticker_obj = yf.Ticker(ticker_yahoo)
-                        history_df = ticker_obj.history(period=period, interval=interval)
+                        history_df = ticker_obj.history(
+                            period=period, interval=interval
+                        )
 
                         if str(history_df.iloc[-1]["Close"]) == "nan":
                             ava.get_todays_ochl(cache[1], ticker_ava)
@@ -78,7 +98,7 @@ class Strategy:
 
         return cache
 
-    def prepare_conditions(self, history_df):
+    def prepare_conditions(self, history_df, skip_points):
         log.info("Preparing conditions")
 
         condition_types_list = (
@@ -258,7 +278,7 @@ class Strategy:
             "sell": lambda x: x["UO_7_14_28"] > 70,
         }
 
-        return history_df.iloc[100:], conditions_dict
+        return history_df.iloc[skip_points:], conditions_dict
 
     def generate_strategies_list(self):
         log.info("Generating strategies list")
@@ -351,7 +371,7 @@ class Strategy:
                 "sell_signal": np.nan,
             }
             for i, row in self.history_df.iterrows():
-                date = str(i)[:10]
+                date = str(i)[:-6]
 
                 # Sell event
                 if (

@@ -48,7 +48,8 @@ class OneLineFormatter(logging.Formatter):
 
 
 class Logger:
-    def __init__(self, logger_name, file_prefix, log_level="INFO"):
+    def __init__(self, logger_name, file_prefix, log_level="INFO", file_log_level="INFO"):
+        self.file_log_level = file_log_level
         self.log_file_name = self.get_log_file_name(file_prefix)
         self.log = logging.getLogger(logger_name)
         self.set_handlers(console_bool=True, file_bool=True)
@@ -77,7 +78,7 @@ class Logger:
             fh = logging.FileHandler(
                 f"{self.log_file_name}{datetime.datetime.now():%Y-%m-%d_%H.%M}.log"
             )
-            fh.setLevel(logging.DEBUG)
+            fh.setLevel(self.file_log_level)
             ff = OneLineFormatter(
                 "[%(levelname)s] [%(asctime)s] [%(name)s] - %(message)s"
             )

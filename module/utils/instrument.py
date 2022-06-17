@@ -13,18 +13,17 @@ log = logging.getLogger("main.instruments")
 
 
 class Instrument:
-    def __init__(self):
-        trading_multiplier = 18
+    def __init__(self, trading_multiplier):
         self.ids_dict = self.get_id(trading_multiplier)
 
     def get_id(self, trading_multiplier):
         log.info(
-            f"Getting instrument_ids from instruments.json for trading_multiplier={trading_multiplier}"
+            f"Getting instrument_ids from DT_instruments.json for trading_multiplier={trading_multiplier}"
         )
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        with open(f"{current_dir}/instruments.json", "r") as f:
+        with open(f"{current_dir}/DT_instruments.json", "r") as f:
             instruments_json = json.load(f)
 
         instrument_ids_dict = {

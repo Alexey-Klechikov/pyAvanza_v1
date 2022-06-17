@@ -17,12 +17,13 @@ log = logging.getLogger("main.context")
 
 
 class Context:
-    def __init__(self, user, accounts_dict):
+    def __init__(self, user, accounts_dict, skip_lists=False):
         self.ctx = self.get_ctx(user)
         self.accounts_dict = accounts_dict
-        self.portfolio_dict = self.get_portfolio()
-        self.budget_rules_dict, self.watchlists_dict = self.process_watchlists()
 
+        if not skip_lists:
+            self.portfolio_dict = self.get_portfolio()
+            self.budget_rules_dict, self.watchlists_dict = self.process_watchlists()
 
     def get_ctx(self, user):
         log.info("Getting context")
@@ -45,17 +46,22 @@ class Context:
 
         return ctx
 
-
     def get_portfolio(self):
         log.info("Getting portfolio")
 
-        portfolio_dict = {"buying_power": {}, 'total_own_capital': 0, "positions": {"dict": None, "df": None}}
+        portfolio_dict = {
+            "buying_power": {},
+            "total_own_capital": 0,
+            "positions": {"dict": None, "df": None},
+        }
 
         for k, v in self.accounts_dict.items():
             account_overview_dict = self.ctx.get_account_overview(v)
             if account_overview_dict:
                 portfolio_dict["buying_power"][k] = account_overview_dict["buyingPower"]
-                portfolio_dict['total_own_capital'] += account_overview_dict["ownCapital"]
+                portfolio_dict["total_own_capital"] += account_overview_dict[
+                    "ownCapital"
+                ]
 
         positions_list = list()
         positions_dict = self.ctx.get_positions()
@@ -77,23 +83,26 @@ class Context:
             }
 
             tickers_yahoo_list = list()
-            for orderbook_id in portfolio_dict["positions"]["df"]["orderbookId"].tolist():
+            for orderbook_id in portfolio_dict["positions"]["df"][
+                "orderbookId"
+            ].tolist():
                 stock_info_dict = self.ctx.get_stock_info(orderbook_id)
                 if not stock_info_dict:
                     stock_info_dict = dict()
-                
-                tickers_yahoo_list.append(f"{stock_info_dict.get('tickerSymbol', '').replace(' ', '-')}.ST")
+
+                tickers_yahoo_list.append(
+                    f"{stock_info_dict.get('tickerSymbol', '').replace(' ', '-')}.ST"
+                )
 
             portfolio_dict["positions"]["df"]["ticker_yahoo"] = tickers_yahoo_list
 
         return portfolio_dict
 
-
     def process_watchlists(self):
         log.info("Process watchlists")
 
         watchlists_dict, budget_rules_dict = dict(), dict()
-        
+
         watchlists_list = self.ctx.get_watchlists()
         if watchlists_list:
             for watchlist_dict in watchlists_list:
@@ -111,8 +120,11 @@ class Context:
                         "ticker_yahoo": f"{stock_info_dict.get('tickerSymbol', '').replace(' ', '-')}.ST",
                     }
                     tickers_list.append(ticker_dict)
-                    
-                wl_dict = {"watchlist_id": watchlist_dict["id"], "tickers": tickers_list}
+
+                wl_dict = {
+                    "watchlist_id": watchlist_dict["id"],
+                    "tickers": tickers_list,
+                }
 
                 try:
                     int(watchlist_dict["name"])
@@ -121,7 +133,6 @@ class Context:
                     watchlists_dict[watchlist_dict["name"]] = wl_dict
 
         return budget_rules_dict, watchlists_dict
-
 
     def create_orders(self, orders_list, type):
         log.info(f"Creating {type} orders")
@@ -195,11 +206,10 @@ class Context:
 
             return created_orders_list
 
-
     def get_stock_price(self, stock_id):
         log.info(f"Getting stock price {stock_id}")
 
-        stock_info_dict = self.ctx.get_stock_info(stock_id=stock_id)
+        stock_info_dict = self.ctx.get_stock_info(stock_id)
 
         if stock_info_dict is None:
             raise Exception(f"Stock {stock_id} not found")
@@ -220,11 +230,35 @@ class Context:
 
         return stock_price_dict
 
+    def get_certificate_price(self, certificate_id):
+        log.info(f"Getting certificate price {certificate_id}")
+
+        certificate_dict = self.ctx.get_certificate_info(certificate_id)
+
+        try:
+            if (
+                certificate_dict is None
+                or "sellPrice" not in certificate_dict
+                or "buyPrice" not in certificate_dict
+            ):
+                raise Exception(
+                    f"Certificate {certificate_id} not found or missing info"
+                )
+
+            return {
+                "buy": certificate_dict["sellPrice"],
+                "sell": certificate_dict["buyPrice"],
+                "positions": certificate_dict["positions"],
+            }
+
+        except Exception as e:
+            log.error(f"{e}: {certificate_dict}")
+            return {"buy": None, "sell": None, "positions": []}
 
     def get_todays_ochl(self, history_df, stock_id):
         log.warning(f"Getting todays OCHL")
 
-        stock_info_dict = self.ctx.get_stock_info(stock_id=stock_id)
+        stock_info_dict = self.ctx.get_stock_info(stock_id)
 
         if stock_info_dict is None:
             raise Exception(f"Stock {stock_id} not found")
@@ -242,8 +276,7 @@ class Context:
         history_df.loc[last_row_index, "Low"] = stock_info_dict["lowestPrice"]
         history_df.loc[last_row_index, "Volume"] = stock_info_dict["totalVolumeTraded"]
 
-
-    def remove_active_orders(self):
+    def remove_active_orders(self, orderbook_ids_list=list(), account_ids_list=list()):
         log.info("Removing active orders")
 
         active_orders_list = list()
@@ -258,12 +291,24 @@ class Context:
                 if int(order["account"]["id"]) not in list(self.accounts_dict.values()):
                     continue
 
+                if (
+                    len(orderbook_ids_list) > 0
+                    and int(order["orderbook"]["id"]) not in orderbook_ids_list
+                ):
+                    continue
+
+                if (
+                    len(account_ids_list) > 0
+                    and int(order["account"]["id"]) not in account_ids_list
+                ):
+                    continue
+
                 log.info(f"({order['sum']}) {order['orderbook']['name']}")
                 self.ctx.delete_order(
                     account_id=order["account"]["id"], order_id=order["orderId"]
                 )
 
-                stock_info_dict = self.ctx.get_stock_info(order['orderbook']['id'])
+                stock_info_dict = self.ctx.get_stock_info(order["orderbook"]["id"])
                 if not stock_info_dict:
                     continue
 

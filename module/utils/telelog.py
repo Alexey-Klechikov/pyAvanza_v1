@@ -31,7 +31,7 @@ class TeleLog:
                 for account, funds in portfolio_dict["buying_power"].items()
             ]
         )
-        self.message += f'Total value: {portfolio_dict["total_own_capital"]}\n\nTotal free funds:\n{free_funds}\n\n'
+        self.message += f'Total value: {round(portfolio_dict["total_own_capital"])}\n\nTotal free funds:\n{free_funds}\n\n'
 
     def parse_watchlists_analysis_log(self, watchlists_analysis_log_list):
         log.info("Parse watchlists_analysis_log_list")
@@ -44,8 +44,6 @@ class TeleLog:
         for order_type, orders_list in orders_dict.items():
             if len(orders_list) == 0:
                 continue
-
-            # TODO - ticker - hyperlink
 
             self.message += f"{order_type.upper()} orders:\n\n"
             for order_dict in orders_list:

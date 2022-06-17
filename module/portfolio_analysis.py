@@ -5,10 +5,10 @@ It will import other modules to run the analysis on the stocks -> place orders -
 
 import logging
 
-from .utils.context import Context
-from .utils.telelog import TeleLog
-from .utils.settings import Settings
-from .utils.strategy import Strategy
+from .utils import Settings
+from .utils import Strategy
+from .utils import Context
+from .utils import TeleLog
 
 
 log = logging.getLogger("main.portfolio_analysis")
@@ -16,7 +16,7 @@ log = logging.getLogger("main.portfolio_analysis")
 
 class Portfolio_Analysis:
     def __init__(self, **kwargs):
-        self.strategies_dict = Strategy.load('TA')
+        self.strategies_dict = Strategy.load("TA")
         self.signals_dict = kwargs.get("signals_dict", dict())
 
         self.ava = Context(kwargs["user"], kwargs["accounts_dict"])
@@ -144,7 +144,9 @@ class Portfolio_Analysis:
 
         orders_list = list()
         for ticker_dict in portfolio_tickers_dict.values():
-            ticker_row, ticker_budget = ticker_dict["row"], ticker_dict.get("budget", None)
+            ticker_row, ticker_budget = ticker_dict["row"], ticker_dict.get(
+                "budget", None
+            )
 
             if ticker_budget is None:
                 log.error(f'Ticker "{ticker_row["ticker_yahoo"]}" has no budget')
@@ -207,8 +209,7 @@ class Portfolio_Analysis:
 
 
 def run():
-    settings_obj = Settings()
-    settings_json = settings_obj.load()
+    settings_json = Settings().load()
 
     signals_dict = dict()
     for user, settings_per_account_dict in settings_json.items():
