@@ -547,7 +547,7 @@ class Plot:
         # Expected format "Stock: YadaYada - (Momentum) STOCH + (Trend) CHOP"
         strategy_components = [
             i.split(")")[1].strip() for i in self.title.split(" - ")[1].split("+")
-        ] + ["UO"]
+        ]
         add_panel_num = lambda plot_type: 0 if plot_type == "main_plot" else 1
         for plot_type, strategy_plots_dict in graphs_dict.items():
             panel_num = add_panel_num(plot_type)

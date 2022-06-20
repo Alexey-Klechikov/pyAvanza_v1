@@ -144,11 +144,14 @@ class Strategy:
         }
 
         # KVO (Klinger Volume Oscillator)
-        history_df.ta.kvo(append=True)
-        conditions_dict["Volume"]["KVO"] = {
-            "buy": lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
-            "sell": lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
-        }
+        try:
+            history_df.ta.kvo(append=True)
+            conditions_dict["Volume"]["KVO"] = {
+                "buy": lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
+                "sell": lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
+            }
+        except:
+            log.info("Not enough data for KVO")
 
         """ Volatility """
         # MASSI (Mass Index)

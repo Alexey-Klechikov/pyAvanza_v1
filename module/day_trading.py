@@ -7,6 +7,7 @@ It will import other modules to run the analysis on the stocks -> place orders -
 import time
 import logging
 from pprint import pprint
+from datetime import datetime
 
 from .utils import Instrument
 from .utils import Settings
@@ -19,166 +20,215 @@ log = logging.getLogger("main.day_trading")
 
 
 class Day_Trading:
-    def __init__(self, user, accounts_dict, multiplier, budget):
-        self.ava = Context(user, accounts_dict, skip_lists=True)
-        instruments_dict = Instrument(multiplier)
+    def __init__(self, user, account_ids_dict, multiplier, budget):
+        self.budget = budget
+        self.account_ids_dict = account_ids_dict
+        self.end_of_day_bool = False
+        self.ava = Context(user, account_ids_dict, skip_lists=True)
+        self.strategies_dict = Strategy.load("DT")
+        self.instruments_dict = Instrument(multiplier)
+        self.instruments_status_dict = {"BULL": "sell", "BEAR": "sell"}
 
-        self.run_analysis(accounts_dict, instruments_dict, budget)
+        self.run_analysis()
 
+    # HELPER functions
     def plot_ticker(self, strategy_obj, instrument_type):
-        log.info(f"Plotting {instrument_type}")
-
         plot_obj = Plot(
             data_df=strategy_obj.history_df,
-            title=f'{strategy_obj.ticker_obj.info["symbol"]} ({strategy_obj.ticker_obj.info["shortName"]}) - {strategy_obj.summary["max_output"]["strategy"]}',
+            title=f'{instrument_type} ({strategy_obj.ticker_obj.info["shortName"]}) - {strategy_obj.summary["max_output"]["strategy"]}',
         )
         plot_obj.create_extra_panels()
         plot_obj.show_single_ticker()
 
-    def run_analysis(self, accounts_dict, instruments_dict, budget):
-        log.info(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
-        self.ava.remove_active_orders(account_ids_list=list(accounts_dict.values()))
+    def get_strategy_obj(self, instrument_type):
+        try:
+            strategy_obj = Strategy(
+                self.instruments_dict.ids_dict["MONITORING"]["YAHOO"],
+                self.instruments_dict.ids_dict["MONITORING"]["AVA"],
+                self.ava,
+                strategies_list=self.strategies_dict.get(instrument_type, list()),
+                period="1d",
+                interval="2m",
+                adjust_history_dict={
+                    "base": 100,
+                    "inverse": True if instrument_type == "BEAR" else False,
+                },
+                skip_points=0,
+            )
+        except Exception as e:
+            log.error(f"Error in getting strategy_obj: {e}")
+            strategy_obj = None
 
-        counter = 1
-        strategies_dict = Strategy.load("DT")
-        transactions_dict = {"BULL": [], "BEAR": []}
+        return strategy_obj
+
+    def save_strategies(self, instrument_type, strategy_obj):
+        self.strategies_dict[instrument_type] = list()
+        for i, (strategy_name, strategy_dict) in enumerate(
+            strategy_obj.summary["sorted_strategies_list"][
+                :50
+            ]  # HERE I change number of strategies to save
+        ):
+            self.strategies_dict[instrument_type].append(strategy_name)
+
+            if i < 5:
+                log.info(
+                    f"Strategy {strategy_name}: {strategy_dict['signal']} ({strategy_dict['result']})"
+                )
+
+            if i == 0:  # HERE I change number of strategies to save
+                break
+
+        Strategy.dump("DT", self.strategies_dict)
+
+    def get_signal(self, instrument_type, strategy_obj):
+        self.ava.remove_active_orders(
+            account_ids_list=list(self.account_ids_dict.values()),
+            orderbook_ids_list=[
+                self.instruments_dict.ids_dict["TRADING"][instrument_type]
+            ],
+        )
+        certificate_info_dict = self.ava.get_certificate_info(
+            self.instruments_dict.ids_dict["TRADING"][instrument_type]
+        )
+        signal = (
+            "sell"
+            if self.end_of_day_bool
+            else strategy_obj.summary["max_output"]["signal"]
+        )
+        self.instruments_status_dict[instrument_type] = (
+            "buy" if len(certificate_info_dict["positions"]) > 0 else "sell"
+        )
+
+        if (self.instruments_status_dict[instrument_type] == signal) or (
+            strategy_obj.summary["max_output"]["result"] <= 1000
+            and not self.end_of_day_bool
+        ):
+            return None, certificate_info_dict
+
+        return signal, certificate_info_dict
+
+    def place_order(self, instrument_type, strategy_obj, signal, certificate_info_dict):
+        if signal == "buy":
+            self.ava.create_orders(
+                [
+                    {
+                        "account_id": list(self.account_ids_dict.values())[0],
+                        "order_book_id": self.instruments_dict.ids_dict["TRADING"][
+                            instrument_type
+                        ],
+                        "budget": self.budget,
+                        "price": certificate_info_dict[signal],
+                        "volume": int(self.budget // certificate_info_dict[signal]),
+                        "name": instrument_type,
+                        "max_return": strategy_obj.summary["max_output"]["result"],
+                    }
+                ],
+                "buy",
+            )
+
+        elif signal == "sell":
+            self.ava.create_orders(
+                [
+                    {
+                        "account_id": list(self.account_ids_dict.values())[0],
+                        "order_book_id": self.instruments_dict.ids_dict["TRADING"][
+                            instrument_type
+                        ],
+                        "volume": certificate_info_dict["positions"][0]["volume"],
+                        "price": certificate_info_dict[signal],
+                        "profit": certificate_info_dict["positions"][0][
+                            "profitPercent"
+                        ],
+                        "name": instrument_type,
+                        "max_return": strategy_obj.summary["max_output"]["result"],
+                    }
+                ],
+                "sell",
+            )
+
+        log.warning(
+            " - ".join(
+                [
+                    str(i)
+                    for i in [
+                        instrument_type,
+                        signal,
+                        certificate_info_dict[signal],
+                        strategy_obj.summary["max_output"]["strategy"],
+                        strategy_obj.summary["max_output"]["result"],
+                        "profit: " + "-"
+                        if signal == "buy"
+                        else str(
+                            certificate_info_dict["positions"][0]["profitPercent"]
+                        ),
+                    ]
+                ]
+            )
+        )
+
+    # MAIN functions
+    def run_analysis(self):
+        log.info(
+            f'Running analysis for account(s): {" & ".join(self.account_ids_dict)}'
+        )
+        self.ava.remove_active_orders(
+            account_ids_list=list(self.account_ids_dict.values())
+        )
+
         while True:
-            for instrument_type in transactions_dict.keys():
+            current_time = datetime.now()
+
+            if current_time.hour < 10:
+                continue
+
+            if current_time.hour >= 17:
+                self.end_of_day_bool = True
+
+            if current_time.minute == 0:
+                self.strategies_dict = {}
+
+            for instrument_type in list(self.instruments_status_dict.keys()):
                 log.info(f"-------------------{instrument_type}-------------------")
 
-                # Analize
-                strategy_obj = Strategy(
-                    instruments_dict.ids_dict["MONITORING"]["YAHOO"],
-                    19002,
-                    self.ava,
-                    strategies_list=(
-                        strategies_dict.get(instrument_type, list())
-                        if counter % 20 == 0
-                        else list()
-                    ),
-                    period="1d",
-                    interval="1m",
-                    adjust_history_dict={
-                        "base": 100,
-                        "inverse": True if instrument_type == "BEAR" else False,
-                    },
-                    skip_points=0,
-                )
+                strategy_obj = self.get_strategy_obj(instrument_type)
 
-                # self.plot_ticker(strategy_obj, instrument_type)
-
-                if strategy_obj.summary["max_output"]["result"] <= 1000:
+                if strategy_obj is None:
                     continue
 
-                Strategy.dump("DT", strategies_dict)
+                self.plot_ticker(strategy_obj, instrument_type)
 
-                # Print
-                for i, (strategy_name, strategy_dict) in enumerate(
-                    strategy_obj.summary["sorted_strategies_list"][:5]
-                ):
-                    log.info(
-                        f"Strategy {i+1} - {strategy_name}: {strategy_dict['signal']} ({strategy_dict['result']})"
-                    )
-                    strategies_dict[instrument_type] = [
-                        i
-                        for (i, _) in strategy_obj.summary["sorted_strategies_list"][
-                            :50
-                        ]
-                    ]
+                self.save_strategies(instrument_type, strategy_obj)
 
-                # Order
-                ## Research
-                trading_instrument_id = instruments_dict.ids_dict["TRADING"][
-                    instrument_type
-                ]
-
-                certificate_dict = self.ava.get_certificate_price(trading_instrument_id)
-
-                signal = strategy_obj.summary["max_output"]["signal"]
-
-                last_action = None
-                if len(certificate_dict["positions"]) > 0:
-                    last_action = "buy"
-                elif len(transactions_dict[instrument_type]) > 0:
-                    transactions_dict[instrument_type][-1]["type"]
-
-                self.ava.remove_active_orders(
-                    account_ids_list=list(accounts_dict.values()),
-                    orderbook_ids_list=[trading_instrument_id],
-                )
-                if (len(certificate_dict["positions"]) > 0 and signal == "buy") or (
-                    len(certificate_dict["positions"]) == 0 and signal == "sell"
-                ):
-                    continue
-
-                if last_action == signal:
-                    transactions_dict[instrument_type].pop(-1)
-
-                ## Place
-                if signal == "buy":
-                    self.ava.create_orders(
-                        [
-                            {
-                                "account_id": list(accounts_dict.values())[0],
-                                "order_book_id": trading_instrument_id,
-                                "budget": budget,
-                                "price": certificate_dict[signal],
-                                "volume": budget // certificate_dict[signal],
-                                "name": instrument_type,
-                                "max_return": strategy_obj.summary["max_output"][
-                                    "result"
-                                ],
-                            }
-                        ],
-                        "buy",
-                    )
-
-                elif signal == "sell":
-                    self.ava.create_orders(
-                        [
-                            {
-                                "account_id": list(accounts_dict.values())[0],
-                                "order_book_id": trading_instrument_id,
-                                "volume": certificate_dict["positions"][0]["volume"],
-                                "price": certificate_dict[signal],
-                                "profit": certificate_dict["positions"][0][
-                                    "profitPercent"
-                                ],
-                                "name": instrument_type,
-                                "max_return": strategy_obj.summary["max_output"][
-                                    "result"
-                                ],
-                            }
-                        ],
-                        "sell",
-                    )
-
-                transactions_dict[instrument_type].append(
-                    {
-                        "type": signal,
-                        "price": certificate_dict[signal],
-                        "strategy": strategy_obj.summary["max_output"]["strategy"],
-                    }
+                signal, certificate_info_dict = self.get_signal(
+                    instrument_type, strategy_obj
                 )
 
-                log.warning(
-                    f'{instrument_type} - {signal} - {certificate_dict[signal]} - {strategy_obj.summary["max_output"]["strategy"]} - {strategy_obj.summary["max_output"]["result"]}'
-                )
-                time.sleep(10)
+                if signal is not None:
+                    self.place_order(
+                        instrument_type, strategy_obj, signal, certificate_info_dict
+                    )
 
-            counter += 1
+                    time.sleep(20)
+
+            time.sleep(60)
+
+            if (
+                self.end_of_day_bool
+                and "buy" not in self.instruments_status_dict.values()
+            ):
+                break
 
 
 def run(multiplier, budget):
     settings_json = Settings().load()
 
     user = list(settings_json.keys())[0]
-    accounts_dict = dict()
+    account_ids_dict = dict()
     for settings_per_account_dict in settings_json.values():
         for settings_dict in settings_per_account_dict.values():
             if not settings_dict["run_day_trading"]:
                 continue
 
-            accounts_dict.update(settings_dict["accounts"])
+            account_ids_dict.update(settings_dict["accounts"])
 
-    Day_Trading(user, accounts_dict, multiplier, budget)
+    Day_Trading(user, account_ids_dict, multiplier, budget)

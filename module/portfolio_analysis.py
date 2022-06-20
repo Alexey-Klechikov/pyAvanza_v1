@@ -189,7 +189,7 @@ class Portfolio_Analysis:
 
     def run_analysis(self, accounts_dict, log_to_telegram):
         log.info(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
-        self.ava.remove_active_orders()
+        self.ava.remove_active_orders(account_ids_list=list(accounts_dict.values()))
 
         created_orders_dict = dict()
         created_orders_dict["sell"], portfolio_tickers_dict = self.create_sell_orders()

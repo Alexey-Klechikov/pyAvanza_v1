@@ -192,7 +192,7 @@ class Context:
                                     datetime.datetime.today()
                                     + datetime.timedelta(days=1)
                                 ).date(),
-                                "volume": buy_order_dict["volume"],
+                                "volume": int(buy_order_dict["volume"]),
                             }
 
                             try:
@@ -230,8 +230,8 @@ class Context:
 
         return stock_price_dict
 
-    def get_certificate_price(self, certificate_id):
-        log.info(f"Getting certificate price {certificate_id}")
+    def get_certificate_info(self, certificate_id):
+        log.info(f"Getting certificate info {certificate_id}")
 
         certificate_dict = self.ctx.get_certificate_info(certificate_id)
 
