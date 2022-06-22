@@ -277,8 +277,6 @@ class Context:
         history_df.loc[last_row_index, "Volume"] = stock_info_dict["totalVolumeTraded"]
 
     def remove_active_orders(self, orderbook_ids_list=list(), account_ids_list=list()):
-        log.info("Removing active orders")
-
         active_orders_list = list()
         removed_orders_dict = {"buy": list(), "sell": list()}
 
@@ -287,6 +285,8 @@ class Context:
             active_orders_list = deals_and_orders_dict["orders"]
 
         if active_orders_list:
+            log.info("Removing active orders")
+
             for order in active_orders_list:
                 if int(order["account"]["id"]) not in list(self.accounts_dict.values()):
                     continue

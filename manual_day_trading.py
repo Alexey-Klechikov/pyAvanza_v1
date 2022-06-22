@@ -11,6 +11,6 @@ if __name__ == "__main__":
     log = Logger(logger_name="main", file_prefix="manual_rtt", file_log_level="WARNING")
 
     multiplier = 18
-    budget = 1000
+    budget = 1100
 
     run_day_trading(multiplier, budget)

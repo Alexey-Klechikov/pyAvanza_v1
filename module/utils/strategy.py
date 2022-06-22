@@ -144,13 +144,13 @@ class Strategy:
         }
 
         # KVO (Klinger Volume Oscillator)
-        try:
-            history_df.ta.kvo(append=True)
+        history_df.ta.kvo(append=True)
+        if "KVO_34_55_13" in history_df.columns:
             conditions_dict["Volume"]["KVO"] = {
                 "buy": lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
                 "sell": lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
             }
-        except:
+        else:
             log.info("Not enough data for KVO")
 
         """ Volatility """
