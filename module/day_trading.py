@@ -6,6 +6,7 @@ It will import other modules to run the analysis on the stocks -> place orders -
 
 import time
 import logging
+import pandas as pd
 from pprint import pprint
 from datetime import datetime
 
@@ -26,8 +27,8 @@ class Day_Trading:
         self.end_of_day_bool = False
         self.ava = Context(user, account_ids_dict, skip_lists=True)
         self.strategies_dict = Strategy.load("DT")
-        self.instruments_dict = Instrument(multiplier)
-        self.instruments_status_dict = {
+        self.instruments_obj = Instrument(multiplier)
+        self.instruments_dict = {
             "BULL": {
                 "status": "sell",
                 "stop_loss_price": None,
@@ -54,8 +55,8 @@ class Day_Trading:
     def get_strategy_obj(self, instrument_type):
         try:
             strategy_obj = Strategy(
-                self.instruments_dict.ids_dict["MONITORING"]["YAHOO"],
-                self.instruments_dict.ids_dict["MONITORING"]["AVA"],
+                self.instruments_obj.ids_dict["MONITORING"]["YAHOO"],
+                self.instruments_obj.ids_dict["MONITORING"]["AVA"],
                 self.ava,
                 strategies_list=self.strategies_dict.get(instrument_type, list()),
                 period="1d",
@@ -74,6 +75,7 @@ class Day_Trading:
 
     def save_strategies(self, instrument_type, strategy_obj):
         self.strategies_dict[instrument_type] = list()
+
         for i, (strategy_name, strategy_dict) in enumerate(
             strategy_obj.summary["sorted_strategies_list"][:50]
         ):
@@ -89,21 +91,23 @@ class Day_Trading:
 
         Strategy.dump("DT", self.strategies_dict)
 
-    def get_certificate_info(self, instrument_type):
-        self.ava.remove_active_orders(
-            account_ids_list=list(self.account_ids_dict.values()),
-            orderbook_ids_list=[
-                self.instruments_dict.ids_dict["TRADING"][instrument_type]
-            ],
-        )
-        certificate_info_dict = self.ava.get_certificate_info(
-            self.instruments_dict.ids_dict["TRADING"][instrument_type]
-        )
-        self.instruments_status_dict[instrument_type]["status"] = (
-            "buy" if len(certificate_info_dict["positions"]) > 0 else "sell"
-        )
+    def update_instruments_dict(self, instrument_type, certificate_info_dict):
+        try:
+            self.instruments_dict[instrument_type]["status"] = (
+                "buy"
+                if len(
+                    [
+                        i
+                        for i in certificate_info_dict["positions"]
+                        if int(i["accountId"]) in list(self.account_ids_dict.values())
+                    ]
+                )
+                > 0
+                else "sell"
+            )
 
-        return certificate_info_dict
+        except Exception as e:
+            log.error(f"Error in updating instrument_status: {e}")
 
     def get_signal(self, instrument_type, strategy_obj):
         signal = (
@@ -113,13 +117,14 @@ class Day_Trading:
         )
 
         if (
-            self.instruments_status_dict[instrument_type]["status"] == "buy"
+            self.instruments_dict[instrument_type]["status"] == "buy"
             and strategy_obj.summary["max_output"]["result"] <= 1000
         ):
+            log.info("Strategy's max output is < 1000. Resetting strategies.")
             self.strategies_dict[instrument_type] = []
             signal = "sell"
 
-        elif self.instruments_status_dict[instrument_type]["status"] == signal:
+        elif self.instruments_dict[instrument_type]["status"] == signal:
             signal = None
 
         return signal
@@ -132,7 +137,7 @@ class Day_Trading:
             "signal": signal,
             "price": certificate_info_dict[signal],
             "account_id": list(self.account_ids_dict.values())[0],
-            "order_book_id": self.instruments_dict.ids_dict["TRADING"][instrument_type],
+            "order_book_id": self.instruments_obj.ids_dict["TRADING"][instrument_type],
             "max_return": max_return,
         }
 
@@ -173,12 +178,14 @@ class Day_Trading:
         )
 
     def update_stop_prices(self, instrument_type, certificate_info_dict):
+        log.info("Updating stop prices")
+
         price = certificate_info_dict["sell"]
 
-        self.instruments_status_dict[instrument_type].update(
+        self.instruments_dict[instrument_type].update(
             {
                 "stop_loss_price": round(price * 0.98, 2),
-                "take_profit_price": round(price * 1.04, 2),
+                "take_profit_price": round(price * 1.03, 2),
             }
         )
 
@@ -187,14 +194,11 @@ class Day_Trading:
         log.info(
             f'Running analysis for account(s): {" & ".join(self.account_ids_dict)}'
         )
-        self.ava.remove_active_orders(
-            account_ids_list=list(self.account_ids_dict.values())
-        )
 
         while True:
             current_time = datetime.now()
 
-            if current_time.hour < 9 and current_time.minute > 30:
+            if current_time.hour <= 9 and current_time.minute < 30:
                 time.sleep(60)
                 continue
 
@@ -202,25 +206,37 @@ class Day_Trading:
                 log.warning("End of the day!")
                 self.end_of_day_bool = True
 
-            if current_time.minute == 0 and not current_time.hour == 10:
+            if current_time.minute == 0 and current_time.hour != 9:
                 log.warning("Reset strategies")
                 self.strategies_dict = {}
 
-            for instrument_type in list(self.instruments_status_dict.keys()):
-                log.info(f"-------------------{instrument_type}-------------------")
+            for instrument_type in list(self.instruments_dict.keys()):
+                log.info(f"> {instrument_type}")
 
-                certificate_info_dict = self.get_certificate_info(instrument_type)
+                instrument_id = self.instruments_obj.ids_dict["TRADING"][
+                    instrument_type
+                ]
 
-                if self.instruments_status_dict[instrument_type]["status"] == "sell":
+                certificate_info_dict = self.ava.get_certificate_info(instrument_id)
+
+                self.ava.remove_active_orders(
+                    account_ids_list=list(self.account_ids_dict.values()),
+                    orderbook_ids_list=[instrument_id],
+                )
+
+                self.update_instruments_dict(instrument_type, certificate_info_dict)
+
+                if self.instruments_dict[instrument_type]["status"] == "sell":
+                    # Checking the opportunity to buy
 
                     strategy_obj = self.get_strategy_obj(instrument_type)
 
                     if strategy_obj is None:
                         continue
 
-                    self.plot_ticker(strategy_obj, instrument_type)
-
                     self.save_strategies(instrument_type, strategy_obj)
+
+                    # self.plot_ticker(strategy_obj, instrument_type)
 
                     if self.get_signal(instrument_type, strategy_obj) == "buy":
                         self.place_order(
@@ -230,33 +246,28 @@ class Day_Trading:
                             max_return=strategy_obj.summary["max_output"]["result"],
                         )
 
-                elif self.instruments_status_dict[instrument_type]["status"] == "buy":
+                elif self.instruments_dict[instrument_type]["status"] == "buy":
+                    # Checking the opportunity to sell
 
-                    self.update_stop_prices(instrument_type, certificate_info_dict)
-
-                    if (
+                    if self.instruments_dict[instrument_type][
+                        "stop_loss_price"
+                    ] is None or (
                         certificate_info_dict["sell"]
-                        < self.instruments_status_dict[instrument_type][
-                            "stop_loss_price"
-                        ]
-                        or self.end_of_day_bool
-                    ):
-                        self.place_order(instrument_type, "sell", certificate_info_dict)
-
-                    elif (
-                        certificate_info_dict["sell"]
-                        > self.instruments_status_dict[instrument_type][
-                            "take_profit_price"
-                        ]
+                        > self.instruments_dict[instrument_type]["take_profit_price"]
                     ):
                         self.update_stop_prices(instrument_type, certificate_info_dict)
 
-                log.info(f"-----------------------------------------")
+                    if (
+                        self.end_of_day_bool
+                        or certificate_info_dict["sell"]
+                        < self.instruments_dict[instrument_type]["stop_loss_price"]
+                    ):
+                        self.place_order(instrument_type, "sell", certificate_info_dict)
 
             time.sleep(20)
 
             if self.end_of_day_bool and "buy" not in [
-                i["status"] for i in self.instruments_status_dict.values()
+                i["status"] for i in self.instruments_dict.values()
             ]:
                 break
 
