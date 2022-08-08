@@ -48,8 +48,9 @@ class OneLineFormatter(logging.Formatter):
 
 
 class Logger:
-    def __init__(self, logger_name, file_prefix, log_level="INFO", file_log_level="INFO"):
+    def __init__(self, logger_name, file_prefix, log_level="INFO", file_log_level="INFO", console_log_level="INFO"):
         self.file_log_level = file_log_level
+        self.console_log_level = console_log_level
         self.log_file_name = self.get_log_file_name(file_prefix)
         self.log = logging.getLogger(logger_name)
         self.set_handlers(console_bool=True, file_bool=True)
@@ -68,7 +69,7 @@ class Logger:
         if console_bool:
             # Add console handler using our custom ColoredFormatter
             ch = logging.StreamHandler()
-            ch.setLevel(logging.DEBUG)
+            ch.setLevel(self.console_log_level)
             cf = ColoredFormatter("[%(levelname)s] [%(name)s] - %(message)s")
             ch.setFormatter(cf)
             self.log.addHandler(ch)

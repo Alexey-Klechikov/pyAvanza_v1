@@ -10,7 +10,7 @@ from module.utils import Plot
 from module.utils import Logger
 from module.utils import Context
 from module.utils import Settings
-from module.utils import Strategy
+from module.utils import Strategy_TA
 
 
 log = logging.getLogger("main")
@@ -50,6 +50,7 @@ class Portfolio_Analysis:
             title=f'{strategy_obj.ticker_obj.info["symbol"]} ({strategy_obj.ticker_obj.info["shortName"]}) - {strategy_obj.summary["max_output"]["strategy"]}',
         )
         plot_obj.create_extra_panels()
+        plot_obj.add_orders_to_main_plot()
         plot_obj.show_single_ticker()
 
     def plot_performance_compared_to_hold(
@@ -173,7 +174,7 @@ class Portfolio_Analysis:
             return
 
         try:
-            strategy_obj = Strategy(
+            strategy_obj = Strategy_TA(
                 ticker_yahoo, ticker_ava, self.ava, ticker_name=comment, cache=cache
             )
         except Exception as e:
@@ -215,9 +216,15 @@ class Portfolio_Analysis:
         ):
             strategy, strategy_data_dict = strategy_item_list[0], strategy_item_list[1]
 
-            self.counter_per_strategy_dict.setdefault(strategy, {"total_sum": 0, "transactions_counter": 0})
-            self.counter_per_strategy_dict[strategy]["total_sum"] += strategy_data_dict["result"]
-            self.counter_per_strategy_dict[strategy]["transactions_counter"] += len(strategy_data_dict["transactions"])
+            self.counter_per_strategy_dict.setdefault(
+                strategy, {"total_sum": 0, "transactions_counter": 0}
+            )
+            self.counter_per_strategy_dict[strategy]["total_sum"] += strategy_data_dict[
+                "result"
+            ]
+            self.counter_per_strategy_dict[strategy]["transactions_counter"] += len(
+                strategy_data_dict["transactions"]
+            )
 
             if i < 3:
                 log.info(
@@ -229,7 +236,9 @@ class Portfolio_Analysis:
                     if self.print_transactions_bool
                 ]
 
-                win_counter_dict = self.counter_per_strategy_dict[strategy].get("win_counter", dict())
+                win_counter_dict = self.counter_per_strategy_dict[strategy].get(
+                    "win_counter", dict()
+                )
                 if not isinstance(win_counter_dict, dict):
                     win_counter_dict = dict()
                 win_counter_dict[f"{i+1}"] = win_counter_dict.get(f"{i+1}", 0) + 1

@@ -23,7 +23,7 @@ class Instrument:
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        with open(f"{current_dir}/DT_instruments.json", "r") as f:
+        with open(f"{current_dir}/data/instruments_DT.json", "r") as f:
             instruments_json = json.load(f)
 
         instrument_ids_dict = {

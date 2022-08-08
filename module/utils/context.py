@@ -9,7 +9,7 @@ import logging
 import datetime
 import pandas as pd
 
-from avanza import Avanza, OrderType
+from avanza import Avanza, OrderType, InstrumentType
 from pprint import pprint
 
 
@@ -47,8 +47,6 @@ class Context:
         return ctx
 
     def get_portfolio(self):
-        log.info("Getting portfolio")
-
         portfolio_dict = {
             "buying_power": {},
             "total_own_capital": 0,
@@ -134,21 +132,19 @@ class Context:
 
         return budget_rules_dict, watchlists_dict
 
-    def create_orders(self, orders_list, type):
-        log.info(f"Creating {type} orders")
+    def create_orders(self, orders_list, order_type):
+        log.info(f"Creating {order_type} order(s)")
 
-        if type in ["sell", "take_profit"]:
+        if order_type in ["sell", "take_profit"]:
             for sell_order_dict in orders_list:
-                log.info(
-                    f'> (profit {sell_order_dict["profit"]}%) {sell_order_dict["name"]}'
-                )
                 order_attr = {
                     "account_id": str(sell_order_dict["account_id"]),
                     "order_book_id": str(sell_order_dict["order_book_id"]),
                     "order_type": OrderType.SELL,
-                    "price": self.get_stock_price(sell_order_dict["order_book_id"])[
-                        "sell"
-                    ],
+                    "price": sell_order_dict.get(
+                        "price",
+                        self.get_stock_price(sell_order_dict["order_book_id"])["sell"],
+                    ),
                     "valid_until": (
                         datetime.datetime.today() + datetime.timedelta(days=1)
                     ).date(),
@@ -160,7 +156,7 @@ class Context:
                 except Exception as e:
                     log.error(f"Exception: {e} - {order_attr}")
 
-        elif type == "buy":
+        elif order_type == "buy":
             self.portfolio_dict = self.get_portfolio()
             created_orders_list = list()
 
@@ -178,16 +174,16 @@ class Context:
                             - reserved_budget[account_name]
                             > buy_order_dict["budget"]
                         ):
-                            log.info(
-                                f'({buy_order_dict["budget"]}) {buy_order_dict["name"]}'
-                            )
                             order_attr = {
                                 "account_id": str(account_id),
                                 "order_book_id": str(buy_order_dict["order_book_id"]),
                                 "order_type": OrderType.BUY,
-                                "price": self.get_stock_price(
-                                    buy_order_dict["order_book_id"]
-                                )["buy"],
+                                "price": buy_order_dict.get(
+                                    "price",
+                                    self.get_stock_price(
+                                        buy_order_dict["order_book_id"]
+                                    )["buy"],
+                                ),
                                 "valid_until": (
                                     datetime.datetime.today()
                                     + datetime.timedelta(days=1)
@@ -206,9 +202,32 @@ class Context:
 
             return created_orders_list
 
-    def get_stock_price(self, stock_id):
-        log.info(f"Getting stock price {stock_id}")
+    def update_order(self, old_order_dict, price):
+        log.info(f"Updating order")
 
+        order_attr = {
+            "account_id": old_order_dict["account"]["id"],
+            "order_book_id": old_order_dict["orderbook"]["id"],
+            "order_type": OrderType.SELL
+            if old_order_dict["type"] == "SELL"
+            else OrderType.BUY,
+            "price": price,
+            "valid_until": (
+                datetime.datetime.today() + datetime.timedelta(days=1)
+            ).date(),
+            "volume": old_order_dict["volume"],
+            "instrument_type": InstrumentType.CERTIFICATE
+            if old_order_dict["orderbook"]["type"] == "CERTIFICATE"
+            else InstrumentType.STOCK,
+            "order_id": old_order_dict["orderId"],
+        }
+
+        try:
+            self.ctx.edit_order(**order_attr)
+        except Exception as e:
+            log.error(f"Exception: {e} - {order_attr}")
+
+    def get_stock_price(self, stock_id):
         stock_info_dict = self.ctx.get_stock_info(stock_id)
 
         if stock_info_dict is None:
@@ -231,31 +250,28 @@ class Context:
         return stock_price_dict
 
     def get_certificate_info(self, certificate_id):
-        certificate_dict = self.ctx.get_certificate_info(certificate_id)
+        for _ in range(5):
+            certificate_dict = self.ctx.get_certificate_info(certificate_id)
 
-        try:
-            if (
-                certificate_dict is None
-                or "sellPrice" not in certificate_dict
-                or "buyPrice" not in certificate_dict
-            ):
-                raise Exception(
-                    f"Certificate {certificate_id} not found or missing info"
-                )
+            if certificate_dict is None:
+                certificate_dict = dict()
 
-            return {
-                "buy": certificate_dict["sellPrice"],
-                "sell": certificate_dict["buyPrice"],
-                "positions": certificate_dict["positions"],
-            }
+            if certificate_dict.get("spread", 2) < 1:
+                return {
+                    "buy": certificate_dict.get("sellPrice", None),
+                    "sell": certificate_dict.get("buyPrice", None),
+                    "positions": certificate_dict.get("positions", []),
+                }
 
-        except Exception as e:
-            log.error(f"{e}: {certificate_dict}")
-            return {"buy": None, "sell": None, "positions": []}
+            time.sleep(2)
+
+        return {
+            "buy": None,
+            "sell": None,
+            "positions": list(),
+        }
 
     def get_todays_ochl(self, history_df, stock_id):
-        log.warning(f"Getting todays OCHL")
-
         stock_info_dict = self.ctx.get_stock_info(stock_id)
 
         if stock_info_dict is None:

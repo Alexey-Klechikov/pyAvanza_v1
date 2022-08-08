@@ -22,6 +22,26 @@ class TeleLog:
         if "watchlists_analysis_log_list" in kwargs:
             self.parse_watchlists_analysis_log(kwargs["watchlists_analysis_log_list"])
 
+        if "completed_orders_list" in kwargs:
+            self.parse_completed_orders_list(kwargs["completed_orders_list"])
+
+        if "day_trading_stats_dict" in kwargs:
+            self.parse_day_trading_stats_dict(kwargs["day_trading_stats_dict"])
+
+    def parse_day_trading_stats_dict(self, day_trading_stats_dict):
+        log.info("Parse day_trading_stats_dict")
+
+        day_trading_stats_dict["profit"] = round(
+            (
+                day_trading_stats_dict["balance_after"]
+                - day_trading_stats_dict["balance_before"]
+            )
+            / day_trading_stats_dict["budget"],
+            2,
+        )
+
+        self.message += f'DT profit: {day_trading_stats_dict["profit"]}%'
+
     def parse_portfolio_dict(self, portfolio_dict):
         log.info("Parse portfolio_dict")
 
@@ -70,6 +90,18 @@ class TeleLog:
                     ]
 
                 self.message += "\n".join(message_list + ["\n"])
+
+        return self.message
+
+    def parse_completed_orders_list(self, completed_orders_list):
+        log.info("Parse completed_orders_list")
+
+        orders_list = [
+            " / ".join([f"{k}: {v}" for k, v in order_dict.items()])
+            for order_dict in completed_orders_list
+        ]
+
+        self.message = "\n".join(orders_list)
 
         return self.message
 

@@ -21,10 +21,10 @@ warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None
 pd.set_option("display.expand_frame_repr", False)
 
-log = logging.getLogger("main.strategy")
+log = logging.getLogger("main.strategy_ta")
 
 
-class Strategy:
+class Strategy_TA:
     def __init__(self, ticker_yahoo, ticker_ava, ava, **kwargs):
         self.ticker_obj, history_df = self.read_ticker(
             ticker_yahoo,
@@ -99,7 +99,6 @@ class Strategy:
         return cache
 
     def prepare_conditions(self, history_df, skip_points):
-        
         def _check_enough_data(column, history_df):
             if column in history_df.columns:
                 return True
@@ -131,7 +130,7 @@ class Strategy:
         """ Cycles """
         # EBSW (Even Better Sinewave)
         history_df.ta.ebsw(append=True)
-        if _check_enough_data('EBSW_40_10', history_df):
+        if _check_enough_data("EBSW_40_10", history_df):
             conditions_dict["Cycles"]["EBSW"] = {
                 "buy": lambda x: x["EBSW_40_10"] > 0.5,
                 "sell": lambda x: x["EBSW_40_10"] < -0.5,
@@ -140,7 +139,7 @@ class Strategy:
         """ Volume """
         # PVT (Price Volume Trend)
         history_df.ta.pvt(append=True)
-        if _check_enough_data('PVT_10', history_df):
+        if _check_enough_data("PVT", history_df):
             history_df.ta.sma(close="PVT", length=9, append=True)
             conditions_dict["Volume"]["PVT"] = {
                 "buy": lambda x: x["SMA_9"] < x["PVT"],
@@ -149,25 +148,27 @@ class Strategy:
 
         # CMF (Chaikin Money Flow)
         history_df.ta.cmf(append=True)
-        if _check_enough_data('CMF_10', history_df):
+        if _check_enough_data("CMF_20", history_df):
             conditions_dict["Volume"]["CMF"] = {
                 "buy": lambda x: x["CMF_20"] > 0,
                 "sell": lambda x: x["CMF_20"] < 0,
             }
 
         # KVO (Klinger Volume Oscillator)
-        history_df.ta.kvo(append=True)
-        if _check_enough_data('KVO_34_55_13', history_df):
-            conditions_dict["Volume"]["KVO"] = {
-                "buy": lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
-                "sell": lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
-            }
-
+        try:
+            history_df.ta.kvo(append=True)
+            if _check_enough_data("KVO_34_55_13", history_df):
+                conditions_dict["Volume"]["KVO"] = {
+                    "buy": lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
+                    "sell": lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
+                }
+        except:
+            log.info("KVO not available")
 
         """ Volatility """
         # MASSI (Mass Index)
         history_df.ta.massi(append=True)
-        if _check_enough_data('MASSI_9_25', history_df):
+        if _check_enough_data("MASSI_9_25", history_df):
             conditions_dict["Volatility"]["MASSI"] = {
                 "buy": lambda x: 26 < x["MASSI_9_25"] < 27,
                 "sell": lambda x: 26 < x["MASSI_9_25"] < 27,
@@ -175,7 +176,7 @@ class Strategy:
 
         # HWC (Holt-Winter Channel)
         history_df.ta.hwc(append=True)
-        if _check_enough_data('HWM', history_df):
+        if _check_enough_data("HWM", history_df):
             conditions_dict["Volatility"]["HWC"] = {
                 "buy": lambda x: x["Close"] > x["HWM"],
                 "sell": lambda x: x["Close"] < x["HWM"],
@@ -183,7 +184,7 @@ class Strategy:
 
         # BBANDS (Bollinger Bands)
         history_df.ta.bbands(length=20, std=2, append=True)
-        if _check_enough_data('BBL_20_2.0', history_df):
+        if _check_enough_data("BBL_20_2.0", history_df):
             conditions_dict["Volatility"]["BBANDS"] = {
                 "buy": lambda x: x["Close"] > x["BBL_20_2.0"],
                 "sell": lambda x: x["Close"] < x["BBU_20_2.0"],
@@ -192,7 +193,7 @@ class Strategy:
         """ Candle """
         # HA (Heikin-Ashi)
         history_df.ta.ha(append=True)
-        if _check_enough_data('HA_open', history_df):
+        if _check_enough_data("HA_open", history_df):
             conditions_dict["Candle"]["HA"] = {
                 "buy": lambda x: (x["HA_open"] < x["HA_close"])
                 and (x["HA_low"] == x["HA_open"]),
@@ -203,7 +204,7 @@ class Strategy:
         """ Trend """
         # PSAR (Parabolic Stop and Reverse)
         history_df.ta.psar(append=True)
-        if _check_enough_data('PSARl_0.02_0.2', history_df):
+        if _check_enough_data("PSARl_0.02_0.2", history_df):
             conditions_dict["Trend"]["PSAR"] = {
                 "buy": lambda x: x["Close"] > x["PSARl_0.02_0.2"],
                 "sell": lambda x: x["Close"] < x["PSARs_0.02_0.2"],
@@ -211,7 +212,7 @@ class Strategy:
 
         # CHOP (Choppiness Index)
         history_df.ta.chop(append=True)
-        if _check_enough_data('CHOP_14_1_100', history_df):
+        if _check_enough_data("CHOP_14_1_100", history_df):
             conditions_dict["Trend"]["CHOP"] = {
                 "buy": lambda x: x["CHOP_14_1_100"] < 61.8,
                 "sell": lambda x: x["CHOP_14_1_100"] > 61.8,
@@ -219,7 +220,7 @@ class Strategy:
 
         # CKSP (Chande Kroll Stop)
         history_df.ta.cksp(append=True)
-        if _check_enough_data('CKSPl_10_3_20', history_df):
+        if _check_enough_data("CKSPl_10_3_20", history_df):
             conditions_dict["Trend"]["CKSP"] = {
                 "buy": lambda x: x["CKSPl_10_3_20"] > x["CKSPs_10_3_20"],
                 "sell": lambda x: x["CKSPl_10_3_20"] < x["CKSPs_10_3_20"],
@@ -227,7 +228,7 @@ class Strategy:
 
         # ADX (Average Directional Movement Index)
         history_df.ta.adx(append=True)
-        if _check_enough_data('DMP_14', history_df):
+        if _check_enough_data("DMP_14", history_df):
             conditions_dict["Trend"]["ADX"] = {
                 "buy": lambda x: x["DMP_14"] > x["DMN_14"],
                 "sell": lambda x: x["DMP_14"] < x["DMN_14"],
@@ -236,7 +237,7 @@ class Strategy:
         """ Overlap """
         # ALMA (Arnaud Legoux Moving Average)
         history_df.ta.alma(length=15, append=True)
-        if _check_enough_data('ALMA_15_6.0_0.85', history_df):
+        if _check_enough_data("ALMA_15_6.0_0.85", history_df):
             conditions_dict["Overlap"]["ALMA"] = {
                 "buy": lambda x: x["Close"] > x["ALMA_15_6.0_0.85"],
                 "sell": lambda x: x["Close"] < x["ALMA_15_6.0_0.85"],
@@ -244,7 +245,7 @@ class Strategy:
 
         # GHLA (Gann High-Low Activator)
         history_df.ta.hilo(append=True)
-        if _check_enough_data('HILO_13_21', history_df):
+        if _check_enough_data("HILO_13_21", history_df):
             conditions_dict["Overlap"]["GHLA"] = {
                 "buy": lambda x: x["Close"] > x["HILO_13_21"],
                 "sell": lambda x: x["Close"] < x["HILO_13_21"],
@@ -252,7 +253,7 @@ class Strategy:
 
         # SUPERT (Supertrend)
         history_df.ta.supertrend(append=True)
-        if _check_enough_data('SUPERT_7_3.0', history_df):
+        if _check_enough_data("SUPERT_7_3.0", history_df):
             conditions_dict["Overlap"]["SUPERT"] = {
                 "buy": lambda x: x["Close"] > x["SUPERT_7_3.0"],
                 "sell": lambda x: x["Close"] < x["SUPERT_7_3.0"],
@@ -260,7 +261,7 @@ class Strategy:
 
         # LINREG (Linear Regression)
         history_df.ta.linreg(append=True, r=True, offset=1)
-        if _check_enough_data('LRr_14', history_df):
+        if _check_enough_data("LRr_14", history_df):
             history_df["LRrLag_14"] = history_df["LRr_14"]
             history_df.ta.linreg(append=True, r=True)
             conditions_dict["Overlap"]["LINREG"] = {
@@ -271,7 +272,7 @@ class Strategy:
         """ Momentum """
         # RSI (Relative Strength Index)
         history_df.ta.rsi(length=14, append=True)
-        if _check_enough_data('RSI_14', history_df):
+        if _check_enough_data("RSI_14", history_df):
             conditions_dict["Momentum"]["RSI"] = {
                 "buy": lambda x: x["RSI_14"] > 50,
                 "sell": lambda x: x["RSI_14"] < 50,
@@ -279,7 +280,7 @@ class Strategy:
 
         # RVGI (Relative Vigor Index)
         history_df.ta.rvgi(append=True)
-        if _check_enough_data('RVGI_14_4', history_df):
+        if _check_enough_data("RVGI_14_4", history_df):
             conditions_dict["Momentum"]["RVGI"] = {
                 "buy": lambda x: x["RVGI_14_4"] > x["RVGIs_14_4"],
                 "sell": lambda x: x["RVGI_14_4"] < x["RVGIs_14_4"],
@@ -287,7 +288,7 @@ class Strategy:
 
         # MACD (Moving Average Convergence Divergence)
         history_df.ta.macd(fast=8, slow=21, signal=5, append=True)
-        if _check_enough_data('MACD_8_21_5', history_df):
+        if _check_enough_data("MACD_8_21_5", history_df):
             conditions_dict["Momentum"]["MACD"] = {
                 "buy": lambda x: x["MACD_8_21_5"] > x["MACDs_8_21_5"],
                 "sell": lambda x: x["MACD_8_21_5"] < x["MACDs_8_21_5"],
@@ -295,7 +296,7 @@ class Strategy:
 
         # STOCH (Stochastic Oscillator)
         history_df.ta.stoch(k=14, d=3, append=True)
-        if _check_enough_data('STOCHd_14_3_3', history_df):
+        if _check_enough_data("STOCHd_14_3_3", history_df):
             conditions_dict["Momentum"]["STOCH"] = {
                 "buy": lambda x: x["STOCHd_14_3_3"] < 80 and x["STOCHk_14_3_3"] < 80,
                 "sell": lambda x: x["STOCHd_14_3_3"] > 20 and x["STOCHk_14_3_3"] > 20,
@@ -303,7 +304,7 @@ class Strategy:
 
         # UO (Ultimate Oscillator)
         history_df.ta.uo(append=True)
-        if _check_enough_data('UO_7_14_28', history_df):
+        if _check_enough_data("UO_7_14_28", history_df):
             conditions_dict["Momentum"]["UO"] = {
                 "buy": lambda x: x["UO_7_14_28"] < 30,
                 "sell": lambda x: x["UO_7_14_28"] > 70,
@@ -348,13 +349,16 @@ class Strategy:
             strategy_str
         ) in (
             strategies_str_list
-        ):  # "(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH"
+        ):  
+            # "(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH"
             strategy_components_list = [
                 i.strip().split(" ") for i in strategy_str.split("+")
-            ]  # [['(Trend)', 'CKSP'], ['(Overlap)', 'SUPERT'], ['(Momentum)', 'STOCH']]
+            ]  
+            # [['(Trend)', 'CKSP'], ['(Overlap)', 'SUPERT'], ['(Momentum)', 'STOCH']]
             strategy = [
                 (i[0][1:-1], i[1]) for i in strategy_components_list
-            ]  # [('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')]
+            ]  
+            # [('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')]
             strategies_list.append(strategy)
 
         return strategies_list
@@ -497,12 +501,12 @@ class Strategy:
         return summary
 
     @staticmethod
-    def load(filename_prefix):
-        log.info(f"Loading {filename_prefix}_strategies.json")
+    def load(filename_suffix):
+        log.info(f"Loading strategies_{filename_suffix}.json")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         try:
-            with open(f"{current_dir}/{filename_prefix}_strategies.json", "r") as f:
+            with open(f"{current_dir}/data/strategies_{filename_suffix}.json", "r") as f:
                 strategies_json = json.load(f)
         except:
             strategies_json = dict()
@@ -510,9 +514,9 @@ class Strategy:
         return strategies_json
 
     @staticmethod
-    def dump(filename_prefix, strategies_json):
-        log.info(f"Dump {filename_prefix}_strategies.json")
+    def dump(filename_suffix, strategies_json):
+        log.info(f"Dump strategies_{filename_suffix}.json")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        with open(f"{current_dir}/{filename_prefix}_strategies.json", "w") as f:
+        with open(f"{current_dir}/data/strategies_{filename_suffix}.json", "w") as f:
             json.dump(strategies_json, f, indent=4)

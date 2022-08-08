@@ -18,7 +18,7 @@ class Settings:
     def load(self):
         log.info("Loading settings.json")
 
-        with open(f"{self.current_dir}/settings.json", "r") as f:
+        with open(f"{self.current_dir}/data/settings.json", "r") as f:
             settings_json = json.load(f)
 
         return settings_json
@@ -26,7 +26,7 @@ class Settings:
     def dump(self, settings_json):
         log.info("Dump settings.json")
 
-        with open(f"{self.current_dir}/settings.json", "w") as f:
+        with open(f"{self.current_dir}/data/settings.json", "w") as f:
             json.dump(settings_json, f, indent=4)
 
     def read(self, account):
@@ -73,3 +73,14 @@ class Settings:
             return f"Invalid key: {keys_path_list[-1]}"
 
         self.dump(settings_json)
+
+    def extract_accounts(self, settings_json, purpose):
+        account_ids_dict = dict()
+        for settings_per_account_dict in settings_json.values():
+            for settings_dict in settings_per_account_dict.values():
+                if not settings_dict[purpose]:
+                    continue
+
+                account_ids_dict.update(settings_dict["accounts"])
+        
+        return account_ids_dict

@@ -559,36 +559,43 @@ class Plot:
                     self.add_buy_signals(panel_num, target_data_column)
                 panel_num += add_panel_num(plot_type)
 
-    def show_single_ticker(self):
-        def _orders(panel_num):
-            self.plots_list += [
+    def add_orders_to_main_plot(self):
+        if "total" in self.data_df.columns:
+            self.plots_list.append(
                 mpf.make_addplot(
                     self.data_df["total"],
                     color="black",
                     ylim=(1000 * 0.9, self.data_df["total"].max() * 1.1),
-                    panel=panel_num,
+                    panel=0,
                     secondary_y=True,
-                ),
+                )
+            )
+
+        if "buy_signal" in self.data_df.columns:
+            self.plots_list.append(
                 mpf.make_addplot(
                     self.data_df["buy_signal"],
                     scatter=True,
                     markersize=100,
                     marker="o",
                     color="green",
-                    secondary_y=True,
-                ),
+                    secondary_y=False,
+                )
+            )
+
+        if "sell_signal" in self.data_df.columns:
+            self.plots_list.append(
                 mpf.make_addplot(
                     self.data_df["sell_signal"],
                     scatter=True,
-                    markersize=20,
+                    markersize=100,
                     marker="o",
                     color="red",
-                    secondary_y=True,
-                ),
-            ]
+                    secondary_y=False,
+                )
+            )
 
-        _orders(0)
-
+    def show_single_ticker(self):
         mpf.plot(
             self.data_df,
             type="candle",

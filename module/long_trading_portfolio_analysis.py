@@ -6,7 +6,7 @@ It will import other modules to run the analysis on the stocks -> place orders -
 import logging
 
 from .utils import Settings
-from .utils import Strategy
+from .utils import Strategy_TA
 from .utils import Context
 from .utils import TeleLog
 
@@ -16,7 +16,7 @@ log = logging.getLogger("main.portfolio_analysis")
 
 class Portfolio_Analysis:
     def __init__(self, **kwargs):
-        self.strategies_dict = Strategy.load("TA")
+        self.strategies_dict = Strategy_TA.load("TA")
         self.signals_dict = kwargs.get("signals_dict", dict())
 
         self.ava = Context(kwargs["user"], kwargs["accounts_dict"])
@@ -27,7 +27,7 @@ class Portfolio_Analysis:
 
         if ticker_yahoo not in self.signals_dict:
             try:
-                strategy_obj = Strategy(
+                strategy_obj = Strategy_TA(
                     ticker_yahoo,
                     ticker_ava,
                     self.ava,

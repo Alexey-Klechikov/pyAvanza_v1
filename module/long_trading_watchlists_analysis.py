@@ -8,7 +8,7 @@ It will import other modules to run the analysis on the stocks -> move it to the
 import logging
 
 from .utils import Settings
-from .utils import Strategy
+from .utils import Strategy_TA
 from .utils import Context
 from .utils import TeleLog
 
@@ -85,7 +85,7 @@ class Watchlists_Analysis:
                     log.info(f'Analyse ticker "{ticker_dict["ticker_yahoo"]}"')
 
                     try:
-                        strategy_obj = Strategy(
+                        strategy_obj = Strategy_TA(
                             ticker_dict["ticker_yahoo"],
                             ticker_dict["order_book_id"],
                             self.ava,
@@ -111,7 +111,7 @@ class Watchlists_Analysis:
                             ticker_dict["ticker_yahoo"], strategy_obj
                         )
 
-        Strategy.dump('TA', self.top_strategies_per_ticket_dict)
+        Strategy_TA.dump("TA", self.top_strategies_per_ticket_dict)
 
         # Dump log to Telegram
         if log_to_telegram:
