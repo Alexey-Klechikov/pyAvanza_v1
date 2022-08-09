@@ -7,4 +7,4 @@ numpy
 yfinance
 telegram-send
 keyring
-talib
+ta-lib
