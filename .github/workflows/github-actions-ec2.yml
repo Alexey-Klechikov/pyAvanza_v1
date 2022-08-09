@@ -19,4 +19,3 @@ jobs:
           REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
           REMOTE_USER: "root"
           TARGET: "/home/ubuntu/pyAvanza/"
-
