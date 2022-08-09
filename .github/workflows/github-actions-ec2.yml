@@ -17,5 +17,5 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           SOURCE: "/"
           REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-          REMOTE_USER: "ubuntu"
+          REMOTE_USER: "root"
           TARGET: "/home/ubuntu/pyAvanza/"
