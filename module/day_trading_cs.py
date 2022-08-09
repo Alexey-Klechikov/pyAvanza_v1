@@ -524,3 +524,4 @@ def run(multiplier, budget):
     account_ids_dict = settings_obj.extract_accounts(settings_json, "run_day_trading")
 
     Day_Trading_CS(user, account_ids_dict, multiplier, budget)
+
