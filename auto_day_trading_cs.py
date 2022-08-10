@@ -1,5 +1,5 @@
 """
-This module is used for manual runs
+This module is used for automated runs (cron)
 """
 
 
@@ -10,7 +10,4 @@ from module import run_day_trading_cs
 if __name__ == "__main__":
     log = Logger(logger_name="main", file_prefix="manual_day_trading_cs", file_log_level="INFO", console_log_level='WARNING')
 
-    multiplier = 20
-    budget = 1200
-
-    run_day_trading_cs(multiplier, budget)
+    run_day_trading_cs()

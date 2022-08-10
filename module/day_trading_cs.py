@@ -17,6 +17,7 @@ from .utils import Strategy_CS
 log = logging.getLogger("main.day_trading_cs")
 
 
+INSTRUMENT_SETTINGS_DICT = {"multiplier": 20, "budget": 1200}
 ORDER_PRICE_LIMITS = {"SL": 0.975, "TP": 1.03}
 RECALIBRATE_DICT = {
     "bool": False,
@@ -104,13 +105,12 @@ class Calibration:
 
 
 class Trading:
-    def __init__(self, user, account_ids_dict, multiplier, budget):
-        self.budget = budget
+    def __init__(self, user, account_ids_dict):
         self.account_ids_dict = account_ids_dict
         self.end_of_day_bool = False
         self.ava = Context(user, account_ids_dict, skip_lists=True)
         self.strategies_dict = Strategy_CS.load("DT_CS")
-        self.instruments_obj = Instrument(multiplier)
+        self.instruments_obj = Instrument(INSTRUMENT_SETTINGS_DICT["multiplier"])
 
         self.overwrite_last_line = {"bool": True, "message_list": []}
 
@@ -283,8 +283,11 @@ class Trading:
             order_data_dict.update(
                 {
                     "price": certificate_info_dict[signal],
-                    "volume": int(self.budget // certificate_info_dict[signal]),
-                    "budget": self.budget,
+                    "volume": int(
+                        INSTRUMENT_SETTINGS_DICT["budget"]
+                        // certificate_info_dict[signal]
+                    ),
+                    "budget": INSTRUMENT_SETTINGS_DICT["budget"],
                 }
             )
 
@@ -361,14 +364,14 @@ class Trading:
 
 
 class Day_Trading_CS:
-    def __init__(self, user, account_ids_dict, multiplier, budget):
-        instruments_obj = Instrument(multiplier)
+    def __init__(self, user, account_ids_dict):
+        instruments_obj = Instrument(INSTRUMENT_SETTINGS_DICT["multiplier"])
 
-        if RECALIBRATE_DICT["bool"]:
+        if RECALIBRATE_DICT["bool"] or datetime.now().weekday() in [5, 6]:
             Calibration(instruments_obj.ids_dict["MONITORING"]["YAHOO"])
 
         else:
-            self.trading_obj = Trading(user, account_ids_dict, multiplier, budget)
+            self.trading_obj = Trading(user, account_ids_dict)
             self.balance_dict = {"before": None, "after": None}
 
             while True:
@@ -379,15 +382,15 @@ class Day_Trading_CS:
                     self.trading_obj.ava.ctx = self.trading_obj.ava.get_ctx(user)
 
     def check_trading_hours(self):
-        current_time = datetime.now()
+        current_time = datetime.utcnow()
 
         # Before the day starts
-        if current_time.hour <= 9 and current_time.minute < 40:
+        if current_time.hour <= 7 and current_time.minute < 40:
             time.sleep(60)
             return "morning"
 
         # End of the day
-        if current_time.hour >= 17 and current_time.minute >= 30:
+        if current_time.hour >= 15 and current_time.minute >= 30:
             for instrument_type in ["BULL", "BEAR"]:
                 instrument_status_dict = self.trading_obj.check_instrument_status(
                     instrument_type
@@ -502,26 +505,23 @@ class Day_Trading_CS:
             "buying_power"
         ]
 
-        log.info(
-            f'> End of the day. [{self.balance_dict["before"]}]'
-        )
+        log.info(f'> End of the day. [{self.balance_dict["before"]}]')
 
         # Dump log to Telegram
         log_obj = TeleLog(
             day_trading_stats_dict={
                 "balance_before": self.balance_dict["before"],
                 "balance_after": self.balance_dict["after"],
-                "budget": self.trading_obj.budget,
+                "budget": INSTRUMENT_SETTINGS_DICT["budget"],
             }
         )
         log_obj.dump_to_telegram()
 
 
-def run(multiplier, budget):
+def run():
     settings_obj = Settings()
     settings_json = settings_obj.load()
     user = list(settings_json.keys())[0]
     account_ids_dict = settings_obj.extract_accounts(settings_json, "run_day_trading")
 
-    Day_Trading_CS(user, account_ids_dict, multiplier, budget)
-
+    Day_Trading_CS(user, account_ids_dict)
