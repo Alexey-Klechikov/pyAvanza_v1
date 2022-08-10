@@ -217,11 +217,14 @@ def run():
             if not settings_dict["run_script_daily"]:
                 continue
 
-            walkthrough_obj = Portfolio_Analysis(
-                user=user,
-                accounts_dict=settings_dict["accounts"],
-                signals_dict=signals_dict,
-                log_to_telegram=settings_dict.get("log_to_telegram", True),
-                buy_delay_after_sell=settings_dict.get("buy_delay_after_sell", 2),
-            )
-            signals_dict = walkthrough_obj.signals_dict
+            try:
+                walkthrough_obj = Portfolio_Analysis(
+                    user=user,
+                    accounts_dict=settings_dict["accounts"],
+                    signals_dict=signals_dict,
+                    log_to_telegram=settings_dict.get("log_to_telegram", True),
+                    buy_delay_after_sell=settings_dict.get("buy_delay_after_sell", 2),
+                )
+                signals_dict = walkthrough_obj.signals_dict
+            except Exception as e:
+                log.error(f">>> {e}: {e.__traceback__}")

@@ -127,9 +127,14 @@ def run():
             if not "budget_list_threshold_dict" in settings_dict:
                 continue
 
-            Watchlists_Analysis(
-                user=user,
-                accounts_dict=settings_dict["accounts"],
-                log_to_telegram=settings_dict["log_to_telegram"],
-                budget_list_threshold_dict=settings_dict["budget_list_threshold_dict"],
-            )
+            try:
+                Watchlists_Analysis(
+                    user=user,
+                    accounts_dict=settings_dict["accounts"],
+                    log_to_telegram=settings_dict["log_to_telegram"],
+                    budget_list_threshold_dict=settings_dict[
+                        "budget_list_threshold_dict"
+                    ],
+                )
+            except Exception as e:
+                log.error(f">>> {e}: {e.__traceback__}")

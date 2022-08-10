@@ -524,4 +524,7 @@ def run():
     user = list(settings_json.keys())[0]
     account_ids_dict = settings_obj.extract_accounts(settings_json, "run_day_trading")
 
-    Day_Trading_CS(user, account_ids_dict)
+    try:
+        Day_Trading_CS(user, account_ids_dict)
+    except Exception as e:
+        log.error(f">>> {e}: {e.__traceback__}")
