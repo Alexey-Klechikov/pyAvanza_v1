@@ -21,9 +21,8 @@ log = logging.getLogger("main.day_trading_cs")
 INSTRUMENT_SETTINGS_DICT = {"multiplier": 20, "budget": 1200}
 ORDER_PRICE_LIMITS = {"SL": 0.975, "TP": 1.03}
 RECALIBRATE_DICT = {
-    "bool": False,
-    "success_limit": 63,
-    "update_bool": False,
+    "success_limit": 60,
+    "update_bool": True,
     "plot_bool": True,
 }
 
@@ -61,7 +60,7 @@ class Calibration:
         strategies_dict = {}
 
         strategy_obj.history_df = strategy_obj.history_df.loc[
-            : (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+            : (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
         ]
 
         strategies_dict = strategy_obj.get_successful_strategies(
@@ -75,7 +74,7 @@ class Calibration:
 
         strategy_obj = Strategy_CS(
             self.instrument_id,
-            period="5d",
+            period="2d",
             interval="1m",
             order_price_limits_dict=ORDER_PRICE_LIMITS,
         )
@@ -368,20 +367,18 @@ class Day_Trading_CS:
     def __init__(self, user, account_ids_dict):
         instruments_obj = Instrument(INSTRUMENT_SETTINGS_DICT["multiplier"])
 
-        if RECALIBRATE_DICT["bool"] or datetime.now().weekday() in [5, 6]:
-            Calibration(instruments_obj.ids_dict["MONITORING"]["YAHOO"])
+        Calibration(instruments_obj.ids_dict["MONITORING"]["YAHOO"])
 
-        else:
-            self.trading_obj = Trading(user, account_ids_dict)
-            self.balance_dict = {"before": 0, "after": 0}
+        self.trading_obj = Trading(user, account_ids_dict)
+        self.balance_dict = {"before": 0, "after": 0}
 
-            while True:
-                try:
-                    if self.run_analysis() == 'Done for the day':
-                        break
+        while True:
+            try:
+                if self.run_analysis() == 'Done for the day':
+                    break
 
-                except ReadTimeout:
-                    self.trading_obj.ava.ctx = self.trading_obj.ava.get_ctx(user)
+            except ReadTimeout:
+                self.trading_obj.ava.ctx = self.trading_obj.ava.get_ctx(user)
 
     def check_trading_hours(self):
         current_time = datetime.now()
@@ -524,6 +521,7 @@ class Day_Trading_CS:
         log_obj.dump_to_telegram()
 
         return 'Done for the day'
+
 
 def run():
     settings_obj = Settings()

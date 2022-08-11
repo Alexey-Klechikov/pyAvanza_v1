@@ -4,20 +4,20 @@
             "CDL_ABANDONEDBABY",
             "CDL_DOJISTAR",
             "CDL_HIKKAKEMOD",
-            "CDL_MORNINGSTAR",
+            "CDL_PIERCING",
             "CDL_TASUKIGAP"
         ],
         "CKSP": [
             "CDL_ABANDONEDBABY",
             "CDL_HIKKAKEMOD",
             "CDL_LADDERBOTTOM",
-            "CDL_MORNINGDOJISTAR",
-            "CDL_STICKSANDWICH"
+            "CDL_MORNINGDOJISTAR"
         ],
         "BBANDS": [
             "CDL_3INSIDE",
             "CDL_ABANDONEDBABY",
             "CDL_DOJISTAR",
+            "CDL_HARAMICROSS",
             "CDL_HOMINGPIGEON",
             "CDL_MATCHINGLOW",
             "CDL_MORNINGSTAR",
@@ -25,15 +25,19 @@
             "CDL_TASUKIGAP"
         ],
         "HA": [
+            "CDL_3INSIDE",
             "CDL_ABANDONEDBABY",
+            "CDL_HARAMICROSS",
             "CDL_MORNINGDOJISTAR",
             "CDL_MORNINGSTAR",
             "CDL_TASUKIGAP"
         ],
         "RSI": [
+            "CDL_GRAVESTONEDOJI",
             "CDL_HIKKAKEMOD",
-            "CDL_HOMINGPIGEON",
             "CDL_LADDERBOTTOM",
+            "CDL_MORNINGDOJISTAR",
+            "CDL_MORNINGSTAR",
             "CDL_SEPARATINGLINES",
             "CDL_XSIDEGAP3METHODS"
         ],
@@ -41,7 +45,7 @@
             "CDL_ABANDONEDBABY",
             "CDL_DOJISTAR",
             "CDL_HIKKAKEMOD",
-            "CDL_MORNINGSTAR",
+            "CDL_PIERCING",
             "CDL_TASUKIGAP"
         ],
         "MACD": [
@@ -49,23 +53,20 @@
             "CDL_DOJISTAR",
             "CDL_HIKKAKEMOD",
             "CDL_MORNINGDOJISTAR",
-            "CDL_MORNINGSTAR",
             "CDL_TASUKIGAP"
         ],
         "STOCH": [
             "CDL_ABANDONEDBABY",
-            "CDL_DOJISTAR",
             "CDL_HIKKAKEMOD",
-            "CDL_STICKSANDWICH",
+            "CDL_PIERCING",
             "CDL_TASUKIGAP"
         ],
         "UO": [
             "CDL_3LINESTRIKE",
             "CDL_3OUTSIDE",
-            "CDL_ENGULFING",
             "CDL_GRAVESTONEDOJI",
-            "CDL_HIGHWAVE",
             "CDL_LADDERBOTTOM",
+            "CDL_MORNINGDOJISTAR",
             "CDL_MORNINGSTAR",
             "CDL_RICKSHAWMAN",
             "CDL_SEPARATINGLINES",
@@ -78,37 +79,37 @@
             "CDL_UPSIDEGAP2CROWS"
         ],
         "CKSP": [
+            "CDL_3LINESTRIKE",
+            "CDL_EVENINGDOJISTAR",
             "CDL_HARAMICROSS"
         ],
         "BBANDS": [
-            "CDL_ADVANCEBLOCK",
             "CDL_HIKKAKEMOD",
             "CDL_INNECK"
         ],
         "HA": [
             "CDL_EVENINGDOJISTAR",
-            "CDL_HIKKAKEMOD",
-            "CDL_INNECK"
+            "CDL_HIKKAKEMOD"
         ],
         "RSI": [
-            "CDL_3OUTSIDE",
+            "CDL_SHORTLINE",
             "CDL_THRUSTING",
             "CDL_XSIDEGAP3METHODS"
         ],
         "RVGI": [
             "CDL_2CROWS",
-            "CDL_INNECK",
             "CDL_UPSIDEGAP2CROWS"
         ],
         "MACD": [
-            "CDL_INNECK",
+            "CDL_ADVANCEBLOCK",
             "CDL_UPSIDEGAP2CROWS"
         ],
         "STOCH": [
-            "CDL_INNECK",
             "CDL_UPSIDEGAP2CROWS"
         ],
         "UO": [
+            "CDL_2CROWS",
+            "CDL_3INSIDE",
             "CDL_HIKKAKEMOD"
         ]
     }
