@@ -1,6 +1,7 @@
 import imp
 import time
 import logging
+import traceback
 import yfinance as yf
 from datetime import datetime, timedelta
 
@@ -372,35 +373,40 @@ class Day_Trading_CS:
 
         else:
             self.trading_obj = Trading(user, account_ids_dict)
-            self.balance_dict = {"before": None, "after": None}
+            self.balance_dict = {"before": 0, "after": 0}
 
             while True:
                 try:
-                    self.run_analysis()
+                    if self.run_analysis() == 'Done for the day':
+                        break
 
                 except ReadTimeout:
                     self.trading_obj.ava.ctx = self.trading_obj.ava.get_ctx(user)
 
     def check_trading_hours(self):
-        current_time = datetime.utcnow()
+        current_time = datetime.now()
 
         # Before the day starts
-        if current_time.hour <= 7 and current_time.minute < 40:
+        if current_time.hour <= 9 and current_time.minute < 40:
             time.sleep(60)
             return "morning"
 
         # End of the day
-        if current_time.hour >= 15 and current_time.minute >= 30:
+        if current_time.hour >= 17 and current_time.minute >= 30:
             for instrument_type in ["BULL", "BEAR"]:
                 instrument_status_dict = self.trading_obj.check_instrument_status(
                     instrument_type
                 )
+
+                if not instrument_status_dict["has_position_bool"]:
+                    continue
 
                 self.trading_obj.update_order(
                     "sell",
                     instrument_type,
                     instrument_status_dict,
                 )
+
             return "evening"
 
         return "day"
@@ -472,9 +478,9 @@ class Day_Trading_CS:
 
     # MAIN method
     def run_analysis(self):
-        self.balance_dict["before"] = self.trading_obj.ava.get_portfolio()[
-            "buying_power"
-        ]
+        self.balance_dict["before"] = sum(
+            self.trading_obj.ava.get_portfolio()["buying_power"].values()
+        )
 
         log.info(
             f'> Running trading for account(s): {" & ".join(self.trading_obj.account_ids_dict)} [{self.balance_dict["before"]}]'
@@ -501,9 +507,9 @@ class Day_Trading_CS:
 
             time.sleep(10)
 
-        self.balance_dict["after"] = self.trading_obj.ava.get_portfolio()[
-            "buying_power"
-        ]
+        self.balance_dict["after"] = sum(
+            self.trading_obj.ava.get_portfolio()["buying_power"].values()
+        )
 
         log.info(f'> End of the day. [{self.balance_dict["before"]}]')
 
@@ -517,6 +523,7 @@ class Day_Trading_CS:
         )
         log_obj.dump_to_telegram()
 
+        return 'Done for the day'
 
 def run():
     settings_obj = Settings()
@@ -526,5 +533,6 @@ def run():
 
     try:
         Day_Trading_CS(user, account_ids_dict)
+
     except Exception as e:
-        log.error(f">>> {e}: {e.__traceback__}")
+        log.error(f">>> {e}: {traceback.format_exc()}")

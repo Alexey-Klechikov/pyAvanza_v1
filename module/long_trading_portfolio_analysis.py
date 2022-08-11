@@ -4,6 +4,8 @@ It will import other modules to run the analysis on the stocks -> place orders -
 """
 
 import logging
+import traceback
+
 
 from .utils import Settings
 from .utils import Strategy_TA
@@ -226,5 +228,6 @@ def run():
                     buy_delay_after_sell=settings_dict.get("buy_delay_after_sell", 2),
                 )
                 signals_dict = walkthrough_obj.signals_dict
+                
             except Exception as e:
-                log.error(f">>> {e}: {e.__traceback__}")
+                log.error(f">>> {e}: {traceback.format_exc()}")

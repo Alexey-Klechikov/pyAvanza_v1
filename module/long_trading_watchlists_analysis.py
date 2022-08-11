@@ -6,6 +6,8 @@ It will import other modules to run the analysis on the stocks -> move it to the
 """
 
 import logging
+import traceback
+
 
 from .utils import Settings
 from .utils import Strategy_TA
@@ -136,5 +138,6 @@ def run():
                         "budget_list_threshold_dict"
                     ],
                 )
+                
             except Exception as e:
-                log.error(f">>> {e}: {e.__traceback__}")
+                log.error(f">>> {e}: {traceback.format_exc()}")
