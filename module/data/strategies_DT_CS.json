@@ -32,6 +32,18 @@
             "CDL_MORNINGSTAR",
             "CDL_TASUKIGAP"
         ],
+        "STC": [
+            "CDL_HIKKAKEMOD",
+            "CDL_LADDERBOTTOM",
+            "CDL_TASUKIGAP",
+            "CDL_UNIQUE3RIVER"
+        ],
+        "CCI": [
+            "CDL_HOMINGPIGEON",
+            "CDL_LADDERBOTTOM",
+            "CDL_SEPARATINGLINES",
+            "CDL_UNIQUE3RIVER"
+        ],
         "RSI": [
             "CDL_GRAVESTONEDOJI",
             "CDL_HIKKAKEMOD",
@@ -90,6 +102,11 @@
         "HA": [
             "CDL_EVENINGDOJISTAR",
             "CDL_HIKKAKEMOD"
+        ],
+        "CCI": [
+            "CDL_EVENINGDOJISTAR",
+            "CDL_HIKKAKEMOD",
+            "CDL_IDENTICAL3CROWS"
         ],
         "RSI": [
             "CDL_SHORTLINE",

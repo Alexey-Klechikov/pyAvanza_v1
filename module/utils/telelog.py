@@ -31,16 +31,14 @@ class TeleLog:
     def parse_day_trading_stats_dict(self, day_trading_stats_dict):
         log.info("Parse day_trading_stats_dict")
 
-        day_trading_stats_dict["profit"] = round(
-            (
-                day_trading_stats_dict["balance_after"]
-                - day_trading_stats_dict["balance_before"]
-            )
-            / day_trading_stats_dict["budget"],
-            2,
+        profit = round(
+            day_trading_stats_dict["balance_after"]
+            - day_trading_stats_dict["balance_before"]
         )
 
-        self.message += f'DT profit: {day_trading_stats_dict["profit"]}%'
+        profit_percentage = round(100 * profit / day_trading_stats_dict["budget"], 2)
+
+        self.message += f'DT: budget: {day_trading_stats_dict["budget"]}, profit: {profit_percentage}% ({profit} SEK)'
 
     def parse_portfolio_dict(self, portfolio_dict):
         log.info("Parse portfolio_dict")
