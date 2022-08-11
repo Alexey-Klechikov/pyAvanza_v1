@@ -374,7 +374,7 @@ class Day_Trading_CS:
 
         while True:
             try:
-                if self.run_analysis() == 'Done for the day':
+                if self.run_analysis() == "Done for the day":
                     break
 
             except ReadTimeout:
@@ -508,7 +508,7 @@ class Day_Trading_CS:
             self.trading_obj.ava.get_portfolio()["buying_power"].values()
         )
 
-        log.info(f'> End of the day. [{self.balance_dict["before"]}]')
+        log.info(f'> End of the day. [{self.balance_dict["after"]}]')
 
         # Dump log to Telegram
         log_obj = TeleLog(
@@ -520,7 +520,7 @@ class Day_Trading_CS:
         )
         log_obj.dump_to_telegram()
 
-        return 'Done for the day'
+        return "Done for the day"
 
 
 def run():
