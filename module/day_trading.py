@@ -389,7 +389,7 @@ class Day_Trading_CS:
             return "morning"
 
         # End of the day
-        if current_time.hour >= 17 and current_time.minute >= 30:
+        if current_time.hour >= 17 and current_time.minute >= 25:
             for instrument_type in ["BULL", "BEAR"]:
                 instrument_status_dict = self.trading_obj.check_instrument_status(
                     instrument_type
