@@ -18,12 +18,12 @@ from .utils import Strategy_CS
 log = logging.getLogger("main.day_trading_cs")
 
 
-INSTRUMENT_SETTINGS_DICT = {"multiplier": 20, "budget": 1200}
+INSTRUMENT_SETTINGS_DICT = {"multiplier": 20, "budget": 2000}
 ORDER_PRICE_LIMITS = {"SL": 0.98, "TP": 1.025}
 RECALIBRATE_DICT = {
     "success_limit": 65,
     "update_bool": True,
-    "plot_bool": True,
+    "plot_bool": False,
 }
 
 
@@ -372,8 +372,10 @@ class Day_Trading_CS:
         self.trading_obj = Trading(user, account_ids_dict)
         self.balance_dict = {"before": 0, "after": 0}
 
-        self.instruments_stock_dict = {'BULL':False, 'BEAR':False}
-        self.day_time = 'morning'
+        self.trading_status_dict = {
+            "stock": {"BULL": False, "BEAR": False},
+            "day_time": "morning",
+        }
 
         while True:
             try:
@@ -383,27 +385,32 @@ class Day_Trading_CS:
             except ReadTimeout:
                 self.trading_obj.ava.ctx = self.trading_obj.ava.get_ctx(user)
 
-    def check_trading_hours(self):
+    def update_trading_day_time(self):
         current_time = datetime.now()
 
         if current_time.hour <= 9 and current_time.minute < 40:
             time.sleep(60)
-            self.day_time = "morning"
+            self.trading_status_dict["day_time"] = "morning"
 
         elif current_time.hour >= 17 and current_time.minute >= 30:
-            self.day_time = "evening"
+            self.trading_status_dict["day_time"] = "evening"
 
         else:
-            self.day_time = "day"
+            self.trading_status_dict["day_time"] = "day"
 
     def check_instrument_for_buy_action(self, strategies_dict, instrument_type):
         instrument_status_dict = self.trading_obj.check_instrument_status(
             instrument_type
         )
 
-        self.instruments_stock_dict[instrument_type] = instrument_status_dict["has_position_bool"]
+        self.trading_status_dict["stock"][instrument_type] = instrument_status_dict[
+            "has_position_bool"
+        ]
 
-        if instrument_status_dict["has_position_bool"] or self.day_time == "evening":
+        if (
+            self.trading_status_dict["stock"][instrument_type]
+            or self.trading_status_dict["day_time"] == "evening"
+        ):
             return
 
         # Update buy order if there is no position, but open order exists
@@ -432,14 +439,14 @@ class Day_Trading_CS:
 
             self.trading_obj.place_order("buy", instrument_type, instrument_status_dict)
             time.sleep(2)
-        
+
     def check_instrument_for_sell_action(
         self, instrument_type, enforce_sell_bool=False
     ):
         instrument_status_dict = self.trading_obj.check_instrument_status(
             instrument_type
         )
-        
+
         if not instrument_status_dict["has_position_bool"]:
             return
 
@@ -477,18 +484,19 @@ class Day_Trading_CS:
 
         strategies_dict = dict()
         while True:
-            self.check_trading_hours()
+            self.update_trading_day_time()
             self.trading_obj.overwrite_last_line["message_list"] = []
 
-            if self.day_time == "morning":
+            if self.trading_status_dict["day_time"] == "morning":
                 continue
 
-            elif self.day_time == "evening" and all(self.instruments_stock_dict.values()):
+            elif self.trading_status_dict["day_time"] == "evening" and not any(
+                self.trading_status_dict["stock"].values()
+            ):
                 break
 
             # Walk through instruments
             for instrument_type in ["BULL", "BEAR"]:
-                
                 self.check_instrument_for_buy_action(strategies_dict, instrument_type)
                 self.check_instrument_for_sell_action(instrument_type)
 
