@@ -18,7 +18,7 @@ from .utils import Strategy_CS
 log = logging.getLogger("main.day_trading_cs")
 
 
-INSTRUMENT_SETTINGS_DICT = {"multiplier": 20, "budget": 2000}
+INSTRUMENT_SETTINGS_DICT = {"multiplier": 20, "budget": 5000}
 ORDER_PRICE_LIMITS = {"SL": 0.98, "TP": 1.025}
 RECALIBRATE_DICT = {
     "success_limit": 65,
