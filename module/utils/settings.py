@@ -73,14 +73,3 @@ class Settings:
             return f"Invalid key: {keys_path_list[-1]}"
 
         self.dump(settings_json)
-
-    def extract_accounts(self, settings_json, purpose):
-        account_ids_dict = dict()
-        for settings_per_account_dict in settings_json.values():
-            for settings_dict in settings_per_account_dict.values():
-                if not settings_dict[purpose]:
-                    continue
-
-                account_ids_dict.update(settings_dict["accounts"])
-        
-        return account_ids_dict

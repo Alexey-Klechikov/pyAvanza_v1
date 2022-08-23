@@ -6,8 +6,7 @@
                 "Bostad - Alex": 9568450
             },
             "log_to_telegram": true,
-            "run_script_daily": true,
-            "run_day_trading": false,
+            "run_long_trading": true,
             "budget_list_threshold_dict": {
                 "2200": "10",
                 "2000": "5",
@@ -19,9 +18,20 @@
             "accounts": {
                 "DT": 5554179
             },
-            "log_to_telegram": false,
-            "run_script_daily": false,
-            "run_day_trading": true
+            "log_to_telegram": true,
+            "run_day_trading": true,
+            "instrument_dict": {
+                "multiplier": 20, 
+                "budget": 5000
+            },
+            "order_price_limits_dict": {
+                "SL": 0.98, 
+                "TP": 1.025
+            },
+            "recalibrate_dict": {
+                "update_bool": false,
+                "success_limit": 65
+            }
         }
     }
 }

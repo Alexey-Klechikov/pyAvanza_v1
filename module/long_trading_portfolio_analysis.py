@@ -221,7 +221,7 @@ def run():
     signals_dict = dict()
     for user, settings_per_account_dict in settings_json.items():
         for settings_dict in settings_per_account_dict.values():
-            if not settings_dict["run_script_daily"]:
+            if not settings_dict.get("run_long_trading", False):
                 continue
 
             try:

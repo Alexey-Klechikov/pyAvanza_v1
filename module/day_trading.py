@@ -1,6 +1,6 @@
-import imp
 import time
 import logging
+import platform
 import traceback
 import yfinance as yf
 from datetime import datetime, timedelta
@@ -18,23 +18,17 @@ from .utils import Strategy_CS
 
 log = logging.getLogger("main.day_trading_cs")
 
-# TODO: move these settings into settings.json
-INSTRUMENT_SETTINGS_DICT = {"multiplier": 20, "budget": 5000}
-ORDER_PRICE_LIMITS = {"SL": 0.98, "TP": 1.025}
-RECALIBRATE_DICT = {
-    "success_limit": 65,
-    "update_bool": True,
-    "plot_bool": True,
-}
-
 
 class Calibration:
-    def __init__(self, instrument_id):
+    def __init__(self, instrument_id, settings_dict):
+        self.order_price_limits_dict = settings_dict["order_price_limits_dict"]
+        self.recalibrate_dict = settings_dict["recalibrate_dict"]
+
         self.instrument_id = instrument_id
         self.chart_directions_list = ["original", "inverted"]
 
         log.info(
-            f"{'Updating' if RECALIBRATE_DICT['update_bool'] else 'Verifying'} strategies_dict"
+            f"{'Updating' if self.recalibrate_dict['update_bool'] else 'Verifying'} strategies_dict"
         )
 
         self.update_strategies()
@@ -42,20 +36,20 @@ class Calibration:
         self.plot_strategies(history_df)
 
     def update_strategies(self):
-        if not RECALIBRATE_DICT["update_bool"]:
+        if not self.recalibrate_dict["update_bool"]:
             return
 
         log.info(
             f"Updating strategies_dict: "
-            + str(ORDER_PRICE_LIMITS)
-            + f' success_limit: {RECALIBRATE_DICT["success_limit"]}'
+            + str(self.order_price_limits_dict)
+            + f' success_limit: {self.recalibrate_dict["success_limit"]}'
         )
 
         history_obj = History(self.instrument_id, "90d", "1m")
 
         strategy_obj = Strategy_CS(
             history_obj.history_df,
-            order_price_limits_dict=ORDER_PRICE_LIMITS,
+            order_price_limits_dict=self.order_price_limits_dict,
         )
 
         strategies_dict = {}
@@ -65,7 +59,7 @@ class Calibration:
         ]
 
         strategies_dict = strategy_obj.get_successful_strategies(
-            RECALIBRATE_DICT["success_limit"]
+            self.recalibrate_dict["success_limit"]
         )
 
         strategy_obj.dump("DT_CS", strategies_dict)
@@ -77,7 +71,7 @@ class Calibration:
 
         strategy_obj = Strategy_CS(
             history_obj.history_df,
-            order_price_limits_dict=ORDER_PRICE_LIMITS,
+            order_price_limits_dict=self.order_price_limits_dict,
         )
 
         strategies_dict = strategy_obj.load("DT_CS")
@@ -87,7 +81,7 @@ class Calibration:
         return strategy_obj.history_df
 
     def plot_strategies(self, history_df):
-        if not RECALIBRATE_DICT["plot_bool"]:
+        if platform.system() != "Darwin":
             return
 
         history_df["buy_signal"] = history_df.apply(
@@ -106,12 +100,16 @@ class Calibration:
 
 
 class Trading:
-    def __init__(self, user, account_ids_dict):
-        self.account_ids_dict = account_ids_dict
+    def __init__(self, user, account_ids_dict, settings_dict):
+        self.instrument_dict = settings_dict["instrument_dict"]
+        self.order_price_limits_dict = settings_dict["order_price_limits_dict"]
+
         self.end_of_day_bool = False
+        self.account_ids_dict = account_ids_dict
+
         self.ava = Context(user, account_ids_dict, skip_lists=True)
         self.strategies_dict = Strategy_CS.load("DT_CS")
-        self.instruments_obj = Instrument(INSTRUMENT_SETTINGS_DICT["multiplier"])
+        self.instruments_obj = Instrument(self.instrument_dict["multiplier"])
 
         self.overwrite_last_line = {"bool": True, "message_list": []}
 
@@ -172,7 +170,7 @@ class Trading:
 
         strategy_obj = Strategy_CS(
             history_obj.history_df,
-            order_price_limits_dict=ORDER_PRICE_LIMITS,
+            order_price_limits_dict=self.order_price_limits_dict,
         )
 
         strategies_dict = (
@@ -223,12 +221,12 @@ class Trading:
                     "has_position_bool": True,
                     "stop_loss_price": round(
                         position_dict["averageAcquiredPrice"]
-                        * ORDER_PRICE_LIMITS["SL"],
+                        * self.order_price_limits_dict["SL"],
                         2,
                     ),
                     "take_profit_price": round(
                         position_dict["averageAcquiredPrice"]
-                        * ORDER_PRICE_LIMITS["TP"],
+                        * self.order_price_limits_dict["TP"],
                         2,
                     ),
                     "current_price": certificate_info_dict["sell"],
@@ -253,10 +251,10 @@ class Trading:
                 instrument_status_dict.update(
                     {
                         "stop_loss_price": round(
-                            order_dict["price"] * ORDER_PRICE_LIMITS["SL"], 2
+                            order_dict["price"] * self.order_price_limits_dict["SL"], 2
                         ),
                         "take_profit_price": round(
-                            order_dict["price"] * ORDER_PRICE_LIMITS["TP"], 2
+                            order_dict["price"] * self.order_price_limits_dict["TP"], 2
                         ),
                     }
                 )
@@ -283,22 +281,25 @@ class Trading:
             "max_return": 0,
         }
 
+        if certificate_info_dict[signal] is not None:
+            log.error(f"Certificate info could not be fetched")
+            return
+
         if signal == "buy":
             order_data_dict.update(
                 {
                     "price": certificate_info_dict[signal],
                     "volume": int(
-                        INSTRUMENT_SETTINGS_DICT["budget"]
-                        // certificate_info_dict[signal]
+                        self.instrument_dict["budget"] // certificate_info_dict[signal]
                     ),
-                    "budget": INSTRUMENT_SETTINGS_DICT["budget"],
+                    "budget": self.instrument_dict["budget"],
                 }
             )
 
         elif signal == "sell":
             price = (
-                certificate_info_dict["sell"]
-                if certificate_info_dict["sell"]
+                certificate_info_dict[signal]
+                if certificate_info_dict[signal]
                 < instrument_status_dict["stop_loss_price"]
                 else instrument_status_dict["take_profit_price"]
             )
@@ -368,12 +369,14 @@ class Trading:
 
 
 class Day_Trading_CS:
-    def __init__(self, user, account_ids_dict):
-        instruments_obj = Instrument(INSTRUMENT_SETTINGS_DICT["multiplier"])
+    def __init__(self, user, account_ids_dict, settings_dict):
+        self.instrument_dict = settings_dict["instrument_dict"]
 
-        Calibration(instruments_obj.ids_dict["MONITORING"]["YAHOO"])
+        instruments_obj = Instrument(self.instrument_dict["multiplier"])
 
-        self.trading_obj = Trading(user, account_ids_dict)
+        Calibration(instruments_obj.ids_dict["MONITORING"]["YAHOO"], settings_dict)
+
+        self.trading_obj = Trading(user, account_ids_dict, settings_dict)
         self.balance_dict = {"before": 0, "after": 0}
 
         self.trading_status_dict = {
@@ -383,7 +386,10 @@ class Day_Trading_CS:
 
         while True:
             try:
-                if self.run_analysis() == "Done for the day":
+                if (
+                    self.run_analysis(settings_dict["log_to_telegram"])
+                    == "Done for the day"
+                ):
                     break
 
             except ReadTimeout:
@@ -399,7 +405,9 @@ class Day_Trading_CS:
         elif current_time.hour >= 17 and current_time.minute >= 30:
             self.trading_status_dict["day_time"] = "evening"
 
-            if not any(self.trading_status_dict["stock"].values()):
+            if (current_time.hour >= 18 and current_time.minute >= 30) or (
+                not any(self.trading_status_dict["stock"].values())
+            ):
                 self.trading_status_dict["day_time"] = "night"
 
         else:
@@ -477,7 +485,7 @@ class Day_Trading_CS:
                 )
 
     # MAIN method
-    def run_analysis(self):
+    def run_analysis(self, log_to_telegram):
         self.balance_dict["before"] = sum(
             self.trading_obj.ava.get_portfolio()["buying_power"].values()
         )
@@ -523,27 +531,32 @@ class Day_Trading_CS:
 
         log.info(f'> End of the day. [{self.balance_dict["after"]}]')
 
-        TeleLog(
-            day_trading_stats_dict={
-                "balance_before": self.balance_dict["before"],
-                "balance_after": self.balance_dict["after"],
-                "budget": INSTRUMENT_SETTINGS_DICT["budget"],
-            }
-        )
+        if log_to_telegram:
+            TeleLog(
+                day_trading_stats_dict={
+                    "balance_before": self.balance_dict["before"],
+                    "balance_after": self.balance_dict["after"],
+                    "budget": self.instrument_dict["budget"],
+                }
+            )
 
         return "Done for the day"
 
 
 def run():
-    settings_obj = Settings()
-    settings_json = settings_obj.load()
-    user = list(settings_json.keys())[0]
-    account_ids_dict = settings_obj.extract_accounts(settings_json, "run_day_trading")
+    settings_json = Settings().load()
 
-    try:
-        Day_Trading_CS(user, account_ids_dict)
+    for user, settings_per_account_dict in settings_json.items():
+        for settings_dict in settings_per_account_dict.values():
+            if not settings_dict.get("run_day_trading", False):
+                continue
 
-    except Exception as e:
-        log.error(f">>> {e}: {traceback.format_exc()}")
+            try:
+                Day_Trading_CS(user, settings_dict["accounts"], settings_dict)
 
-        TeleLog(crash_report=f"DT script has crashed: {e}")
+            except Exception as e:
+                log.error(f">>> {e}: {traceback.format_exc()}")
+
+                TeleLog(crash_report=f"DT script has crashed: {e}")
+
+            return
