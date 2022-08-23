@@ -20,13 +20,13 @@
             },
             "log_to_telegram": true,
             "run_day_trading": true,
-            "instrument_dict": {
+            "trade_dict": {
+                "budget": 5000,
                 "multiplier": 20, 
-                "budget": 5000
-            },
-            "order_price_limits_dict": {
-                "SL": 0.98, 
-                "TP": 1.025
+                "limits_dict": {
+                    "SL": 0.98, 
+                    "TP": 1.025
+                }
             },
             "recalibrate_dict": {
                 "update_bool": false,

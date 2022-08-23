@@ -21,7 +21,7 @@ log = logging.getLogger("main.day_trading_cs")
 
 class Calibration:
     def __init__(self, instrument_id, settings_dict):
-        self.order_price_limits_dict = settings_dict["order_price_limits_dict"]
+        self.settings_price_limits_dict = settings_dict["trade_dict"]["limits_dict"]
         self.recalibrate_dict = settings_dict["recalibrate_dict"]
 
         self.instrument_id = instrument_id
@@ -41,7 +41,7 @@ class Calibration:
 
         log.info(
             f"Updating strategies_dict: "
-            + str(self.order_price_limits_dict)
+            + str(self.settings_price_limits_dict)
             + f' success_limit: {self.recalibrate_dict["success_limit"]}'
         )
 
@@ -49,7 +49,7 @@ class Calibration:
 
         strategy_obj = Strategy_CS(
             history_obj.history_df,
-            order_price_limits_dict=self.order_price_limits_dict,
+            order_price_limits_dict=self.settings_price_limits_dict,
         )
 
         strategies_dict = {}
@@ -71,7 +71,7 @@ class Calibration:
 
         strategy_obj = Strategy_CS(
             history_obj.history_df,
-            order_price_limits_dict=self.order_price_limits_dict,
+            order_price_limits_dict=self.settings_price_limits_dict,
         )
 
         strategies_dict = strategy_obj.load("DT_CS")
@@ -101,15 +101,14 @@ class Calibration:
 
 class Trading:
     def __init__(self, user, account_ids_dict, settings_dict):
-        self.instrument_dict = settings_dict["instrument_dict"]
-        self.order_price_limits_dict = settings_dict["order_price_limits_dict"]
+        self.settings_trade_dict = settings_dict["trade_dict"]
 
         self.end_of_day_bool = False
         self.account_ids_dict = account_ids_dict
 
         self.ava = Context(user, account_ids_dict, skip_lists=True)
         self.strategies_dict = Strategy_CS.load("DT_CS")
-        self.instruments_obj = Instrument(self.instrument_dict["multiplier"])
+        self.instruments_obj = Instrument(self.settings_trade_dict["multiplier"])
 
         self.overwrite_last_line = {"bool": True, "message_list": []}
 
@@ -170,7 +169,7 @@ class Trading:
 
         strategy_obj = Strategy_CS(
             history_obj.history_df,
-            order_price_limits_dict=self.order_price_limits_dict,
+            order_price_limits_dict=self.settings_trade_dict["limits_dict"],
         )
 
         strategies_dict = (
@@ -221,12 +220,12 @@ class Trading:
                     "has_position_bool": True,
                     "stop_loss_price": round(
                         position_dict["averageAcquiredPrice"]
-                        * self.order_price_limits_dict["SL"],
+                        * self.settings_trade_dict["limits_dict"]["SL"],
                         2,
                     ),
                     "take_profit_price": round(
                         position_dict["averageAcquiredPrice"]
-                        * self.order_price_limits_dict["TP"],
+                        * self.settings_trade_dict["limits_dict"]["TP"],
                         2,
                     ),
                     "current_price": certificate_info_dict["sell"],
@@ -251,10 +250,10 @@ class Trading:
                 instrument_status_dict.update(
                     {
                         "stop_loss_price": round(
-                            order_dict["price"] * self.order_price_limits_dict["SL"], 2
+                            order_dict["price"] * self.settings_trade_dict["limits_dict"]["SL"], 2
                         ),
                         "take_profit_price": round(
-                            order_dict["price"] * self.order_price_limits_dict["TP"], 2
+                            order_dict["price"] * self.settings_trade_dict["limits_dict"]["TP"], 2
                         ),
                     }
                 )
@@ -290,9 +289,9 @@ class Trading:
                 {
                     "price": certificate_info_dict[signal],
                     "volume": int(
-                        self.instrument_dict["budget"] // certificate_info_dict[signal]
+                        self.settings_trade_dict["budget"] // certificate_info_dict[signal]
                     ),
-                    "budget": self.instrument_dict["budget"],
+                    "budget": self.settings_trade_dict["budget"],
                 }
             )
 
@@ -370,9 +369,9 @@ class Trading:
 
 class Day_Trading_CS:
     def __init__(self, user, account_ids_dict, settings_dict):
-        self.instrument_dict = settings_dict["instrument_dict"]
+        self.settings_trade_dict = settings_dict["trade_dict"]
 
-        instruments_obj = Instrument(self.instrument_dict["multiplier"])
+        instruments_obj = Instrument(self.settings_trade_dict["multiplier"])
 
         Calibration(instruments_obj.ids_dict["MONITORING"]["YAHOO"], settings_dict)
 
@@ -536,7 +535,7 @@ class Day_Trading_CS:
                 day_trading_stats_dict={
                     "balance_before": self.balance_dict["before"],
                     "balance_after": self.balance_dict["after"],
-                    "budget": self.instrument_dict["budget"],
+                    "budget": self.settings_trade_dict["budget"],
                 }
             )
 

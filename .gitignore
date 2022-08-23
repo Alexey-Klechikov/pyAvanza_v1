@@ -4,7 +4,6 @@ __pycache__/
 *.pickle
 .venv/
 logs/
-module/TA_strategies.json
-module/DT_strategies.json
+module/data/strategies_*
 launch.json
 .DS_Store
