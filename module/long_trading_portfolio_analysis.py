@@ -8,6 +8,7 @@ import traceback
 
 
 from .utils import Settings
+from .utils import History
 from .utils import Strategy_TA
 from .utils import Context
 from .utils import TeleLog
@@ -29,12 +30,18 @@ class Portfolio_Analysis:
 
         if ticker_yahoo not in self.signals_dict:
             try:
+                history_df = History(
+                    ticker_yahoo, "18mo", "1d", cache="skip"
+                ).history_df
+
+                if str(history_df.iloc[-1]["Close"]) == "nan":
+                    self.ava.update_todays_ochl(history_df, ticker_ava)
+
                 strategy_obj = Strategy_TA(
-                    ticker_yahoo,
-                    ticker_ava,
-                    self.ava,
+                    history_df,
                     strategies_list=self.strategies_dict.get(ticker_yahoo, list()),
                 )
+
             except Exception as e:
                 log.error(f'There was a problem with the ticker "{ticker_yahoo}": {e}')
                 return None
@@ -202,12 +209,10 @@ class Portfolio_Analysis:
             portfolio_tickers_dict, created_orders_dict["sell"]
         )
 
-        # Dump log to Telegram
         if log_to_telegram:
-            log_obj = TeleLog(
+            TeleLog(
                 portfolio_dict=self.ava.get_portfolio(), orders_dict=created_orders_dict
             )
-            log_obj.dump_to_telegram()
 
 
 def run():
@@ -228,6 +233,8 @@ def run():
                     buy_delay_after_sell=settings_dict.get("buy_delay_after_sell", 2),
                 )
                 signals_dict = walkthrough_obj.signals_dict
-                
+
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
+
+                TeleLog(crash_report=f"Portfolio_Analysis script has crashed: {e}")

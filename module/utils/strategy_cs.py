@@ -25,10 +25,8 @@ log = logging.getLogger("main.strategy_cs")
 
 
 class Strategy_CS:
-    def __init__(self, ticker_yahoo, **kwargs):
-        self.ticker_obj, self.history_df = self.read_ticker(
-            ticker_yahoo, kwargs.get("period"), kwargs.get("interval")
-        )
+    def __init__(self, history_df, **kwargs):
+        self.history_df = history_df
 
         self.order_price_limits = {
             k: abs(round((1 - v) / 20, 5))
@@ -38,41 +36,6 @@ class Strategy_CS:
         self.get_candlestick_patterns()
 
         self.ta_indicators_dict = self.get_ta_indicators()
-
-    def read_ticker(self, ticker_yahoo, period, interval):
-        ticker_obj = yf.Ticker(ticker_yahoo)
-
-        total_period_int = int(period[:-1])
-
-        if interval == "1m" and period.endswith("d") and total_period_int > 7:
-
-            earliest_date = datetime.today() - timedelta(days=min(total_period_int, 29))
-
-            intervals_list = list()
-            end_date = datetime.today()
-            while True:
-                start_date = max(earliest_date, end_date - timedelta(days=5))
-                if end_date == start_date:
-                    break
-
-                intervals_list.append(
-                    [start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")]
-                )
-                end_date = start_date
-
-            history_df = pd.DataFrame()
-            for start_date, end_date in intervals_list:
-                history_df = history_df.append(
-                    ticker_obj.history(
-                        interval=interval, start=start_date, end=end_date
-                    )
-                )
-            history_df.drop_duplicates(inplace=True)
-
-        else:
-            history_df = ticker_obj.history(period=period, interval=interval)
-
-        return ticker_obj, history_df
 
     def get_ta_indicators(self):
         ta_indicators_dict = {}
@@ -99,7 +62,7 @@ class Strategy_CS:
             "buy": lambda x: x["Close"] > x["BBU_20_1.0"],
             "sell": lambda x: x["Close"] < x["BBL_20_1.0"],
         }
-        
+
         """ Candle """
         # HA (Heikin-Ashi)
         self.history_df.ta.ha(append=True)
@@ -123,8 +86,10 @@ class Strategy_CS:
         self.history_df["CCI_20_0.015_lag"] = self.history_df["CCI_20_0.015"]
         self.history_df.ta.cci(length=20, append=True)
         ta_indicators_dict["CCI"] = {
-            "sell": lambda x: x["CCI_20_0.015"] > 100 and x["CCI_20_0.015"] < x["CCI_20_0.015_lag"],
-            "buy": lambda x: x["CCI_20_0.015"] < -100 and x["CCI_20_0.015"] > x["CCI_20_0.015_lag"],
+            "sell": lambda x: x["CCI_20_0.015"] > 100
+            and x["CCI_20_0.015"] < x["CCI_20_0.015_lag"],
+            "buy": lambda x: x["CCI_20_0.015"] < -100
+            and x["CCI_20_0.015"] > x["CCI_20_0.015_lag"],
         }
 
         # RSI (Relative Strength Index)
@@ -161,7 +126,7 @@ class Strategy_CS:
             "buy": lambda x: x["UO_7_14_28"] < 30,
             "sell": lambda x: x["UO_7_14_28"] > 70,
         }
-        
+
         return ta_indicators_dict
 
     def get_candlestick_patterns(self):

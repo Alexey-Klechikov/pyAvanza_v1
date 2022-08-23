@@ -271,7 +271,7 @@ class Context:
             "positions": list(),
         }
 
-    def get_todays_ochl(self, history_df, stock_id):
+    def update_todays_ochl(self, history_df, stock_id):
         stock_info_dict = self.ctx.get_stock_info(stock_id)
 
         if stock_info_dict is None:
@@ -289,6 +289,8 @@ class Context:
         history_df.loc[last_row_index, "High"] = stock_info_dict["highestPrice"]
         history_df.loc[last_row_index, "Low"] = stock_info_dict["lowestPrice"]
         history_df.loc[last_row_index, "Volume"] = stock_info_dict["totalVolumeTraded"]
+
+        return history_df
 
     def remove_active_orders(self, orderbook_ids_list=list(), account_ids_list=list()):
         active_orders_list = list()

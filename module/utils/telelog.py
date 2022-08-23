@@ -28,6 +28,11 @@ class TeleLog:
         if "day_trading_stats_dict" in kwargs:
             self.parse_day_trading_stats_dict(kwargs["day_trading_stats_dict"])
 
+        if "crash_report" in kwargs:
+            self.message = kwargs["crash_report"]
+        
+        self.dump_to_telegram()
+        
     def parse_day_trading_stats_dict(self, day_trading_stats_dict):
         log.info("Parse day_trading_stats_dict")
 

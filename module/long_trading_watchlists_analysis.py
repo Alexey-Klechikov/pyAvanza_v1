@@ -10,6 +10,7 @@ import traceback
 
 
 from .utils import Settings
+from .utils import History
 from .utils import Strategy_TA
 from .utils import Context
 from .utils import TeleLog
@@ -87,11 +88,17 @@ class Watchlists_Analysis:
                     log.info(f'Analyse ticker "{ticker_dict["ticker_yahoo"]}"')
 
                     try:
-                        strategy_obj = Strategy_TA(
-                            ticker_dict["ticker_yahoo"],
-                            ticker_dict["order_book_id"],
-                            self.ava,
-                        )
+                        history_df = History(
+                            ticker_dict["ticker_yahoo"], "18mo", "1d", cache="skip"
+                        ).history_df
+
+                        if str(history_df.iloc[-1]["Close"]) == "nan":
+                            self.ava.update_todays_ochl(
+                                history_df, ticker_dict["order_book_id"]
+                            )
+
+                        strategy_obj = Strategy_TA(history_df)
+
                     except Exception as e:
                         log.error(
                             f'(!) There was a problem with the ticker "{ticker_dict["ticker_yahoo"]}": {e}'
@@ -115,10 +122,8 @@ class Watchlists_Analysis:
 
         Strategy_TA.dump("TA", self.top_strategies_per_ticket_dict)
 
-        # Dump log to Telegram
         if log_to_telegram:
-            log_obj = TeleLog(watchlists_analysis_log_list=self.log_list)
-            log_obj.dump_to_telegram()
+            TeleLog(watchlists_analysis_log_list=self.log_list)
 
 
 def run():
@@ -138,6 +143,8 @@ def run():
                         "budget_list_threshold_dict"
                     ],
                 )
-                
+
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
+
+                TeleLog(crash_report=f"Watchlists_Analysis script has crashed: {e}")

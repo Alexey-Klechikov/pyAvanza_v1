@@ -25,15 +25,7 @@ log = logging.getLogger("main.strategy_ta")
 
 
 class Strategy_TA:
-    def __init__(self, ticker_yahoo, ticker_ava, ava, **kwargs):
-        self.ticker_obj, history_df = self.read_ticker(
-            ticker_yahoo,
-            ticker_ava,
-            ava,
-            kwargs.get("cache", False),
-            period=kwargs.get("period", "18mo"),
-            interval=kwargs.get("interval", "1d"),
-        )
+    def __init__(self, history_df, **kwargs):
 
         if "adjust_history_dict" in kwargs:
             shift = history_df.iloc[0]["Open"] - kwargs["adjust_history_dict"]["base"]
@@ -84,7 +76,7 @@ class Strategy_TA:
                         )
 
                         if str(history_df.iloc[-1]["Close"]) == "nan":
-                            ava.get_todays_ochl(cache[1], ticker_ava)
+                            ava.update_todays_ochl(cache[1], ticker_ava)
 
                         cache = (ticker_obj, history_df)
                         pickle.dump(cache, pcl)

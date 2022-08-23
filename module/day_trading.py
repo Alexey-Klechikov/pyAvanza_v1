@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from requests import ReadTimeout
 
 from .utils import Plot
+from .utils import History
 from .utils import Context
 from .utils import TeleLog
 from .utils import Settings
@@ -17,13 +18,13 @@ from .utils import Strategy_CS
 
 log = logging.getLogger("main.day_trading_cs")
 
-
+# TODO: move these settings into settings.json
 INSTRUMENT_SETTINGS_DICT = {"multiplier": 20, "budget": 5000}
 ORDER_PRICE_LIMITS = {"SL": 0.98, "TP": 1.025}
 RECALIBRATE_DICT = {
     "success_limit": 65,
     "update_bool": True,
-    "plot_bool": False,
+    "plot_bool": True,
 }
 
 
@@ -50,10 +51,10 @@ class Calibration:
             + f' success_limit: {RECALIBRATE_DICT["success_limit"]}'
         )
 
+        history_obj = History(self.instrument_id, "90d", "1m")
+
         strategy_obj = Strategy_CS(
-            self.instrument_id,
-            period="30d",
-            interval="1m",
+            history_obj.history_df,
             order_price_limits_dict=ORDER_PRICE_LIMITS,
         )
 
@@ -72,10 +73,10 @@ class Calibration:
     def test_strategies(self):
         log.info(f"Testing strategies")
 
+        history_obj = History(self.instrument_id, "2d", "1m")
+
         strategy_obj = Strategy_CS(
-            self.instrument_id,
-            period="2d",
-            interval="1m",
+            history_obj.history_df,
             order_price_limits_dict=ORDER_PRICE_LIMITS,
         )
 
@@ -165,10 +166,13 @@ class Trading:
         return False
 
     def get_signal(self, strategies_dict, instrument_type):
+        history_obj = History(
+            self.instruments_obj.ids_dict["MONITORING"]["YAHOO"], "2d", "1m"
+        )
+
         strategy_obj = Strategy_CS(
-            self.instruments_obj.ids_dict["MONITORING"]["YAHOO"],
-            period="2d",
-            interval="1m",
+            history_obj.history_df,
+            order_price_limits_dict=ORDER_PRICE_LIMITS,
         )
 
         strategies_dict = (
@@ -181,7 +185,7 @@ class Trading:
                 last_full_candle_index
             ].name
 
-            if datetime.now().minute == last_full_candle_timestamp.minute:
+            if datetime.now().minute == last_full_candle_timestamp.minute:  # type: ignore
                 last_full_candle_index = -2
 
         except:
@@ -395,24 +399,27 @@ class Day_Trading_CS:
         elif current_time.hour >= 17 and current_time.minute >= 30:
             self.trading_status_dict["day_time"] = "evening"
 
+            if not any(self.trading_status_dict["stock"].values()):
+                self.trading_status_dict["day_time"] = "night"
+
         else:
             self.trading_status_dict["day_time"] = "day"
 
-    def check_instrument_for_buy_action(self, strategies_dict, instrument_type):
+    def get_instrument_status(self, instrument_type):
         instrument_status_dict = self.trading_obj.check_instrument_status(
             instrument_type
         )
 
-        self.trading_status_dict["stock"][instrument_type] = instrument_status_dict[
-            "has_position_bool"
-        ]
+        self.trading_status_dict["stock"][instrument_type] = (
+            instrument_status_dict["has_position_bool"]
+            or len(instrument_status_dict["active_order_dict"]) > 0
+        )
 
-        if (
-            self.trading_status_dict["stock"][instrument_type]
-            or self.trading_status_dict["day_time"] == "evening"
-        ):
-            return
+        return instrument_status_dict
 
+    def check_instrument_for_buy_action(
+        self, strategies_dict, instrument_type, instrument_status_dict
+    ):
         # Update buy order if there is no position, but open order exists
         if instrument_status_dict["active_order_dict"]:
             self.trading_obj.update_order(
@@ -433,6 +440,7 @@ class Day_Trading_CS:
             # Sell the other instrument if exists
             self.check_instrument_for_sell_action(
                 "BEAR" if instrument_type == "BULL" else "BULL",
+                instrument_status_dict,
                 enforce_sell_bool=True,
             )
             time.sleep(1)
@@ -441,12 +449,8 @@ class Day_Trading_CS:
             time.sleep(2)
 
     def check_instrument_for_sell_action(
-        self, instrument_type, enforce_sell_bool=False
+        self, instrument_type, instrument_status_dict, enforce_sell_bool=False
     ):
-        instrument_status_dict = self.trading_obj.check_instrument_status(
-            instrument_type
-        )
-
         if not instrument_status_dict["has_position_bool"]:
             return
 
@@ -490,15 +494,22 @@ class Day_Trading_CS:
             if self.trading_status_dict["day_time"] == "morning":
                 continue
 
-            elif self.trading_status_dict["day_time"] == "evening" and not any(
-                self.trading_status_dict["stock"].values()
-            ):
+            elif self.trading_status_dict["day_time"] == "night":
                 break
 
             # Walk through instruments
             for instrument_type in ["BULL", "BEAR"]:
-                self.check_instrument_for_buy_action(strategies_dict, instrument_type)
-                self.check_instrument_for_sell_action(instrument_type)
+
+                if self.trading_status_dict["day_time"] != "evening":
+                    self.check_instrument_for_buy_action(
+                        strategies_dict,
+                        instrument_type,
+                        self.get_instrument_status(instrument_type),
+                    )
+
+                self.check_instrument_for_sell_action(
+                    instrument_type, self.get_instrument_status(instrument_type)
+                )
 
                 self.trading_obj.combine_stdout_line(instrument_type)
 
@@ -512,15 +523,13 @@ class Day_Trading_CS:
 
         log.info(f'> End of the day. [{self.balance_dict["after"]}]')
 
-        # Dump log to Telegram
-        log_obj = TeleLog(
+        TeleLog(
             day_trading_stats_dict={
                 "balance_before": self.balance_dict["before"],
                 "balance_after": self.balance_dict["after"],
                 "budget": INSTRUMENT_SETTINGS_DICT["budget"],
             }
         )
-        log_obj.dump_to_telegram()
 
         return "Done for the day"
 
@@ -536,3 +545,5 @@ def run():
 
     except Exception as e:
         log.error(f">>> {e}: {traceback.format_exc()}")
+
+        TeleLog(crash_report=f"DT script has crashed: {e}")
