@@ -47,6 +47,10 @@ class Calibration:
 
         history_obj = History(self.instrument_id, "90d", "1m")
 
+        log.info(
+            f"Dates range: {history_obj.history_df.index[0].strftime('%Y.%m.%d')} - {history_obj.history_df.index[-1].strftime('%Y.%m.%d')}"
+        )
+
         strategy_obj = Strategy_CS(
             history_obj.history_df,
             order_price_limits_dict=self.settings_price_limits_dict,
