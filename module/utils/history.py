@@ -36,6 +36,7 @@ class History:
             else:
                 self.history_df = self.read_ticker(ticker_yahoo, period, interval)
 
+        self.history_df.sort_index(inplace=True)
         self.dump_cache(pickle_path)
 
         if period.endswith("d"):
