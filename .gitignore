@@ -5,5 +5,6 @@ __pycache__/
 .venv/
 logs/
 module/data/strategies_*
+module/data/settings.json
 launch.json
 .DS_Store

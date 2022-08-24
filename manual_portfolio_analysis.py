@@ -4,10 +4,12 @@ This module is used for manual runs (checkups, improvements, tests)
 
 
 import logging
+import traceback
 import pandas as pd
 
 from module.utils import Plot
 from module.utils import Logger
+from module.utils import History
 from module.utils import Context
 from module.utils import Settings
 from module.utils import Strategy_TA
@@ -43,11 +45,11 @@ class Portfolio_Analysis:
         )
 
     def plot_ticker(self, strategy_obj):
-        log.info(f'Plotting {strategy_obj.summary["ticker"]}')
+        log.info(f'Plotting {strategy_obj.summary["ticker_name"]}')
 
         plot_obj = Plot(
             data_df=strategy_obj.history_df,
-            title=f'{strategy_obj.ticker_obj.info["symbol"]} ({strategy_obj.ticker_obj.info["shortName"]}) - {strategy_obj.summary["max_output"]["strategy"]}',
+            title=f'{strategy_obj.summary["ticker_name"]} # {strategy_obj.summary["max_output"]["strategy"]}',
         )
         plot_obj.create_extra_panels()
         plot_obj.add_orders_to_main_plot()
@@ -63,7 +65,7 @@ class Portfolio_Analysis:
 
         columns_dict = {"Close": list(), "total": list()}
 
-        if not self.total_df:
+        if not isinstance(self.total_df, pd.DataFrame) or self.total_df.empty:
             log.error("No total_df found")
             return
 
@@ -109,7 +111,7 @@ class Portfolio_Analysis:
         performance_per_indicator_dict = dict()
         for strategy, statistics_dict in self.counter_per_strategy_dict.items():
             counter = 0
-            if isinstance(statistics_dict["win_counter"], dict):
+            if statistics_dict.get("win_counter") and isinstance(statistics_dict["win_counter"], dict):
                 counter = sum(statistics_dict["win_counter"].values())
 
             for indicator in strategy.split(" + "):
@@ -174,11 +176,14 @@ class Portfolio_Analysis:
             return
 
         try:
-            strategy_obj = Strategy_TA(
-                ticker_yahoo, ticker_ava, self.ava, ticker_name=comment, cache=cache
-            )
+            history_df = History(
+                ticker_yahoo, "18mo", "1d", cache="reuse" if cache else "skip"
+            ).history_df
+
+            strategy_obj = Strategy_TA(history_df, ticker_name=comment)
+
         except Exception as e:
-            log.error(f'There was a problem with the ticker "{ticker_yahoo}": {e}')
+            log.error(f'There was a problem with the ticker "{ticker_yahoo}": {e} ({traceback.format_exc()})')
             return
 
         if self.show_only_tickers_to_act_on_bool and (
@@ -313,11 +318,11 @@ if __name__ == "__main__":
 
     Portfolio_Analysis(
         check_only_watchlist_bool=False,
-        show_only_tickers_to_act_on_bool=True,
+        show_only_tickers_to_act_on_bool=False,
         print_transactions_bool=False,
         plot_extra_tickers_list=[],
         plot_portfolio_tickers_bool=False,
         plot_total_algo_performance_vs_hold_bool=True,
         plot_tickers_to_act_on_bool=False,
-        cache=False,
+        cache=True,
     )
