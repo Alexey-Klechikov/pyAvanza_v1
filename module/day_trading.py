@@ -432,8 +432,11 @@ class Day_Trading_CS:
     def check_instrument_for_buy_action(self, strategies_dict, instrument_type):
         instrument_status_dict = self.get_instrument_status(instrument_type)
 
+        if instrument_status_dict["has_position_bool"]:
+            return
+
         # Update buy order if there is no position, but open order exists
-        if not instrument_status_dict["has_position_bool"] and instrument_status_dict["active_order_dict"]:
+        if instrument_status_dict["active_order_dict"]:
             self.trading_obj.update_order(
                 "buy",
                 instrument_type,
