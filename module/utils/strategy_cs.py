@@ -26,7 +26,7 @@ log = logging.getLogger("main.strategy_cs")
 
 class Strategy_CS:
     def __init__(self, history_df, **kwargs):
-        self.history_df = history_df
+        self.history_df = history_df[~history_df.index.duplicated()]
 
         self.order_price_limits = {
             k: abs(round((1 - v) / 20, 5))
