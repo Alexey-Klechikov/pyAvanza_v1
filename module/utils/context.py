@@ -6,7 +6,7 @@ This module contains all tooling to communicate to Avanza
 import time
 import keyring
 import logging
-import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 
 from avanza import Avanza, OrderType, InstrumentType
@@ -145,9 +145,7 @@ class Context:
                         "price",
                         self.get_stock_price(sell_order_dict["order_book_id"])["sell"],
                     ),
-                    "valid_until": (
-                        datetime.datetime.today() + datetime.timedelta(days=1)
-                    ).date(),
+                    "valid_until": (datetime.today() + timedelta(days=1)).date(),
                     "volume": sell_order_dict["volume"],
                 }
 
@@ -185,8 +183,7 @@ class Context:
                                     )["buy"],
                                 ),
                                 "valid_until": (
-                                    datetime.datetime.today()
-                                    + datetime.timedelta(days=1)
+                                    datetime.today() + timedelta(days=1)
                                 ).date(),
                                 "volume": int(buy_order_dict["volume"]),
                             }
@@ -212,9 +209,7 @@ class Context:
             if old_order_dict["type"] == "SELL"
             else OrderType.BUY,
             "price": price,
-            "valid_until": (
-                datetime.datetime.today() + datetime.timedelta(days=1)
-            ).date(),
+            "valid_until": (datetime.today() + timedelta(days=1)).date(),
             "volume": old_order_dict["volume"],
             "instrument_type": InstrumentType.CERTIFICATE
             if old_order_dict["orderbook"]["type"] == "CERTIFICATE"
@@ -256,7 +251,9 @@ class Context:
             if certificate_dict is None:
                 certificate_dict = dict()
 
-            if certificate_dict.get("spread", 2) < 1:
+            if certificate_dict.get(
+                "spread", 2
+            ) < 1 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
                 return {
                     "buy": certificate_dict.get("sellPrice", None),
                     "sell": certificate_dict.get("buyPrice", None),

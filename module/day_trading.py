@@ -250,10 +250,14 @@ class Trading:
                 instrument_status_dict.update(
                     {
                         "stop_loss_price": round(
-                            order_dict["price"] * self.settings_trade_dict["limits_dict"]["SL"], 2
+                            order_dict["price"]
+                            * self.settings_trade_dict["limits_dict"]["SL"],
+                            2,
                         ),
                         "take_profit_price": round(
-                            order_dict["price"] * self.settings_trade_dict["limits_dict"]["TP"], 2
+                            order_dict["price"]
+                            * self.settings_trade_dict["limits_dict"]["TP"],
+                            2,
                         ),
                     }
                 )
@@ -280,7 +284,7 @@ class Trading:
             "max_return": 0,
         }
 
-        if certificate_info_dict[signal] is not None:
+        if certificate_info_dict[signal] is None:
             log.error(f"Certificate info could not be fetched")
             return
 
@@ -289,7 +293,8 @@ class Trading:
                 {
                     "price": certificate_info_dict[signal],
                     "volume": int(
-                        self.settings_trade_dict["budget"] // certificate_info_dict[signal]
+                        self.settings_trade_dict["budget"]
+                        // certificate_info_dict[signal]
                     ),
                     "budget": self.settings_trade_dict["budget"],
                 }
@@ -397,14 +402,14 @@ class Day_Trading_CS:
     def update_trading_day_time(self):
         current_time = datetime.now()
 
-        if current_time.hour <= 9 and current_time.minute < 40:
+        if current_time <= current_time.replace(hour=9, minute=40):
             time.sleep(60)
             self.trading_status_dict["day_time"] = "morning"
 
-        elif current_time.hour >= 17 and current_time.minute >= 30:
+        elif current_time >= current_time.replace(hour=17, minute=30):
             self.trading_status_dict["day_time"] = "evening"
 
-            if (current_time.hour >= 18 and current_time.minute >= 30) or (
+            if (current_time >= current_time.replace(hour=18, minute=30)) or (
                 not any(self.trading_status_dict["stock"].values())
             ):
                 self.trading_status_dict["day_time"] = "night"
