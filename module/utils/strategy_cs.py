@@ -223,7 +223,7 @@ class Strategy_CS:
 
                 efficiency_percent = (
                     0
-                    if number_transactions == 0
+                    if number_transactions <= 1
                     else round(
                         (stats_counter_dict["good"][order_type] / number_transactions)
                         * 100

@@ -52,12 +52,6 @@ class Calibration:
             order_price_limits_dict=self.settings_price_limits_dict,
         )
 
-        strategies_dict = {}
-
-        strategy_obj.history_df = strategy_obj.history_df.loc[
-            : (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
-        ]
-
         strategies_dict = strategy_obj.get_successful_strategies(
             self.recalibrate_dict["success_limit"]
         )

@@ -618,7 +618,7 @@ class Plot:
                     markersize=100,
                     marker="o",
                     color="red",
-                    secondary_y=True,
+                    secondary_y=False,
                 )
             )
 
@@ -630,7 +630,7 @@ class Plot:
                     markersize=100,
                     marker="o",
                     color="green",
-                    secondary_y=True,
+                    secondary_y=False,
                 )
             )
 
