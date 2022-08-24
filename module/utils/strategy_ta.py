@@ -262,6 +262,26 @@ class Strategy_TA:
             }
 
         """ Momentum """
+        # STC (Schaff Trend Cycle)
+        history_df.ta.stc(append=True)
+        if _check_enough_data("STC_10_12_26_0.5", history_df):
+            conditions_dict["Momentum"]["STC"] = {
+                "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
+                "buy": lambda x: x["STC_10_12_26_0.5"] < 75,
+            }
+
+        # CCI (Commodity Channel Index)
+        history_df.ta.cci(length=20, append=True, offset=1)
+        if _check_enough_data("CCI_20_0.015", history_df):
+            history_df["CCILag_20_0.015"] = history_df["CCI_20_0.015"]
+            history_df.ta.cci(length=20, append=True)
+            conditions_dict["Momentum"]["CCI"] = {
+                "sell": lambda x: x["CCI_20_0.015"] > 100
+                and x["CCI_20_0.015"] < x["CCILag_20_0.015"],
+                "buy": lambda x: x["CCI_20_0.015"] < -100
+                and x["CCI_20_0.015"] > x["CCILag_20_0.015"],
+            }
+
         # RSI (Relative Strength Index)
         history_df.ta.rsi(length=14, append=True)
         if _check_enough_data("RSI_14", history_df):

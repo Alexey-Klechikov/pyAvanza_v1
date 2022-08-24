@@ -429,11 +429,11 @@ class Day_Trading_CS:
 
         return instrument_status_dict
 
-    def check_instrument_for_buy_action(
-        self, strategies_dict, instrument_type, instrument_status_dict
-    ):
+    def check_instrument_for_buy_action(self, strategies_dict, instrument_type):
+        instrument_status_dict = self.get_instrument_status(instrument_type)
+
         # Update buy order if there is no position, but open order exists
-        if instrument_status_dict["active_order_dict"]:
+        if not instrument_status_dict["has_position_bool"] and instrument_status_dict["active_order_dict"]:
             self.trading_obj.update_order(
                 "buy",
                 instrument_type,
@@ -452,7 +452,6 @@ class Day_Trading_CS:
             # Sell the other instrument if exists
             self.check_instrument_for_sell_action(
                 "BEAR" if instrument_type == "BULL" else "BULL",
-                instrument_status_dict,
                 enforce_sell_bool=True,
             )
             time.sleep(1)
@@ -461,8 +460,10 @@ class Day_Trading_CS:
             time.sleep(2)
 
     def check_instrument_for_sell_action(
-        self, instrument_type, instrument_status_dict, enforce_sell_bool=False
+        self, instrument_type, enforce_sell_bool=False
     ):
+        instrument_status_dict = self.get_instrument_status(instrument_type)
+
         if not instrument_status_dict["has_position_bool"]:
             return
 
@@ -514,14 +515,10 @@ class Day_Trading_CS:
 
                 if self.trading_status_dict["day_time"] != "evening":
                     self.check_instrument_for_buy_action(
-                        strategies_dict,
-                        instrument_type,
-                        self.get_instrument_status(instrument_type),
+                        strategies_dict, instrument_type
                     )
 
-                self.check_instrument_for_sell_action(
-                    instrument_type, self.get_instrument_status(instrument_type)
-                )
+                self.check_instrument_for_sell_action(instrument_type)
 
                 self.trading_obj.combine_stdout_line(instrument_type)
 

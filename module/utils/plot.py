@@ -179,6 +179,43 @@ class Plot:
             return data_column_dict["EBSW"]
 
         ## Momentum
+        def _stc(panel_num):
+            data_column_dict = get_data_columns_dict("STC")
+            plot_lim = (-10, 110)
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict["STC"]],
+                    color="orange",
+                    ylim=plot_lim,
+                    panel=panel_num,
+                    ylabel="STC",
+                )
+            ]
+            self.add_horisontal_lines(
+                level_color_list=((25, "red"), (75, "blue")),
+                panel_num=panel_num,
+            )
+            return data_column_dict["STC"]
+
+        def _cci(panel_num):
+            data_column_dict = get_data_columns_dict("CCI")
+            self.plots_list += [
+                mpf.make_addplot(
+                    self.data_df[data_column_dict["CCI"]],
+                    color="orange",
+                    panel=panel_num,
+                    ylabel="CCI",
+                ),
+                mpf.make_addplot(
+                    self.data_df[data_column_dict["CCILag"]],
+                    color="red",
+                    panel=panel_num,
+                    secondary_y=False,
+                ),
+            ]
+            return data_column_dict["CCI"]
+
+        ## Momentum
         def _rsi(panel_num):
             data_column_dict = get_data_columns_dict("RSI")
             plot_lim = (0, 100)
@@ -528,6 +565,8 @@ class Plot:
             "separate_plots": {
                 "LINREG": _linreg,
                 "EBSW": _ebsw,
+                "STC": _stc,
+                "CCI": _cci,
                 "RSI": _rsi,
                 "RVGI": _rvgi,
                 "MACD": _macd,
@@ -571,18 +610,6 @@ class Plot:
                 )
             )
 
-        if "buy_signal" in self.data_df.columns:
-            self.plots_list.append(
-                mpf.make_addplot(
-                    self.data_df["buy_signal"],
-                    scatter=True,
-                    markersize=100,
-                    marker="o",
-                    color="green",
-                    secondary_y=False,
-                )
-            )
-
         if "sell_signal" in self.data_df.columns:
             self.plots_list.append(
                 mpf.make_addplot(
@@ -591,7 +618,19 @@ class Plot:
                     markersize=100,
                     marker="o",
                     color="red",
-                    secondary_y=False,
+                    secondary_y=True,
+                )
+            )
+
+        if "buy_signal" in self.data_df.columns:
+            self.plots_list.append(
+                mpf.make_addplot(
+                    self.data_df["buy_signal"],
+                    scatter=True,
+                    markersize=100,
+                    marker="o",
+                    color="green",
+                    secondary_y=True,
                 )
             )
 
