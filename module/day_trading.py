@@ -27,10 +27,6 @@ class Calibration:
         self.instrument_id = instrument_id
         self.chart_directions_list = ["original", "inverted"]
 
-        log.info(
-            f"{'Updating' if self.recalibrate_dict['update_bool'] else 'Verifying'} strategies_dict"
-        )
-
         self.update_strategies()
         history_df = self.test_strategies()
         self.plot_strategies(history_df)
