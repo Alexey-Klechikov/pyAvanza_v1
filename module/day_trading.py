@@ -212,6 +212,7 @@ class Trading:
             instrument_status_dict.update(
                 {
                     "has_position_bool": True,
+                    "current_price": certificate_info_dict["sell"],
                     "stop_loss_price": round(
                         position_dict["averageAcquiredPrice"]
                         * self.settings_trade_dict["limits_dict"]["SL"],
@@ -222,7 +223,11 @@ class Trading:
                         * self.settings_trade_dict["limits_dict"]["TP"],
                         2,
                     ),
-                    "current_price": certificate_info_dict["sell"],
+                    "trailing_stop_loss_price_latest": round(
+                        certificate_info_dict["sell"]
+                        * self.settings_trade_dict["limits_dict"]["SL_trailing"],
+                        2,
+                    ),
                 }
             )
 
@@ -377,8 +382,9 @@ class Day_Trading_CS:
         self.trading_obj = Trading(user, account_ids_dict, settings_dict)
         self.balance_dict = {"before": 0, "after": 0}
 
-        self.trading_status_dict = {
-            "stock": {"BULL": False, "BEAR": False},
+        self.instruments_status_dict = {
+            "BULL": dict(),
+            "BEAR": dict(),
             "day_time": "morning",
         }
 
@@ -398,43 +404,88 @@ class Day_Trading_CS:
 
         if current_time <= current_time.replace(hour=9, minute=40):
             time.sleep(60)
-            self.trading_status_dict["day_time"] = "morning"
+            self.instruments_status_dict["day_time"] = "morning"
 
         elif current_time >= current_time.replace(hour=17, minute=30):
-            self.trading_status_dict["day_time"] = "evening"
+            self.instruments_status_dict["day_time"] = "evening"
 
             if (current_time >= current_time.replace(hour=18, minute=30)) or (
-                not any(self.trading_status_dict["stock"].values())
+                not any(
+                    [
+                        (
+                            self.instruments_status_dict[instrument_type][
+                                "has_position_bool"
+                            ]
+                            or len(
+                                self.instruments_status_dict[instrument_type][
+                                    "active_order_dict"
+                                ]
+                            )
+                            > 0
+                        )
+                        for instrument_type in ["BULL", "BEAR"]
+                    ]
+                )
             ):
-                self.trading_status_dict["day_time"] = "night"
+                self.instruments_status_dict["day_time"] = "night"
 
         else:
-            self.trading_status_dict["day_time"] = "day"
+            self.instruments_status_dict["day_time"] = "day"
 
-    def get_instrument_status(self, instrument_type):
-        instrument_status_dict = self.trading_obj.check_instrument_status(
-            instrument_type
+    def update_instrument_status(self, instrument_type):
+        self.instruments_status_dict[instrument_type].update(
+            self.trading_obj.check_instrument_status(instrument_type)
         )
 
-        self.trading_status_dict["stock"][instrument_type] = (
-            instrument_status_dict["has_position_bool"]
-            or len(instrument_status_dict["active_order_dict"]) > 0
-        )
+        if self.instruments_status_dict[instrument_type]["has_position_bool"]:
 
-        return instrument_status_dict
+            if self.instruments_status_dict[instrument_type].get("buy_time") is None:
+                self.instruments_status_dict[instrument_type][
+                    "buy_time"
+                ] = datetime.now()
+
+            self.instruments_status_dict[instrument_type][
+                "trailing_stop_loss_price"
+            ] = max(
+                self.instruments_status_dict[instrument_type].get(
+                    "trailing_stop_loss_price", 0
+                ),
+                self.instruments_status_dict[instrument_type].pop(
+                    "trailing_stop_loss_price_latest", 0
+                ),
+                self.instruments_status_dict[instrument_type]["stop_loss_price"],
+            )
+
+            # Switch to tighter stop loss price if order is not fullfilled after 4 min
+            if (
+                datetime.now()
+                - self.instruments_status_dict[instrument_type]["buy_time"]
+            ).seconds > 240:
+                self.instruments_status_dict[instrument_type][
+                    "stop_loss_price"
+                ] = self.instruments_status_dict[instrument_type][
+                    "trailing_stop_loss_price"
+                ]
+
+        else:
+            self.instruments_status_dict[instrument_type].update(
+                {"buy_time": None, "trailing_stop_loss_price": 0}
+            )
+
+        return self.instruments_status_dict[instrument_type]
 
     def check_instrument_for_buy_action(self, strategies_dict, instrument_type):
-        instrument_status_dict = self.get_instrument_status(instrument_type)
+        self.update_instrument_status(instrument_type)
 
-        if instrument_status_dict["has_position_bool"]:
+        if self.instruments_status_dict[instrument_type]["has_position_bool"]:
             return
 
         # Update buy order if there is no position, but open order exists
-        if instrument_status_dict["active_order_dict"]:
+        if self.instruments_status_dict[instrument_type]["active_order_dict"]:
             self.trading_obj.update_order(
                 "buy",
                 instrument_type,
-                instrument_status_dict,
+                self.instruments_status_dict[instrument_type],
             )
             time.sleep(2)
 
@@ -453,21 +504,23 @@ class Day_Trading_CS:
             )
             time.sleep(1)
 
-            self.trading_obj.place_order("buy", instrument_type, instrument_status_dict)
+            self.trading_obj.place_order(
+                "buy", instrument_type, self.instruments_status_dict[instrument_type]
+            )
             time.sleep(2)
 
     def check_instrument_for_sell_action(
         self, instrument_type, enforce_sell_bool=False
     ):
-        instrument_status_dict = self.get_instrument_status(instrument_type)
+        self.update_instrument_status(instrument_type)
 
-        if not instrument_status_dict["has_position_bool"]:
+        if not self.instruments_status_dict[instrument_type]["has_position_bool"]:
             return
 
         # Create take_profit sell orders
-        if not instrument_status_dict["active_order_dict"]:
+        if not self.instruments_status_dict[instrument_type]["active_order_dict"]:
             self.trading_obj.place_order(
-                "sell", instrument_type, instrument_status_dict
+                "sell", instrument_type, self.instruments_status_dict[instrument_type]
             )
 
         # Check if hit stop loss (or enforce) -> sell
@@ -478,12 +531,12 @@ class Day_Trading_CS:
 
             if (
                 certificate_info_dict["sell"]
-                < instrument_status_dict["stop_loss_price"]
+                < self.instruments_status_dict[instrument_type]["stop_loss_price"]
             ) or enforce_sell_bool:
                 self.trading_obj.update_order(
                     "sell",
                     instrument_type,
-                    instrument_status_dict,
+                    self.instruments_status_dict[instrument_type],
                 )
 
     # MAIN method
@@ -501,16 +554,16 @@ class Day_Trading_CS:
             self.update_trading_day_time()
             self.trading_obj.overwrite_last_line["message_list"] = []
 
-            if self.trading_status_dict["day_time"] == "morning":
+            if self.instruments_status_dict["day_time"] == "morning":
                 continue
 
-            elif self.trading_status_dict["day_time"] == "night":
+            elif self.instruments_status_dict["day_time"] == "night":
                 break
 
             # Walk through instruments
             for instrument_type in ["BULL", "BEAR"]:
 
-                if self.trading_status_dict["day_time"] != "evening":
+                if self.instruments_status_dict["day_time"] != "evening":
                     self.check_instrument_for_buy_action(
                         strategies_dict, instrument_type
                     )
