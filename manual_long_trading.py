@@ -314,7 +314,7 @@ class Portfolio_Analysis:
 
 
 if __name__ == "__main__":
-    Logger(logger_name="main", file_prefix="manual")
+    Logger(logger_name="main", file_prefix="manual_long_trading")
 
     Portfolio_Analysis(
         check_only_watchlist_bool=False,

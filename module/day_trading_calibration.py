@@ -1,15 +1,10 @@
-import time
 import logging
 import platform
 import traceback
 import yfinance as yf
-from datetime import datetime, timedelta
-
-from requests import ReadTimeout
 
 from .utils import Plot
 from .utils import History
-from .utils import Context
 from .utils import TeleLog
 from .utils import Settings
 from .utils import Instrument
