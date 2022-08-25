@@ -25,7 +25,6 @@ class Calibration:
         self.recalibrate_dict = settings_dict["recalibrate_dict"]
 
         self.instrument_id = instrument_id
-        self.chart_directions_list = ["original", "inverted"]
 
         self.update_strategies()
         history_df = self.test_strategies()
@@ -44,7 +43,7 @@ class Calibration:
         history_obj = History(self.instrument_id, "90d", "1m")
 
         log.info(
-            f"Dates range: {history_obj.history_df.index[0].strftime('%Y.%m.%d')} - {history_obj.history_df.index[-1].strftime('%Y.%m.%d')}"
+            f"Dates range: {history_obj.history_df.index[0].strftime('%Y.%m.%d')} - {history_obj.history_df.index[-1].strftime('%Y.%m.%d')}"  # type: ignore
         )
 
         strategy_obj = Strategy_CS(
@@ -150,7 +149,7 @@ class Trading:
 
             if cs_signal == ta_signal == instrument_type:
                 log.warning(
-                    f"> signal - BUY: {instrument_type}-{ta_indicator}-{cs_pattern}"
+                    f">>> signal - BUY: {instrument_type}-{ta_indicator}-{cs_pattern} at {row.name}"
                 )
                 return True
 
@@ -170,17 +169,12 @@ class Trading:
             strategies_dict if strategies_dict else strategy_obj.load("DT_CS")
         )
 
-        try:
-            last_full_candle_index = -1
-            last_full_candle_timestamp = strategy_obj.history_df.iloc[
-                last_full_candle_index
-            ].name
+        last_full_candle_index = -2
 
-            if datetime.now().minute == last_full_candle_timestamp.minute:  # type: ignore
-                last_full_candle_index = -2
-
-        except:
-            log.error("Unexpected error in parsing history_df datetime")
+        if (datetime.now() - strategy_obj.history_df.iloc[last_full_candle_index].name).seconds > 60:  # type: ignore
+            log.error(
+                f"Last candle is outdated: {strategy_obj.history_df.iloc[last_full_candle_index].name}"
+            )
             return
 
         last_candle_signal_buy_bool = self._check_last_candle_buy(
@@ -343,7 +337,7 @@ class Trading:
             "name"
         ].split(" ")[0]
         log.warning(
-            f'> (UPD) {signal.upper()}: {instrument_type} - {instrument_status_dict["active_order_dict"]["price"]} -> {certificate_info_dict[signal]}'
+            f'{signal.upper()} (UPD): {instrument_type} - {instrument_status_dict["active_order_dict"]["price"]} -> {certificate_info_dict[signal]}'
         )
 
         self.ava.update_order(
@@ -443,6 +437,10 @@ class Day_Trading_CS:
                 self.instruments_status_dict[instrument_type][
                     "buy_time"
                 ] = datetime.now()
+
+                log.info(
+                    f'{instrument_type}: Stop loss: {self.instruments_status_dict[instrument_type]["stop_loss_price"]}, Take profit: {self.instruments_status_dict[instrument_type]["take_profit_price"]}'
+                )
 
             self.instruments_status_dict[instrument_type][
                 "trailing_stop_loss_price"
