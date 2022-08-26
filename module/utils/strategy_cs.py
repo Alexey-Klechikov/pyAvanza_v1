@@ -218,7 +218,7 @@ class Strategy_CS:
                     order_dict[order_type]["verdict"] = verdict
                     orders_history_list.append(copy(order_dict[order_type]))
 
-        def _get_signal(value, index):
+        def _get_signal(value):
             signal = None
             if value > 0 and ta_indicator_lambda["buy"](row):
                 signal = "BUY"
@@ -226,7 +226,7 @@ class Strategy_CS:
             elif value < 0 and ta_indicator_lambda["sell"](row):
                 signal = "SELL"
 
-            self.history_df.at[index, "signal"] = signal
+            return signal
 
         def _filter_out_strategies(
             strategies_dict, stats_counter_dict, ta_indicator, column
@@ -284,23 +284,21 @@ class Strategy_CS:
 
                 if not column.startswith("CDL") or (self.history_df[column] == 0).all():
                     continue
-                
-                timer_start = datetime.now()
 
-                for i, (index, row) in enumerate(
-                    self.history_df[
-                        ["High", "Low", "Open", "Close", column]
-                        + self.ta_indicators_dict[ta_indicator]["columns"]
-                    ].iterrows()
-                ):
-                    order_type = _buy_order(
-                        order_dict, self.history_df.iloc[i - 1]["signal"]
-                    )
+                timer_start = datetime.now()
+                last_candle_signal = None
+
+                for index, row in self.history_df[
+                    ["High", "Low", "Open", "Close", column]
+                    + self.ta_indicators_dict[ta_indicator]["columns"]
+                ].iterrows():
+                
+                    order_type = _buy_order(order_dict, last_candle_signal)
                     if order_type is not None:
                         continue
 
                     _sell_order(order_dict, stats_counter_dict, orders_history_list)
-                    _get_signal(row[column], index)
+                    last_candle_signal = _get_signal(row[column])
 
                 _filter_out_strategies(
                     strategies_dict,
@@ -309,7 +307,9 @@ class Strategy_CS:
                     column,
                 )
 
-                log.debug(f"{ta_indicator} + {column}. Total time: {(datetime.now() - timer_start).seconds} seconds")
+                log.debug(
+                    f"{ta_indicator} + {column}. Total time: {(datetime.now() - timer_start).seconds} seconds"
+                )
 
         return strategies_dict
 
