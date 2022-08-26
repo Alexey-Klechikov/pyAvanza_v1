@@ -101,10 +101,7 @@ class Trading:
 
         last_full_candle_index = -2
 
-        if (datetime.now() - strategy_obj.history_df.iloc[last_full_candle_index].name.replace(tzinfo=None)).seconds > 125:  # type: ignore
-            log.error(
-                f"Last candle is outdated: {strategy_obj.history_df.iloc[last_full_candle_index].name}"
-            )
+        if (datetime.now() - strategy_obj.history_df.iloc[last_full_candle_index].name.replace(tzinfo=None)).seconds > 130:  # type: ignore
             return
 
         last_candle_signal_buy_bool = self._check_last_candle_buy(
@@ -248,17 +245,8 @@ class Trading:
             f'{order_data_dict["signal"].upper()}: {order_data_dict["name"]} - {order_data_dict["price"]}'
         )
 
-    def update_order(
-        self,
-        signal,
-        instrument_type,
-        instrument_status_dict,
-    ):
-        certificate_info_dict = self.ava.get_certificate_info(
-            self.instruments_obj.ids_dict["TRADING"][instrument_type]
-        )
-
-        if certificate_info_dict[signal] is None:
+    def update_order(self, signal, instrument_type, instrument_status_dict, price):
+        if price is None:
             return
 
         self.overwrite_last_line["bool"] = False
@@ -266,13 +254,12 @@ class Trading:
         instrument_type = instrument_status_dict["active_order_dict"]["orderbook"][
             "name"
         ].split(" ")[0]
+
         log.warning(
-            f'{signal.upper()} (UPD): {instrument_type} - {instrument_status_dict["active_order_dict"]["price"]} -> {certificate_info_dict[signal]}'
+            f'{signal.upper()} (UPD): {instrument_type} - {instrument_status_dict["active_order_dict"]["price"]} -> {price}'
         )
 
-        self.ava.update_order(
-            instrument_status_dict["active_order_dict"], certificate_info_dict[signal]
-        )
+        self.ava.update_order(instrument_status_dict["active_order_dict"], price)
 
     def combine_stdout_line(self, instrument_type):
         instrument_status_dict = self.check_instrument_status(instrument_type)
@@ -326,7 +313,7 @@ class Day_Trading_CS:
             time.sleep(60)
             self.instruments_status_dict["day_time"] = "morning"
 
-        elif current_time >= current_time.replace(hour=17, minute=30):
+        elif current_time >= current_time.replace(hour=17, minute=25):
             self.instruments_status_dict["day_time"] = "evening"
 
             if (current_time >= current_time.replace(hour=18, minute=30)) or (
@@ -385,11 +372,20 @@ class Day_Trading_CS:
                 datetime.now()
                 - self.instruments_status_dict[instrument_type]["buy_time"]
             ).seconds > 240:
-                self.instruments_status_dict[instrument_type][
-                    "stop_loss_price"
-                ] = self.instruments_status_dict[instrument_type][
-                    "trailing_stop_loss_price"
-                ]
+                self.instruments_status_dict[instrument_type].update(
+                    {
+                        "stop_loss_price": self.instruments_status_dict[
+                            instrument_type
+                        ]["trailing_stop_loss_price"],
+                        "take_profit_price": round(
+                            self.instruments_status_dict[instrument_type][
+                                "current_price"
+                            ]
+                            * self.settings_trade_dict["limits_dict"]["TP"],
+                            2,
+                        ),
+                    }
+                )
 
         else:
             self.instruments_status_dict[instrument_type].update(
@@ -404,17 +400,8 @@ class Day_Trading_CS:
         if self.instruments_status_dict[instrument_type]["has_position_bool"]:
             return
 
-        # Update buy order if there is no position, but open order exists
-        if self.instruments_status_dict[instrument_type]["active_order_dict"]:
-            self.trading_obj.update_order(
-                "buy",
-                instrument_type,
-                self.instruments_status_dict[instrument_type],
-            )
-            time.sleep(2)
-
-        # Create buy order if there is no position
-        else:
+        # Create buy order (if there is no position)
+        if not self.instruments_status_dict[instrument_type]["active_order_dict"]:
             buy_instrument_bool = self.trading_obj.get_signal(
                 strategies_dict, instrument_type
             )
@@ -433,6 +420,22 @@ class Day_Trading_CS:
             )
             time.sleep(2)
 
+        # Update buy order (if there is no position, but open order exists)
+        else:
+            current_buy_price = self.trading_obj.ava.get_certificate_info(
+                self.trading_obj.instruments_obj.ids_dict["TRADING"][instrument_type][
+                    "buy"
+                ]
+            )
+
+            self.trading_obj.update_order(
+                "buy",
+                instrument_type,
+                self.instruments_status_dict[instrument_type],
+                current_buy_price,
+            )
+            time.sleep(2)
+
     def check_instrument_for_sell_action(
         self, instrument_type, enforce_sell_bool=False
     ):
@@ -441,27 +444,44 @@ class Day_Trading_CS:
         if not self.instruments_status_dict[instrument_type]["has_position_bool"]:
             return
 
-        # Create take_profit sell orders
+        # Create sell orders (take_profit)
         if not self.instruments_status_dict[instrument_type]["active_order_dict"]:
             self.trading_obj.place_order(
                 "sell", instrument_type, self.instruments_status_dict[instrument_type]
             )
 
-        # Check if hit stop loss (or enforce) -> sell
+        # Update sell order (if hit stop_loss / enforced / trailing_stop_loss initiated, so take_profit_price has changed)
         else:
-            certificate_info_dict = self.trading_obj.ava.get_certificate_info(
-                self.trading_obj.instruments_obj.ids_dict["TRADING"][instrument_type]
+            sell_price = None
+
+            current_sell_price = self.trading_obj.ava.get_certificate_info(
+                self.trading_obj.instruments_obj.ids_dict["TRADING"][instrument_type][
+                    "sell"
+                ]
             )
 
             if (
-                certificate_info_dict["sell"]
+                current_sell_price
                 < self.instruments_status_dict[instrument_type]["stop_loss_price"]
             ) or enforce_sell_bool:
-                self.trading_obj.update_order(
-                    "sell",
-                    instrument_type,
-                    self.instruments_status_dict[instrument_type],
-                )
+                sell_price = current_sell_price
+
+            elif (
+                self.instruments_status_dict[instrument_type]["active_order_dict"][
+                    "price"
+                ]
+                != self.instruments_status_dict[instrument_type]["take_profit_price"]
+            ):
+                sell_price = self.instruments_status_dict[instrument_type][
+                    "take_profit_price"
+                ]
+
+            self.trading_obj.update_order(
+                "sell",
+                instrument_type,
+                self.instruments_status_dict[instrument_type],
+                sell_price,
+            )
 
     # MAIN method
     def run_analysis(self, log_to_telegram):
