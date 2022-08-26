@@ -44,13 +44,10 @@ class Strategy_CS:
         """ Trend """
         # PSAR (Parabolic Stop and Reverse)
         self.history_df.ta.psar(append=True)
-
         ta_indicators_dict["PSAR"] = {
-            "buy": lambda x: not x["PSARl_0.02_0.2"] != np.nan
-            and x["Close"] > x["PSARl_0.02_0.2"],
-            "sell": lambda x: not x["PSARs_0.02_0.2"] != np.nan
-            and x["Close"] < x["PSARs_0.02_0.2"],
-            "columns": ["PSARl_0.02_0.2", "PSARs_0.02_0.2", "Close"],
+            "buy": lambda x: x["Close"] > x["PSARl_0.02_0.2"],
+            "sell": lambda x: x["Close"] < x["PSARs_0.02_0.2"],
+            "columns": ["PSARl_0.02_0.2", "PSARs_0.02_0.2"],
         }
 
         # CKSP (Chande Kroll Stop)
@@ -65,11 +62,9 @@ class Strategy_CS:
         # BBANDS (Bollinger Bands)
         self.history_df.ta.bbands(length=20, std=1, append=True)
         ta_indicators_dict["BBANDS"] = {
-            "buy": lambda x: not x["BBU_20_1.0"] != np.nan
-            and x["Close"] > x["BBU_20_1.0"],
-            "sell": lambda x: not x["BBL_20_1.0"] != np.nan
-            and x["Close"] < x["BBL_20_1.0"],
-            "columns": ["Close", "BBL_20_1.0", "BBU_20_1.0"],
+            "buy": lambda x: x["Close"] > x["BBU_20_1.0"],
+            "sell": lambda x: x["Close"] < x["BBL_20_1.0"],
+            "columns": ["BBL_20_1.0", "BBU_20_1.0"],
         }
 
         """ Candle """
