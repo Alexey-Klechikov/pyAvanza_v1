@@ -8,6 +8,7 @@ import json
 import talib
 import logging
 import warnings
+import numpy as np
 import pandas as pd
 import yfinance as yf
 import pandas_ta as ta
@@ -43,9 +44,13 @@ class Strategy_CS:
         """ Trend """
         # PSAR (Parabolic Stop and Reverse)
         self.history_df.ta.psar(append=True)
+
         ta_indicators_dict["PSAR"] = {
-            "buy": lambda x: x["Close"] > x["PSARl_0.02_0.2"],
-            "sell": lambda x: x["Close"] < x["PSARs_0.02_0.2"],
+            "buy": lambda x: not x["PSARl_0.02_0.2"] != np.nan
+            and x["Close"] > x["PSARl_0.02_0.2"],
+            "sell": lambda x: not x["PSARs_0.02_0.2"] != np.nan
+            and x["Close"] < x["PSARs_0.02_0.2"],
+            "columns": ["PSARl_0.02_0.2", "PSARs_0.02_0.2", "Close"],
         }
 
         # CKSP (Chande Kroll Stop)
@@ -53,14 +58,18 @@ class Strategy_CS:
         ta_indicators_dict["CKSP"] = {
             "buy": lambda x: x["CKSPl_10_3_20"] > x["CKSPs_10_3_20"],
             "sell": lambda x: x["CKSPl_10_3_20"] < x["CKSPs_10_3_20"],
+            "columns": ["CKSPl_10_3_20", "CKSPs_10_3_20"],
         }
 
         """ Volatility """
         # BBANDS (Bollinger Bands)
         self.history_df.ta.bbands(length=20, std=1, append=True)
         ta_indicators_dict["BBANDS"] = {
-            "buy": lambda x: x["Close"] > x["BBU_20_1.0"],
-            "sell": lambda x: x["Close"] < x["BBL_20_1.0"],
+            "buy": lambda x: not x["BBU_20_1.0"] != np.nan
+            and x["Close"] > x["BBU_20_1.0"],
+            "sell": lambda x: not x["BBL_20_1.0"] != np.nan
+            and x["Close"] < x["BBL_20_1.0"],
+            "columns": ["Close", "BBL_20_1.0", "BBU_20_1.0"],
         }
 
         """ Candle """
@@ -71,6 +80,7 @@ class Strategy_CS:
             and (x["HA_low"] == x["HA_open"]),
             "sell": lambda x: (x["HA_open"] > x["HA_close"])
             and (x["HA_high"] == x["HA_open"]),
+            "columns": ["HA_open", "HA_close", "HA_low", "HA_high"],
         }
 
         """ Momentum """
@@ -79,6 +89,7 @@ class Strategy_CS:
         ta_indicators_dict["STC"] = {
             "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
             "buy": lambda x: x["STC_10_12_26_0.5"] < 75,
+            "columns": ["STC_10_12_26_0.5"],
         }
 
         # CCI (Commodity Channel Index)
@@ -90,6 +101,7 @@ class Strategy_CS:
             and x["CCI_20_0.015"] < x["CCI_20_0.015_lag"],
             "buy": lambda x: x["CCI_20_0.015"] < -100
             and x["CCI_20_0.015"] > x["CCI_20_0.015_lag"],
+            "columns": ["CCI_20_0.015", "CCI_20_0.015_lag"],
         }
 
         # RSI (Relative Strength Index)
@@ -97,6 +109,7 @@ class Strategy_CS:
         ta_indicators_dict["RSI"] = {
             "sell": lambda x: x["RSI_14"] > 70,
             "buy": lambda x: x["RSI_14"] < 30,
+            "columns": ["RSI_14"],
         }
 
         # RVGI (Relative Vigor Index)
@@ -104,6 +117,7 @@ class Strategy_CS:
         ta_indicators_dict["RVGI"] = {
             "buy": lambda x: x["RVGI_14_4"] > x["RVGIs_14_4"],
             "sell": lambda x: x["RVGI_14_4"] < x["RVGIs_14_4"],
+            "columns": ["RVGI_14_4", "RVGIs_14_4"],
         }
 
         # MACD (Moving Average Convergence Divergence)
@@ -111,6 +125,7 @@ class Strategy_CS:
         ta_indicators_dict["MACD"] = {
             "buy": lambda x: x["MACD_8_21_5"] > x["MACDs_8_21_5"],
             "sell": lambda x: x["MACD_8_21_5"] < x["MACDs_8_21_5"],
+            "columns": ["MACD_8_21_5", "MACDs_8_21_5"],
         }
 
         # STOCH (Stochastic Oscillator)
@@ -118,6 +133,7 @@ class Strategy_CS:
         ta_indicators_dict["STOCH"] = {
             "buy": lambda x: x["STOCHd_5_3_3"] > 20 and x["STOCHk_5_3_3"] > 20,
             "sell": lambda x: x["STOCHd_5_3_3"] < 80 and x["STOCHk_5_3_3"] < 80,
+            "columns": ["STOCHd_5_3_3", "STOCHk_5_3_3"],
         }
 
         # UO (Ultimate Oscillator)
@@ -125,6 +141,7 @@ class Strategy_CS:
         ta_indicators_dict["UO"] = {
             "buy": lambda x: x["UO_7_14_28"] < 30,
             "sell": lambda x: x["UO_7_14_28"] > 70,
+            "columns": ["UO_7_14_28"],
         }
 
         return ta_indicators_dict
@@ -212,7 +229,7 @@ class Strategy_CS:
             self.history_df.at[index, "signal"] = signal
 
         def _filter_out_strategies(
-            strategies_dict, stats_counter_dict, ta_indicator, column
+            strategies_dict, stats_counter_dict, ta_indicator, column, timer_start
         ):
             for order_type in strategies_dict:
 
@@ -236,6 +253,11 @@ class Strategy_CS:
 
                     log.info(
                         f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_counter_dict['good'][order_type]} Good / {stats_counter_dict['bad'][order_type]} Bad)"
+                    )
+
+                else:
+                    log.debug(
+                        f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}%. Total time: {(datetime.now() - timer_start).seconds} seconds"
                     )
 
         strategies_dict = {"BULL": dict(), "BEAR": dict()}
@@ -267,10 +289,15 @@ class Strategy_CS:
 
                 if not column.startswith("CDL"):
                     continue
-                
-                time_start_testing = datetime.now()
 
-                for i, (index, row) in enumerate(self.history_df.iterrows()):
+                timer_start = datetime.now()
+
+                for i, (index, row) in enumerate(
+                    self.history_df[
+                        ["High", "Low", "Open", "Close", column]
+                        + self.ta_indicators_dict[ta_indicator]["columns"]
+                    ].iterrows()
+                ):
                     order_type = _buy_order(
                         order_dict, self.history_df.iloc[i - 1]["signal"]
                     )
@@ -285,9 +312,8 @@ class Strategy_CS:
                     stats_counter_dict,
                     ta_indicator,
                     column,
+                    timer_start,
                 )
-
-                log.debug(f'{ta_indicator} + {column} - Time: {(datetime.now() - time_start_testing).seconds // 60} min {(datetime.now() - time_start_testing).seconds % 60} sec')
 
         return strategies_dict
 
