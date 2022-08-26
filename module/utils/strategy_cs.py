@@ -267,6 +267,8 @@ class Strategy_CS:
 
                 if not column.startswith("CDL"):
                     continue
+                
+                time_start_testing = datetime.now()
 
                 for i, (index, row) in enumerate(self.history_df.iterrows()):
                     order_type = _buy_order(
@@ -284,6 +286,8 @@ class Strategy_CS:
                     ta_indicator,
                     column,
                 )
+
+                log.debug(f'{ta_indicator} + {column} - Time: {(datetime.now() - time_start_testing).seconds // 60} min {(datetime.now() - time_start_testing).seconds % 60} sec')
 
         return strategies_dict
 
