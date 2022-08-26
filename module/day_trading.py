@@ -101,7 +101,7 @@ class Trading:
 
         last_full_candle_index = -2
 
-        if (datetime.now() - strategy_obj.history_df.iloc[last_full_candle_index].name.replace(tzinfo=None)).seconds > 120:  # type: ignore
+        if (datetime.now() - strategy_obj.history_df.iloc[last_full_candle_index].name.replace(tzinfo=None)).seconds > 125:  # type: ignore
             log.error(
                 f"Last candle is outdated: {strategy_obj.history_df.iloc[last_full_candle_index].name}"
             )

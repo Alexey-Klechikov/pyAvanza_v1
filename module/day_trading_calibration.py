@@ -102,6 +102,8 @@ def run():
 
                 Calibration(instruments_obj.ids_dict["MONITORING"]["YAHOO"], settings_dict)
 
+                TeleLog(message=f"DT calibration is done.")
+
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
 
