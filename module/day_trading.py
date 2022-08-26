@@ -19,7 +19,6 @@ from .utils import Strategy_CS
 log = logging.getLogger("main.day_trading_cs")
 
 
-
 class Trading:
     def __init__(self, user, account_ids_dict, settings_dict):
         self.settings_trade_dict = settings_dict["trade_dict"]
@@ -85,7 +84,10 @@ class Trading:
 
     def get_signal(self, strategies_dict, instrument_type):
         history_obj = History(
-            self.instruments_obj.ids_dict["MONITORING"]["YAHOO"], "2d", "1m"
+            self.instruments_obj.ids_dict["MONITORING"]["YAHOO"],
+            "2d",
+            "1m",
+            cache="skip",
         )
 
         strategy_obj = Strategy_CS(
@@ -99,7 +101,7 @@ class Trading:
 
         last_full_candle_index = -2
 
-        if (datetime.now() - strategy_obj.history_df.iloc[last_full_candle_index].name).seconds > 60:  # type: ignore
+        if (datetime.now() - strategy_obj.history_df.iloc[last_full_candle_index].name.replace(tzinfo=None)).seconds > 120:  # type: ignore
             log.error(
                 f"Last candle is outdated: {strategy_obj.history_df.iloc[last_full_candle_index].name}"
             )

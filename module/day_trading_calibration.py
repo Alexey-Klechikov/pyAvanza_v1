@@ -35,7 +35,7 @@ class Calibration:
             + f' success_limit: {self.recalibrate_dict["success_limit"]}'
         )
 
-        history_obj = History(self.instrument_id, "90d", "1m")
+        history_obj = History(self.instrument_id, "90d", "1m", cache="append")
 
         log.info(
             f"Dates range: {history_obj.history_df.index[0].strftime('%Y.%m.%d')} - {history_obj.history_df.index[-1].strftime('%Y.%m.%d')}"  # type: ignore
@@ -55,7 +55,7 @@ class Calibration:
     def test_strategies(self):
         log.info(f"Testing strategies")
 
-        history_obj = History(self.instrument_id, "2d", "1m")
+        history_obj = History(self.instrument_id, "2d", "1m", cache="skip")
 
         strategy_obj = Strategy_CS(
             history_obj.history_df,

@@ -20,24 +20,18 @@ class History:
 
         old_history_df = self.read_cache(pickle_path)
 
-        if old_history_df.empty:
-            self.history_df = self.read_ticker(ticker_yahoo, period, interval)
+        if cache == "reuse" and not old_history_df.empty:
+            self.history_df = old_history_df
 
         else:
+            self.history_df = self.read_ticker(ticker_yahoo, period, interval)
+
             if cache == "append":
-                self.history_df = old_history_df.append(
-                    self.read_ticker(ticker_yahoo, period, interval)
-                )
-                self.history_df.drop_duplicates(inplace=True, keep="last")
-
-            elif cache == "reuse":
-                self.history_df = old_history_df
-
-            else:
-                self.history_df = self.read_ticker(ticker_yahoo, period, interval)
+                self.history_df = self.history_df.append(old_history_df)
+                self.history_df.drop_duplicates(inplace=True)
+                self.dump_cache(pickle_path)
 
         self.history_df.sort_index(inplace=True)
-        self.dump_cache(pickle_path)
 
         if period.endswith("d"):
             self.history_df = self.history_df.loc[
@@ -49,7 +43,7 @@ class History:
     def read_ticker(self, ticker_yahoo, period, interval):
         ticker_obj = yf.Ticker(ticker_yahoo)
 
-        total_period_int = int(''.join([i for i in period if i.isdigit()]))
+        total_period_int = int("".join([i for i in period if i.isdigit()]))
 
         # Progressive loader if more than a week of data with 1 min interval is requested
         if (period.endswith("d") and total_period_int > 7) and interval == "1m":
