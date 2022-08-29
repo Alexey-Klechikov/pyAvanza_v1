@@ -287,7 +287,7 @@ class Strategy_CS:
                     ["High", "Low", "Open", "Close", column]
                     + self.ta_indicators_dict[ta_indicator]["columns"]
                 ].iterrows():
-                
+
                     order_type = _buy_order(order_dict, last_candle_signal)
                     if order_type is not None:
                         continue

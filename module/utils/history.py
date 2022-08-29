@@ -31,14 +31,13 @@ class History:
                 self.history_df.drop_duplicates(inplace=True)
                 self.dump_cache(pickle_path)
 
-        self.history_df.sort_index(inplace=True)
+                self.history_df = self.history_df.loc[
+                    (datetime.today() - timedelta(days=int(period[:-1])))
+                    .strftime("%Y-%m-%d") : datetime.today()
+                    .strftime("%Y-%m-%d")
+                ]
 
-        if period.endswith("d"):
-            self.history_df = self.history_df.loc[
-                (datetime.today() - timedelta(days=int(period[:-1])))
-                .strftime("%Y-%m-%d") : datetime.today()
-                .strftime("%Y-%m-%d")
-            ]
+        self.history_df.sort_index(inplace=True)
 
     def read_ticker(self, ticker_yahoo, period, interval):
         ticker_obj = yf.Ticker(ticker_yahoo)
