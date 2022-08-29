@@ -9,7 +9,7 @@ import logging
 import yfinance as yf
 
 
-log = logging.getLogger("main.instruments")
+log = logging.getLogger("main.utils.instruments")
 
 
 class Instrument:

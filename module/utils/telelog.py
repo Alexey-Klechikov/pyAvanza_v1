@@ -6,7 +6,7 @@ import logging
 import telegram_send
 
 
-log = logging.getLogger("main.telelog")
+log = logging.getLogger("main.utils.telelog")
 
 
 class TeleLog:

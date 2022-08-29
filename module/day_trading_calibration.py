@@ -8,10 +8,10 @@ from .utils import History
 from .utils import TeleLog
 from .utils import Settings
 from .utils import Instrument
-from .utils import Strategy_CS
+from .utils import Strategy_DT
 
 
-log = logging.getLogger("main.day_trading_cs")
+log = logging.getLogger("main.day_trading_calibration")
 
 
 class Calibration:
@@ -41,7 +41,7 @@ class Calibration:
             f"Dates range: {history_obj.history_df.index[0].strftime('%Y.%m.%d')} - {history_obj.history_df.index[-1].strftime('%Y.%m.%d')}"  # type: ignore
         )
 
-        strategy_obj = Strategy_CS(
+        strategy_obj = Strategy_DT(
             history_obj.history_df,
             order_price_limits_dict=self.settings_price_limits_dict,
         )
@@ -50,19 +50,19 @@ class Calibration:
             self.recalibrate_dict["success_limit"]
         )
 
-        strategy_obj.dump("DT_CS", strategies_dict)
+        strategy_obj.dump("DT", strategies_dict)
 
     def test_strategies(self):
         log.info(f"Testing strategies")
 
         history_obj = History(self.instrument_id, "2d", "1m", cache="skip")
 
-        strategy_obj = Strategy_CS(
+        strategy_obj = Strategy_DT(
             history_obj.history_df,
             order_price_limits_dict=self.settings_price_limits_dict,
         )
 
-        strategies_dict = strategy_obj.load("DT_CS")
+        strategies_dict = strategy_obj.load("DT")
 
         strategy_obj.backtest_strategies(strategies_dict)
 
@@ -100,7 +100,9 @@ def run():
 
                 instruments_obj = Instrument(settings_trade_dict["multiplier"])
 
-                Calibration(instruments_obj.ids_dict["MONITORING"]["YAHOO"], settings_dict)
+                Calibration(
+                    instruments_obj.ids_dict["MONITORING"]["YAHOO"], settings_dict
+                )
 
                 TeleLog(message=f"DT calibration is done.")
 

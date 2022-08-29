@@ -14,14 +14,13 @@ import yfinance as yf
 import pandas_ta as ta
 
 from copy import copy
-from pprint import pprint
 
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None
 pd.set_option("display.expand_frame_repr", False)
 
-log = logging.getLogger("main.strategy_ta")
+log = logging.getLogger("main.utils.strategy_ta")
 
 
 class Strategy_TA:

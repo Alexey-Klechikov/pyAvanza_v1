@@ -1,22 +1,21 @@
 import time
 import logging
-import platform
 import traceback
 import yfinance as yf
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from requests import ReadTimeout
 
-from .utils import Plot
 from .utils import History
 from .utils import Context
 from .utils import TeleLog
 from .utils import Settings
 from .utils import Instrument
-from .utils import Strategy_CS
+from .utils import Strategy_DT
+from .utils import Status_DT as Status
 
 
-log = logging.getLogger("main.day_trading_cs")
+log = logging.getLogger("main.day_trading")
 
 
 class Trading:
@@ -27,7 +26,7 @@ class Trading:
         self.account_ids_dict = account_ids_dict
 
         self.ava = Context(user, account_ids_dict, skip_lists=True)
-        self.strategies_dict = Strategy_CS.load("DT_CS")
+        self.strategies_dict = Strategy_DT.load("DT")
         self.instruments_obj = Instrument(self.settings_trade_dict["multiplier"])
 
         self.overwrite_last_line = {"bool": True, "message_list": []}
@@ -90,13 +89,13 @@ class Trading:
             cache="skip",
         )
 
-        strategy_obj = Strategy_CS(
+        strategy_obj = Strategy_DT(
             history_obj.history_df,
             order_price_limits_dict=self.settings_trade_dict["limits_dict"],
         )
 
         strategies_dict = (
-            strategies_dict if strategies_dict else strategy_obj.load("DT_CS")
+            strategies_dict if strategies_dict else strategy_obj.load("DT")
         )
 
         last_full_candle_index = -2
@@ -144,7 +143,7 @@ class Trading:
                         * self.settings_trade_dict["limits_dict"]["TP"],
                         2,
                     ),
-                    "trailing_stop_loss_price_latest": round(
+                    "trailing_stop_loss_price": round(
                         certificate_info_dict["sell"]
                         * self.settings_trade_dict["limits_dict"]["SL_trailing"],
                         2,
@@ -282,18 +281,13 @@ class Trading:
         self.overwrite_last_line["bool"] = True
 
 
-class Day_Trading_CS:
+class Day_Trading:
     def __init__(self, user, account_ids_dict, settings_dict):
         self.settings_trade_dict = settings_dict["trade_dict"]
 
         self.trading_obj = Trading(user, account_ids_dict, settings_dict)
         self.balance_dict = {"before": 0, "after": 0}
-
-        self.instruments_status_dict = {
-            "BULL": dict(),
-            "BEAR": dict(),
-            "day_time": "morning",
-        }
+        self.status_obj = Status()
 
         while True:
             try:
@@ -306,102 +300,18 @@ class Day_Trading_CS:
             except ReadTimeout:
                 self.trading_obj.ava.ctx = self.trading_obj.ava.get_ctx(user)
 
-    def update_trading_day_time(self):
-        current_time = datetime.now()
-
-        if current_time <= current_time.replace(hour=9, minute=40):
-            time.sleep(60)
-            self.instruments_status_dict["day_time"] = "morning"
-
-        elif current_time >= current_time.replace(hour=17, minute=25):
-            self.instruments_status_dict["day_time"] = "evening"
-
-            if (current_time >= current_time.replace(hour=18, minute=30)) or (
-                not any(
-                    [
-                        (
-                            self.instruments_status_dict[instrument_type][
-                                "has_position_bool"
-                            ]
-                            or len(
-                                self.instruments_status_dict[instrument_type][
-                                    "active_order_dict"
-                                ]
-                            )
-                            > 0
-                        )
-                        for instrument_type in ["BULL", "BEAR"]
-                    ]
-                )
-            ):
-                self.instruments_status_dict["day_time"] = "night"
-
-        else:
-            self.instruments_status_dict["day_time"] = "day"
-
-    def update_instrument_status(self, instrument_type):
-        self.instruments_status_dict[instrument_type].update(
-            self.trading_obj.check_instrument_status(instrument_type)
+    def check_instrument_for_buy_action(self, strategies_dict, instrument_type):
+        self.status_obj.update_instrument(
+            instrument_type,
+            self.trading_obj.check_instrument_status(instrument_type),
+            self.settings_trade_dict["limits_dict"]["TP"],
         )
 
-        if self.instruments_status_dict[instrument_type]["has_position_bool"]:
-
-            if self.instruments_status_dict[instrument_type].get("buy_time") is None:
-                self.instruments_status_dict[instrument_type][
-                    "buy_time"
-                ] = datetime.now()
-
-                log.info(
-                    f'{instrument_type}: Stop loss: {self.instruments_status_dict[instrument_type]["stop_loss_price"]}, Take profit: {self.instruments_status_dict[instrument_type]["take_profit_price"]}'
-                )
-
-            self.instruments_status_dict[instrument_type][
-                "trailing_stop_loss_price"
-            ] = max(
-                self.instruments_status_dict[instrument_type].get(
-                    "trailing_stop_loss_price", 0
-                ),
-                self.instruments_status_dict[instrument_type].pop(
-                    "trailing_stop_loss_price_latest", 0
-                ),
-                self.instruments_status_dict[instrument_type]["stop_loss_price"],
-            )
-
-            # Switch to tighter stop loss price if order is not fullfilled after 4 min
-            if (
-                datetime.now()
-                - self.instruments_status_dict[instrument_type]["buy_time"]
-            ).seconds > 240:
-                self.instruments_status_dict[instrument_type].update(
-                    {
-                        "stop_loss_price": self.instruments_status_dict[
-                            instrument_type
-                        ]["trailing_stop_loss_price"],
-                        "take_profit_price": round(
-                            self.instruments_status_dict[instrument_type][
-                                "current_price"
-                            ]
-                            * self.settings_trade_dict["limits_dict"]["TP"],
-                            2,
-                        ),
-                    }
-                )
-
-        else:
-            self.instruments_status_dict[instrument_type].update(
-                {"buy_time": None, "trailing_stop_loss_price": 0}
-            )
-
-        return self.instruments_status_dict[instrument_type]
-
-    def check_instrument_for_buy_action(self, strategies_dict, instrument_type):
-        self.update_instrument_status(instrument_type)
-
-        if self.instruments_status_dict[instrument_type]["has_position_bool"]:
+        if self.status_obj.get_instrument(instrument_type)["has_position_bool"]:
             return
 
         # Create buy order (if there is no position)
-        if not self.instruments_status_dict[instrument_type]["active_order_dict"]:
+        if not self.status_obj.get_instrument(instrument_type)["active_order_dict"]:
             buy_instrument_bool = self.trading_obj.get_signal(
                 strategies_dict, instrument_type
             )
@@ -416,7 +326,7 @@ class Day_Trading_CS:
             time.sleep(1)
 
             self.trading_obj.place_order(
-                "buy", instrument_type, self.instruments_status_dict[instrument_type]
+                "buy", instrument_type, self.status_obj.get_instrument(instrument_type)
             )
             time.sleep(2)
 
@@ -429,7 +339,7 @@ class Day_Trading_CS:
             self.trading_obj.update_order(
                 "buy",
                 instrument_type,
-                self.instruments_status_dict[instrument_type],
+                self.status_obj.get_instrument(instrument_type),
                 current_buy_price,
             )
             time.sleep(2)
@@ -437,15 +347,19 @@ class Day_Trading_CS:
     def check_instrument_for_sell_action(
         self, instrument_type, enforce_sell_bool=False
     ):
-        self.update_instrument_status(instrument_type)
+        self.status_obj.update_instrument(
+            instrument_type,
+            self.trading_obj.check_instrument_status(instrument_type),
+            self.settings_trade_dict["limits_dict"]["TP"],
+        )
 
-        if not self.instruments_status_dict[instrument_type]["has_position_bool"]:
+        if not self.status_obj.get_instrument(instrument_type)["has_position_bool"]:
             return
 
         # Create sell orders (take_profit)
-        if not self.instruments_status_dict[instrument_type]["active_order_dict"]:
+        if not self.status_obj.get_instrument(instrument_type)["active_order_dict"]:
             self.trading_obj.place_order(
-                "sell", instrument_type, self.instruments_status_dict[instrument_type]
+                "sell", instrument_type, self.status_obj.get_instrument(instrument_type)
             )
 
         # Update sell order (if hit stop_loss / enforced / trailing_stop_loss initiated, so take_profit_price has changed)
@@ -458,24 +372,24 @@ class Day_Trading_CS:
 
             if (
                 current_sell_price
-                < self.instruments_status_dict[instrument_type]["stop_loss_price"]
+                < self.status_obj.get_instrument(instrument_type)["stop_loss_price"]
             ) or enforce_sell_bool:
                 sell_price = current_sell_price
 
             elif (
-                self.instruments_status_dict[instrument_type]["active_order_dict"][
+                self.status_obj.get_instrument(instrument_type)["active_order_dict"][
                     "price"
                 ]
-                != self.instruments_status_dict[instrument_type]["take_profit_price"]
+                != self.status_obj.get_instrument(instrument_type)["take_profit_price"]
             ):
-                sell_price = self.instruments_status_dict[instrument_type][
+                sell_price = self.status_obj.get_instrument(instrument_type)[
                     "take_profit_price"
                 ]
 
             self.trading_obj.update_order(
                 "sell",
                 instrument_type,
-                self.instruments_status_dict[instrument_type],
+                self.status_obj.get_instrument(instrument_type),
                 sell_price,
             )
 
@@ -491,19 +405,19 @@ class Day_Trading_CS:
 
         strategies_dict = dict()
         while True:
-            self.update_trading_day_time()
+            self.status_obj.update_day_time()
             self.trading_obj.overwrite_last_line["message_list"] = []
 
-            if self.instruments_status_dict["day_time"] == "morning":
+            if self.status_obj.day_time == "morning":
                 continue
 
-            elif self.instruments_status_dict["day_time"] == "night":
+            elif self.status_obj.day_time == "night":
                 break
 
             # Walk through instruments
             for instrument_type in ["BULL", "BEAR"]:
 
-                if self.instruments_status_dict["day_time"] != "evening":
+                if self.status_obj.day_time != "evening":
                     self.check_instrument_for_buy_action(
                         strategies_dict, instrument_type
                     )
@@ -543,7 +457,7 @@ def run():
                 continue
 
             try:
-                Day_Trading_CS(user, settings_dict["accounts"], settings_dict)
+                Day_Trading(user, settings_dict["accounts"], settings_dict)
 
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")

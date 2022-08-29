@@ -1,6 +1,6 @@
 """
 This module is the "frontend" meant for every week use. It will: 
-- analyse every stock to pick the best performing once and place them in one of budget lists.
+- analyze every stock to pick the best performing once and place them in one of budget lists.
 - record top 20 performing strategies for every stock and record it to the file "TA_strategies.json"
 It will import other modules to run the analysis on the stocks -> move it to the watchlist -> dump log in Telegram.py
 """
@@ -16,7 +16,7 @@ from .utils import Context
 from .utils import TeleLog
 
 
-log = logging.getLogger("main.watchlists_analysis")
+log = logging.getLogger("main.long_trading_calibration")
 
 
 class Watchlists_Analysis:

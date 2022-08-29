@@ -10,7 +10,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 
 
-log = logging.getLogger("main.history")
+log = logging.getLogger("main.utils.history")
 
 
 class History:

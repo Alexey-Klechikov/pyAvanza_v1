@@ -8,7 +8,7 @@ import json
 import logging
 
 
-log = logging.getLogger("main.settings")
+log = logging.getLogger("main.utils.settings")
 
 
 class Settings:

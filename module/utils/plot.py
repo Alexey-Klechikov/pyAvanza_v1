@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-log = logging.getLogger("main.plot")
+log = logging.getLogger("main.utils.plot")
 
 
 class Plot:

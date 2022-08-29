@@ -6,14 +6,14 @@ This module contains all tooling to communicate to Avanza
 import time
 import keyring
 import logging
-from datetime import datetime, timedelta
 import pandas as pd
 
+from datetime import datetime, timedelta
+
 from avanza import Avanza, OrderType, InstrumentType
-from pprint import pprint
 
 
-log = logging.getLogger("main.context")
+log = logging.getLogger("main.utils.context")
 
 
 class Context:

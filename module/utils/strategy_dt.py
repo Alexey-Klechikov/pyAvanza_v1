@@ -8,11 +8,8 @@ import json
 import talib
 import logging
 import warnings
-import numpy as np
 import pandas as pd
-import yfinance as yf
 import pandas_ta as ta
-from datetime import datetime, timedelta
 
 from copy import copy
 
@@ -22,10 +19,10 @@ pd.options.mode.chained_assignment = None
 pd.set_option("display.max_rows", 0)
 pd.set_option("display.expand_frame_repr", False)
 
-log = logging.getLogger("main.strategy_cs")
+log = logging.getLogger("main.utils.strategy_dt")
 
 
-class Strategy_CS:
+class Strategy_DT:
     def __init__(self, history_df, **kwargs):
         self.history_df = history_df[~history_df.index.duplicated()]
 

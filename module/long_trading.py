@@ -14,7 +14,7 @@ from .utils import Context
 from .utils import TeleLog
 
 
-log = logging.getLogger("main.portfolio_analysis")
+log = logging.getLogger("main.long_trading")
 
 
 class Portfolio_Analysis:
