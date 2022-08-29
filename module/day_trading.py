@@ -18,7 +18,7 @@ from .utils import Status_DT as Status
 log = logging.getLogger("main.day_trading")
 
 
-class Trading:
+class Helper:
     def __init__(self, user, account_ids_dict, settings_dict):
         self.settings_trade_dict = settings_dict["trade_dict"]
 
@@ -283,25 +283,23 @@ class Day_Trading:
     def __init__(self, user, account_ids_dict, settings_dict):
         self.settings_trade_dict = settings_dict["trade_dict"]
 
-        self.trading_obj = Trading(user, account_ids_dict, settings_dict)
+        self.helper_obj = Helper(user, account_ids_dict, settings_dict)
         self.balance_dict = {"before": 0, "after": 0}
         self.status_obj = Status()
 
         while True:
             try:
-                if (
-                    self.run_analysis(settings_dict["log_to_telegram"])
-                    == "Done for the day"
-                ):
-                    break
+                self.run_analysis(settings_dict["log_to_telegram"])
+                
+                break
 
             except ReadTimeout:
-                self.trading_obj.ava.ctx = self.trading_obj.ava.get_ctx(user)
+                self.helper_obj.ava.ctx = self.helper_obj.ava.get_ctx(user)
 
     def check_instrument_for_buy_action(self, strategies_dict, instrument_type):
         self.status_obj.update_instrument(
             instrument_type,
-            self.trading_obj.check_instrument_status(instrument_type),
+            self.helper_obj.check_instrument_status(instrument_type),
             self.settings_trade_dict["limits_dict"]["TP"],
         )
 
@@ -310,7 +308,7 @@ class Day_Trading:
 
         # Create buy order (if there is no position)
         if not self.status_obj.get_instrument(instrument_type)["active_order_dict"]:
-            buy_instrument_bool = self.trading_obj.get_signal(
+            buy_instrument_bool = self.helper_obj.get_signal(
                 strategies_dict, instrument_type
             )
             if not buy_instrument_bool:
@@ -323,18 +321,18 @@ class Day_Trading:
             )
             time.sleep(1)
 
-            self.trading_obj.place_order(
+            self.helper_obj.place_order(
                 "buy", instrument_type, self.status_obj.get_instrument(instrument_type)
             )
             time.sleep(2)
 
         # Update buy order (if there is no position, but open order exists)
         else:
-            current_buy_price = self.trading_obj.ava.get_certificate_info(
-                self.trading_obj.instruments_obj.ids_dict["TRADING"][instrument_type]
+            current_buy_price = self.helper_obj.ava.get_certificate_info(
+                self.helper_obj.instruments_obj.ids_dict["TRADING"][instrument_type]
             )["buy"]
 
-            self.trading_obj.update_order(
+            self.helper_obj.update_order(
                 "buy",
                 instrument_type,
                 self.status_obj.get_instrument(instrument_type),
@@ -347,7 +345,7 @@ class Day_Trading:
     ):
         self.status_obj.update_instrument(
             instrument_type,
-            self.trading_obj.check_instrument_status(instrument_type),
+            self.helper_obj.check_instrument_status(instrument_type),
             self.settings_trade_dict["limits_dict"]["TP"],
         )
 
@@ -356,7 +354,7 @@ class Day_Trading:
 
         # Create sell orders (take_profit)
         if not self.status_obj.get_instrument(instrument_type)["active_order_dict"]:
-            self.trading_obj.place_order(
+            self.helper_obj.place_order(
                 "sell", instrument_type, self.status_obj.get_instrument(instrument_type)
             )
 
@@ -364,8 +362,8 @@ class Day_Trading:
         else:
             sell_price = None
 
-            current_sell_price = self.trading_obj.ava.get_certificate_info(
-                self.trading_obj.instruments_obj.ids_dict["TRADING"][instrument_type]
+            current_sell_price = self.helper_obj.ava.get_certificate_info(
+                self.helper_obj.instruments_obj.ids_dict["TRADING"][instrument_type]
             )["sell"]
 
             if (
@@ -384,7 +382,7 @@ class Day_Trading:
                     "take_profit_price"
                 ]
 
-            self.trading_obj.update_order(
+            self.helper_obj.update_order(
                 "sell",
                 instrument_type,
                 self.status_obj.get_instrument(instrument_type),
@@ -394,17 +392,17 @@ class Day_Trading:
     # MAIN method
     def run_analysis(self, log_to_telegram):
         self.balance_dict["before"] = sum(
-            self.trading_obj.ava.get_portfolio()["buying_power"].values()
+            self.helper_obj.ava.get_portfolio()["buying_power"].values()
         )
 
         log.info(
-            f'> Running trading for account(s): {" & ".join(self.trading_obj.account_ids_dict)} [{self.balance_dict["before"]}]'
+            f'> Running trading for account(s): {" & ".join(self.helper_obj.account_ids_dict)} [{self.balance_dict["before"]}]'
         )
 
         strategies_dict = dict()
         while True:
             self.status_obj.update_day_time()
-            self.trading_obj.overwrite_last_line["message_list"] = []
+            self.helper_obj.overwrite_last_line["message_list"] = []
 
             if self.status_obj.day_time == "morning":
                 continue
@@ -422,14 +420,14 @@ class Day_Trading:
 
                 self.check_instrument_for_sell_action(instrument_type)
 
-                self.trading_obj.combine_stdout_line(instrument_type, self.status_obj)
+                self.helper_obj.combine_stdout_line(instrument_type, self.status_obj)
 
-            self.trading_obj.update_last_stdout_line()
+            self.helper_obj.update_last_stdout_line()
 
             time.sleep(10)
 
         self.balance_dict["after"] = sum(
-            self.trading_obj.ava.get_portfolio()["buying_power"].values()
+            self.helper_obj.ava.get_portfolio()["buying_power"].values()
         )
 
         log.info(f'> End of the day. [{self.balance_dict["after"]}]')
@@ -442,8 +440,6 @@ class Day_Trading:
                     "budget": self.settings_trade_dict["budget"],
                 }
             )
-
-        return "Done for the day"
 
 
 def run():

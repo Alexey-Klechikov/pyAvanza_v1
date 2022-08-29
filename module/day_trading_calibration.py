@@ -97,7 +97,6 @@ def run():
 
             try:
                 settings_trade_dict = settings_dict["trade_dict"]
-
                 instruments_obj = Instrument(settings_trade_dict["multiplier"])
 
                 Calibration(
