@@ -71,7 +71,9 @@ class Status_DT:
                     f'{instrument_type}: Stop loss: {latest_instrument_status_dict["stop_loss_price"]}, Take profit: {latest_instrument_status_dict["take_profit_price"]}'
                 )
 
-            if (datetime.now() - instrument_status_dict["buy_time"]).seconds > 240:
+            if (
+                datetime.now() - instrument_status_dict["buy_time"]
+            ).seconds > 240 and not instrument_status_dict["trailing_stop_loss_bool"]:
                 instrument_status_dict["trailing_stop_loss_bool"] = True
 
                 log.info("4 min -> Switch to tighter stop_loss and take_profit prices")
@@ -102,4 +104,3 @@ class Status_DT:
             }
 
         setattr(self, instrument_type, instrument_status_dict)
-
