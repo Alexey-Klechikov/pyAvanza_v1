@@ -249,6 +249,12 @@ class Strategy_CS:
                     log.info(
                         f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_counter_dict['good'][order_type]} Good / {stats_counter_dict['bad'][order_type]} Bad)"
                     )
+                
+                else:
+                    log.debug(
+                        f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_counter_dict['good'][order_type]} Good / {stats_counter_dict['bad'][order_type]} Bad)"
+                    )
+
 
         strategies_dict = {"BULL": dict(), "BEAR": dict()}
 
@@ -280,7 +286,6 @@ class Strategy_CS:
                 if not column.startswith("CDL") or (self.history_df[column] == 0).all():
                     continue
 
-                timer_start = datetime.now()
                 last_candle_signal = None
 
                 for index, row in self.history_df[
@@ -300,10 +305,6 @@ class Strategy_CS:
                     stats_counter_dict,
                     ta_indicator,
                     column,
-                )
-
-                log.debug(
-                    f"{ta_indicator} + {column}. Total time: {(datetime.now() - timer_start).seconds} seconds"
                 )
 
         return strategies_dict

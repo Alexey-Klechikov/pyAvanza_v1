@@ -423,10 +423,8 @@ class Day_Trading_CS:
         # Update buy order (if there is no position, but open order exists)
         else:
             current_buy_price = self.trading_obj.ava.get_certificate_info(
-                self.trading_obj.instruments_obj.ids_dict["TRADING"][instrument_type][
-                    "buy"
-                ]
-            )
+                self.trading_obj.instruments_obj.ids_dict["TRADING"][instrument_type]
+            )["buy"]
 
             self.trading_obj.update_order(
                 "buy",
@@ -455,10 +453,8 @@ class Day_Trading_CS:
             sell_price = None
 
             current_sell_price = self.trading_obj.ava.get_certificate_info(
-                self.trading_obj.instruments_obj.ids_dict["TRADING"][instrument_type][
-                    "sell"
-                ]
-            )
+                self.trading_obj.instruments_obj.ids_dict["TRADING"][instrument_type]
+            )["sell"]
 
             if (
                 current_sell_price
