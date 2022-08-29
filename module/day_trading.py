@@ -118,9 +118,6 @@ class Trading:
         instrument_status_dict = {
             "has_position_bool": False,
             "active_order_dict": dict(),
-            "stop_loss_price": None,
-            "take_profit_price": None,
-            "current_price": None,
         }
 
         # Check if instrument has a position
@@ -260,8 +257,9 @@ class Trading:
 
         self.ava.update_order(instrument_status_dict["active_order_dict"], price)
 
-    def combine_stdout_line(self, instrument_type):
-        instrument_status_dict = self.check_instrument_status(instrument_type)
+    def combine_stdout_line(self, instrument_type, status_obj):
+        instrument_status_dict = status_obj.get_instrument(instrument_type)
+
         if instrument_status_dict["has_position_bool"]:
             self.overwrite_last_line["message_list"].append(
                 f'{instrument_type} - {instrument_status_dict["stop_loss_price"]} < {instrument_status_dict["current_price"]} < {instrument_status_dict["take_profit_price"]}'
@@ -424,7 +422,7 @@ class Day_Trading:
 
                 self.check_instrument_for_sell_action(instrument_type)
 
-                self.trading_obj.combine_stdout_line(instrument_type)
+                self.trading_obj.combine_stdout_line(instrument_type, self.status_obj)
 
             self.trading_obj.update_last_stdout_line()
 
