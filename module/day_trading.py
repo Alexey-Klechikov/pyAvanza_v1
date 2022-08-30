@@ -237,7 +237,7 @@ class Helper:
             signal,
         )
 
-        log.warning(
+        log.info(
             f'{order_data_dict["signal"].upper()}: {order_data_dict["name"]} - {order_data_dict["price"]}'
         )
 
@@ -251,7 +251,7 @@ class Helper:
             "name"
         ].split(" ")[0]
 
-        log.warning(
+        log.info(
             f'{signal.upper()} (UPD): {instrument_type} - {instrument_status_dict["active_order_dict"]["price"]} -> {price}'
         )
 
@@ -424,7 +424,7 @@ class Day_Trading:
 
             self.helper_obj.update_last_stdout_line()
 
-            time.sleep(10)
+            time.sleep(30)
 
         self.balance_dict["after"] = sum(
             self.helper_obj.ava.get_portfolio()["buying_power"].values()
@@ -456,6 +456,6 @@ def run():
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
 
-                TeleLog(crash_report=f"DT script has crashed: {e}")
+                TeleLog(crash_report=f"DT: script has crashed: {e}")
 
             return

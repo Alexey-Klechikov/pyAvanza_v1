@@ -26,7 +26,7 @@ class Portfolio_Analysis:
         self.run_analysis(kwargs["accounts_dict"], kwargs["log_to_telegram"])
 
     def get_signal_on_ticker(self, ticker_yahoo, ticker_ava):
-        log.info(f'Getting signal for ticker "{ticker_yahoo}"')
+        log.info(f"Getting signal")
 
         if ticker_yahoo not in self.signals_dict:
             try:
@@ -43,7 +43,8 @@ class Portfolio_Analysis:
                 )
 
             except Exception as e:
-                log.error(f'There was a problem with the ticker "{ticker_yahoo}": {e}')
+                log.error(f"Error (get_signal_on_ticker): {e}")
+
                 return None
 
             self.signals_dict[ticker_yahoo] = {
@@ -119,10 +120,8 @@ class Portfolio_Analysis:
                     volume = int(
                         int(budget_rule_name) * 1000 // stock_price_dict["buy"]
                     )
-                except:
-                    log.error(
-                        f"There was a problem with fetching buy price for {ticker_dict['ticker_yahoo']}"
-                    )
+                except Exception as e:
+                    log.error(f"Error (create_buy_orders): {e}")
                     continue
 
                 log.info("> BUY")
@@ -158,10 +157,11 @@ class Portfolio_Analysis:
             )
 
             if ticker_budget is None:
-                log.error(f'Ticker "{ticker_row["ticker_yahoo"]}" has no budget')
+                log.error(f'> Ticker "{ticker_row["ticker_yahoo"]}" has no budget')
+
                 continue
 
-            log.info(f'> Checking ticker: {ticker_row["ticker_yahoo"]}')
+            log.info(f'> Ticker: {ticker_row["ticker_yahoo"]}')
 
             volume_sell = (
                 ticker_row["value"] - max(ticker_row["acquiredValue"], ticker_budget)
@@ -237,4 +237,4 @@ def run():
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
 
-                TeleLog(crash_report=f"Portfolio_Analysis script has crashed: {e}")
+                TeleLog(crash_report=f"LT: script has crashed: {e}")

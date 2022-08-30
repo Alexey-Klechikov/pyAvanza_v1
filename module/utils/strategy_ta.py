@@ -51,7 +51,7 @@ class Strategy_TA:
         )
 
     def read_ticker(self, ticker_yahoo, ticker_ava, ava, cache, period, interval):
-        log.info(f"Reading ticker")
+        log.debug(f"Reading ticker")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         pickle_path = f"{current_dir}/cache/{ticker_yahoo}.pickle"
@@ -95,10 +95,10 @@ class Strategy_TA:
                 return True
 
             else:
-                log.info(f'Not enough data for "{column}"-related strategy')
+                log.warning(f'Not enough data for "{column}"-related strategy')
                 return False
 
-        log.info("Preparing conditions")
+        log.debug("Preparing conditions")
 
         condition_types_list = (
             "Blank",
@@ -154,7 +154,7 @@ class Strategy_TA:
                     "sell": lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
                 }
         except:
-            log.info("KVO not available")
+            log.warning("KVO not available")
 
         """ Volatility """
         # MASSI (Mass Index)
@@ -324,7 +324,7 @@ class Strategy_TA:
         return history_df.iloc[skip_points:], conditions_dict
 
     def generate_strategies_list(self):
-        log.info("Generating strategies list")
+        log.debug("Generating strategies list")
 
         strategies_list = [[("Blank", "HOLD")]]
 
@@ -353,29 +353,23 @@ class Strategy_TA:
         return strategies_list
 
     def parse_strategies_list(self, strategies_str_list):
-        log.info("Parsing strategies list")
+        log.debug("Parsing strategies list")
 
         strategies_list = [[("Blank", "HOLD")]]
-        for (
-            strategy_str
-        ) in (
-            strategies_str_list
-        ):  
+        for strategy_str in strategies_str_list:
             # "(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH"
             strategy_components_list = [
                 i.strip().split(" ") for i in strategy_str.split("+")
-            ]  
+            ]
             # [['(Trend)', 'CKSP'], ['(Overlap)', 'SUPERT'], ['(Momentum)', 'STOCH']]
-            strategy = [
-                (i[0][1:-1], i[1]) for i in strategy_components_list
-            ]  
+            strategy = [(i[0][1:-1], i[1]) for i in strategy_components_list]
             # [('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')]
             strategies_list.append(strategy)
 
         return strategies_list
 
     def generate_strategies_dict(self, strategies_list):
-        log.info("Generating strategies dict")
+        log.debug("Generating strategies dict")
 
         strategies_dict = dict()
         for strategy_list in strategies_list:
@@ -394,7 +388,7 @@ class Strategy_TA:
         return strategies_dict
 
     def get_signal(self, ticker_name, strategies_dict):
-        log.info("Getting signal")
+        log.debug("Getting signal")
 
         summary = {
             "ticker_name": ticker_name,
@@ -504,10 +498,13 @@ class Strategy_TA:
             i[1]["signal"] for i in summary["sorted_strategies_list"]
         ]
         if summary["max_output"]["transactions_counter"] == 1:
-            log.info("Top 3 strategies were considered")
             summary["signal"] = (
                 "buy" if sorted_signals_list[:3].count("buy") >= 2 else "sell"
             )
+
+        log.info(
+            f'> {summary["signal"]}{". Top 3 strategies were considered" if summary["max_output"]["transactions_counter"] == 1 else ""}'
+        )
 
         return summary
 
@@ -517,7 +514,9 @@ class Strategy_TA:
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         try:
-            with open(f"{current_dir}/data/strategies_{filename_suffix}.json", "r") as f:
+            with open(
+                f"{current_dir}/data/strategies_{filename_suffix}.json", "r"
+            ) as f:
                 strategies_json = json.load(f)
         except:
             strategies_json = dict()

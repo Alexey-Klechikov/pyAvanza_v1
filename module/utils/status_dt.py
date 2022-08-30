@@ -22,6 +22,8 @@ class Status_DT:
     def update_day_time(self):
         current_time = datetime.now()
 
+        old_day_time = self.day_time
+
         if current_time <= current_time.replace(hour=9, minute=40):
             time.sleep(60)
             self.day_time = "morning"
@@ -51,6 +53,9 @@ class Status_DT:
 
         else:
             self.day_time = "day"
+
+        if old_day_time != self.day_time:
+            log.warning(f"Day time: {old_day_time} -> {self.day_time}")
 
     def update_instrument(
         self, instrument_type, latest_instrument_status_dict, take_profit_percentage

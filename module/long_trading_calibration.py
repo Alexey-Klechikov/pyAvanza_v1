@@ -22,7 +22,7 @@ log = logging.getLogger("main.long_trading_calibration")
 class Watchlists_Analysis:
     def __init__(self, **kwargs):
         self.ava = Context(kwargs["user"], kwargs["accounts_dict"])
-        self.log_list = ["Watchlists analysis"]
+        self.log_list = ["LT calibration"]
         self.top_strategies_per_ticket_dict = dict()
 
         self.run_analysis(
@@ -70,12 +70,14 @@ class Watchlists_Analysis:
 
             message = f'"{initial_watchlist_name}" -> "{target_watchlist_name}" ({ticker_dict["name"]}) [{max_output}]'
             log.info(f"> {message}")
+            
             self.log_list.append(message)
 
         return target_watchlist_name
 
     def run_analysis(self, log_to_telegram, budget_list_threshold_dict):
         log.info("Run analysis")
+
         watchlists_list = [
             ("budget rules", self.ava.budget_rules_dict),
             ("watchlists", self.ava.watchlists_dict),
@@ -85,7 +87,7 @@ class Watchlists_Analysis:
             log.info(f"Walk through {watchlist_type}")
             for watchlist_name, watchlist_sub_dict in watchlist_dict.items():
                 for ticker_dict in watchlist_sub_dict["tickers"]:
-                    log.info(f'Analyse ticker "{ticker_dict["ticker_yahoo"]}"')
+                    log.info(f'Ticker "{ticker_dict["ticker_yahoo"]}"')
 
                     try:
                         history_df = History(
@@ -100,9 +102,8 @@ class Watchlists_Analysis:
                         strategy_obj = Strategy_TA(history_df)
 
                     except Exception as e:
-                        log.error(
-                            f'(!) There was a problem with the ticker "{ticker_dict["ticker_yahoo"]}": {e}'
-                        )
+                        log.error(f"Error (run_analysis): {e}")
+
                         continue
 
                     max_output = strategy_obj.summary["max_output"]["result"]
@@ -147,4 +148,4 @@ def run():
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
 
-                TeleLog(crash_report=f"Watchlists_Analysis script has crashed: {e}")
+                TeleLog(crash_report=f"LT calibration: script has crashed: {e}")

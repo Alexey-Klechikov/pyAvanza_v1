@@ -103,11 +103,11 @@ def run():
                     instruments_obj.ids_dict["MONITORING"]["YAHOO"], settings_dict
                 )
 
-                TeleLog(message=f"DT calibration is done.")
+                TeleLog(message=f"DT calibration: done.")
 
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
 
-                TeleLog(crash_report=f"DT_calibration script has crashed: {e}")
+                TeleLog(crash_report=f"DT calibration: script has crashed: {e}")
 
             return

@@ -26,7 +26,7 @@ class Context:
             self.budget_rules_dict, self.watchlists_dict = self.process_watchlists()
 
     def get_ctx(self, user):
-        log.info("Getting context")
+        log.debug("Getting context")
 
         i = 1
         while True:
@@ -97,7 +97,7 @@ class Context:
         return portfolio_dict
 
     def process_watchlists(self):
-        log.info("Process watchlists")
+        log.debug("Process watchlists")
 
         watchlists_dict, budget_rules_dict = dict(), dict()
 
@@ -133,7 +133,7 @@ class Context:
         return budget_rules_dict, watchlists_dict
 
     def create_orders(self, orders_list, order_type):
-        log.info(f"Creating {order_type} order(s)")
+        log.debug(f"Creating {order_type} order(s)")
 
         if order_type in ["sell", "take_profit"]:
             for sell_order_dict in orders_list:
@@ -200,7 +200,7 @@ class Context:
             return created_orders_list
 
     def update_order(self, old_order_dict, price):
-        log.info(f"Updating order")
+        log.debug(f"Updating order")
 
         order_attr = {
             "account_id": old_order_dict["account"]["id"],
@@ -298,7 +298,7 @@ class Context:
             active_orders_list = deals_and_orders_dict["orders"]
 
         if active_orders_list:
-            log.info("Removing active orders")
+            log.debug("Removing active orders")
 
             for order in active_orders_list:
                 if int(order["account"]["id"]) not in list(self.accounts_dict.values()):
@@ -316,7 +316,7 @@ class Context:
                 ):
                     continue
 
-                log.info(f"({order['sum']}) {order['orderbook']['name']}")
+                log.debug(f"({order['sum']}) {order['orderbook']['name']}")
                 self.ctx.delete_order(
                     account_id=order["account"]["id"], order_id=order["orderId"]
                 )

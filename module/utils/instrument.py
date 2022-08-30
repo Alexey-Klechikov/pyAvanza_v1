@@ -18,7 +18,7 @@ class Instrument:
 
     def get_id(self, trading_multiplier):
         log.info(
-            f"Getting instrument_ids from DT_instruments.json for trading_multiplier={trading_multiplier}"
+            f"Getting instrument_ids from instruments_DT.json for trading_multiplier={trading_multiplier}"
         )
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
