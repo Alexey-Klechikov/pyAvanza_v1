@@ -91,7 +91,8 @@ class Status_DT:
                 ]
 
                 instrument_status_dict["take_profit_price"] = round(
-                    instrument_status_dict["stop_loss_price"] * take_profit_percentage,
+                    instrument_status_dict["stop_loss_price"]
+                    * (take_profit_percentage * 2 - 1),
                     2,
                 )
 
