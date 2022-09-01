@@ -93,7 +93,7 @@ class Status_DT:
 
                 instrument_status_dict["take_profit_price"] = round(
                     instrument_status_dict["stop_loss_price"]
-                    * (float(self.settings_dict["limits_dict"]["TP_trailing"]) * 2 - 1),
+                    * float(self.settings_dict["limits_dict"]["TP_trailing"]),
                     2,
                 )
 

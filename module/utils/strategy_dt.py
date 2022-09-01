@@ -64,17 +64,6 @@ class Strategy_DT:
             "columns": ["BBL_20_1.0", "BBU_20_1.0"],
         }
 
-        """ Candle """
-        # HA (Heikin-Ashi)
-        self.history_df.ta.ha(append=True)
-        ta_indicators_dict["HA"] = {
-            "buy": lambda x: (x["HA_open"] < x["HA_close"])
-            and (x["HA_low"] == x["HA_open"]),
-            "sell": lambda x: (x["HA_open"] > x["HA_close"])
-            and (x["HA_high"] == x["HA_open"]),
-            "columns": ["HA_open", "HA_close", "HA_low", "HA_high"],
-        }
-
         """ Momentum """
         # STC (Schaff Trend Cycle)
         self.history_df.ta.stc(append=True)
@@ -203,7 +192,7 @@ class Strategy_DT:
 
                     if verdict is None:
                         continue
-
+                    
                     order_dict[order_type]["order_type"] = order_type
                     order_dict[order_type]["status"] = "SELL"
                     stats_counter_dict[verdict][order_type] += 1
