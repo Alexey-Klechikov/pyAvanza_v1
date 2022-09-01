@@ -78,10 +78,10 @@ class Status_DT:
 
             if (
                 datetime.now() - instrument_status_dict["buy_time"]
-            ).seconds > (10 * 60) and not instrument_status_dict["trailing_stop_loss_bool"]:
+            ).seconds > (20 * 60) and not instrument_status_dict["trailing_stop_loss_bool"]:
                 instrument_status_dict["trailing_stop_loss_bool"] = True
 
-                log.info("10 min -> Switch to trailing stop_loss")
+                log.info("20 min -> Switch to trailing stop_loss")
 
             instrument_status_dict.update(latest_instrument_status_dict)
 
