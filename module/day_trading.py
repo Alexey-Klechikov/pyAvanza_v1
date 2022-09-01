@@ -285,12 +285,12 @@ class Day_Trading:
 
         self.helper_obj = Helper(user, account_ids_dict, settings_dict)
         self.balance_dict = {"before": 0, "after": 0}
-        self.status_obj = Status()
+        self.status_obj = Status(self.settings_trade_dict)
 
         while True:
             try:
                 self.run_analysis(settings_dict["log_to_telegram"])
-                
+
                 break
 
             except ReadTimeout:
@@ -298,9 +298,7 @@ class Day_Trading:
 
     def check_instrument_for_buy_action(self, strategies_dict, instrument_type):
         self.status_obj.update_instrument(
-            instrument_type,
-            self.helper_obj.check_instrument_status(instrument_type),
-            self.settings_trade_dict["limits_dict"]["TP"],
+            instrument_type, self.helper_obj.check_instrument_status(instrument_type)
         )
 
         if self.status_obj.get_instrument(instrument_type)["has_position_bool"]:

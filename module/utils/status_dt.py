@@ -11,10 +11,11 @@ log = logging.getLogger("main.utils.status_dt")
 
 
 class Status_DT:
-    def __init__(self):
+    def __init__(self, settings_dict):
         self.BULL = dict()
         self.BEAR = dict()
         self.day_time = "morning"
+        self.settings_dict = settings_dict
 
     def get_instrument(self, instrument_type):
         return self.BULL if instrument_type == "BULL" else self.BEAR
@@ -57,9 +58,7 @@ class Status_DT:
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")
 
-    def update_instrument(
-        self, instrument_type, latest_instrument_status_dict, take_profit_percentage
-    ):
+    def update_instrument(self, instrument_type, latest_instrument_status_dict):
         instrument_status_dict = self.get_instrument(instrument_type)
 
         if latest_instrument_status_dict.get("has_position_bool"):
@@ -76,12 +75,14 @@ class Status_DT:
                     f'{instrument_type}: Stop loss: {latest_instrument_status_dict["stop_loss_price"]}, Take profit: {latest_instrument_status_dict["take_profit_price"]}'
                 )
 
-            if (
-                datetime.now() - instrument_status_dict["buy_time"]
-            ).seconds > (20 * 60) and not instrument_status_dict["trailing_stop_loss_bool"]:
+            if (datetime.now() - instrument_status_dict["buy_time"]).seconds > (
+                int(self.settings_dict["trailing_SL_timer"]) * 60
+            ) and not instrument_status_dict["trailing_stop_loss_bool"]:
                 instrument_status_dict["trailing_stop_loss_bool"] = True
 
-                log.info("20 min -> Switch to trailing stop_loss")
+                log.info(
+                    f"{self.settings_dict['trailing_SL_timer']} min -> Switch to trailing stop_loss"
+                )
 
             instrument_status_dict.update(latest_instrument_status_dict)
 
@@ -92,7 +93,7 @@ class Status_DT:
 
                 instrument_status_dict["take_profit_price"] = round(
                     instrument_status_dict["stop_loss_price"]
-                    * (take_profit_percentage * 2 - 1),
+                    * (float(self.settings_dict["limits_dict"]["TP_trailing"]) * 2 - 1),
                     2,
                 )
 
