@@ -342,9 +342,7 @@ class Day_Trading:
         self, instrument_type, enforce_sell_bool=False
     ):
         self.status_obj.update_instrument(
-            instrument_type,
-            self.helper_obj.check_instrument_status(instrument_type),
-            self.settings_trade_dict["limits_dict"]["TP"],
+            instrument_type, self.helper_obj.check_instrument_status(instrument_type)
         )
 
         if not self.status_obj.get_instrument(instrument_type)["has_position_bool"]:
