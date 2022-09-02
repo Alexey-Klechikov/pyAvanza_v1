@@ -14,31 +14,48 @@ log = logging.getLogger("main.utils.history")
 
 
 class History:
-    def __init__(self, ticker_yahoo, period, interval, cache="append"):
+    def __init__(
+        self,
+        ticker_yahoo,
+        period,
+        interval,
+        cache="append",
+        extra_history_df=pd.DataFrame(),
+    ):
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         pickle_path = f"{current_dir}/cache/{ticker_yahoo}.pickle"
 
-        old_history_df = self.read_cache(pickle_path)
+        if cache == "reuse":
+            self.history_df = self.read_cache(pickle_path)
 
-        if cache == "reuse" and not old_history_df.empty:
-            self.history_df = old_history_df
+            if self.history_df.empty:
+                cache = "skip"
 
-        else:
+        if cache == "skip":
             self.history_df = self.read_ticker(ticker_yahoo, period, interval)
 
-            if cache == "append":
-                self.history_df = self.history_df.append(old_history_df)
-                self.history_df.drop_duplicates(inplace=True)
-                self.dump_cache(pickle_path)
+        if cache == "append":
+            self.history_df = (
+                self.read_cache(pickle_path)
+                .append(self.read_ticker(ticker_yahoo, period, interval))
+                .append(extra_history_df)
+                .fillna(0)
+            )
 
-                self.history_df = self.history_df.loc[
-                    (datetime.today() - timedelta(days=int(period[:-1])))
-                    .strftime("%Y-%m-%d") : datetime.today()
-                    .strftime("%Y-%m-%d")
-                ]
+            self.history_df = self.history_df[
+                ~self.history_df.index.duplicated(keep="last")
+            ]
 
+            self.dump_cache(pickle_path)
+
+            self.history_df = self.history_df.loc[
+                (datetime.today() - timedelta(days=int(period[:-1])))
+                .strftime("%Y-%m-%d") : datetime.today()
+                .strftime("%Y-%m-%d")
+            ]
+        
         self.history_df.sort_index(inplace=True)
-
+        
     def read_ticker(self, ticker_yahoo, period, interval):
         ticker_obj = yf.Ticker(ticker_yahoo)
 

@@ -99,7 +99,7 @@ class Status_DT:
 
         else:
             if instrument_status_dict.get("has_position_bool"):
-                log.warning("<<< Trade is complete")
+                log.warning(f"<<< Trade is complete  ({instrument_type})")
 
             instrument_status_dict = {
                 **latest_instrument_status_dict,

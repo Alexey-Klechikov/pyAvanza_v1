@@ -4,6 +4,7 @@ import traceback
 import yfinance as yf
 
 from .utils import Plot
+from .utils import Context
 from .utils import History
 from .utils import TeleLog
 from .utils import Settings
@@ -15,11 +16,13 @@ log = logging.getLogger("main.day_trading_calibration")
 
 
 class Calibration:
-    def __init__(self, instrument_id, settings_dict):
+    def __init__(self, instrument_id_dict, settings_dict, user):
         self.settings_price_limits_dict = settings_dict["trade_dict"]["limits_dict"]
         self.recalibrate_dict = settings_dict["recalibrate_dict"]
 
-        self.instrument_id = instrument_id
+        self.instrument_id_dict = instrument_id_dict
+
+        self.ava = Context(user, settings_dict["accounts"], skip_lists=True)
 
         self.update_strategies()
         history_df = self.test_strategies()
@@ -35,8 +38,13 @@ class Calibration:
             + f' success_limit: {self.recalibrate_dict["success_limit"]}'
         )
 
-        history_obj = History(self.instrument_id, "90d", "1m", cache="append")
+        extra_history_df = self.ava.get_today_history_df(self.instrument_id_dict["AVA"])
 
+        history_obj = History(
+            self.instrument_id_dict["YAHOO"], "90d", "1m", cache="append", extra_history_df=extra_history_df
+        )
+
+        print(history_obj.history_df.tail())
         log.info(
             f"Dates range: {history_obj.history_df.index[0].strftime('%Y.%m.%d')} - {history_obj.history_df.index[-1].strftime('%Y.%m.%d')} ({history_obj.history_df.shape[0]} rows)"  # type: ignore
         )
@@ -55,7 +63,9 @@ class Calibration:
     def test_strategies(self):
         log.info(f"Testing strategies")
 
-        history_obj = History(self.instrument_id, "2d", "1m", cache="skip")
+        history_obj = History(
+            self.instrument_id_dict["YAHOO"], "2d", "1m", cache="skip"
+        )
 
         strategy_obj = Strategy_DT(
             history_obj.history_df,
@@ -90,7 +100,7 @@ class Calibration:
 def run():
     settings_json = Settings().load()
 
-    for _, settings_per_account_dict in settings_json.items():
+    for user, settings_per_account_dict in settings_json.items():
         for settings_dict in settings_per_account_dict.values():
             if not settings_dict.get("run_day_trading", False):
                 continue
@@ -99,9 +109,7 @@ def run():
                 settings_trade_dict = settings_dict["trade_dict"]
                 instruments_obj = Instrument(settings_trade_dict["multiplier"])
 
-                Calibration(
-                    instruments_obj.ids_dict["MONITORING"]["YAHOO"], settings_dict
-                )
+                Calibration(instruments_obj.ids_dict["MONITORING"], settings_dict, user)
 
                 TeleLog(message=f"DT calibration: done.")
 

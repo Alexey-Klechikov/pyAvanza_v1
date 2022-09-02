@@ -192,7 +192,7 @@ class Strategy_DT:
 
                     if verdict is None:
                         continue
-                    
+
                     order_dict[order_type]["order_type"] = order_type
                     order_dict[order_type]["status"] = "SELL"
                     stats_counter_dict[verdict][order_type] += 1
@@ -235,12 +235,11 @@ class Strategy_DT:
                     log.info(
                         f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_counter_dict['good'][order_type]} Good / {stats_counter_dict['bad'][order_type]} Bad)"
                     )
-                
+
                 else:
                     log.debug(
                         f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_counter_dict['good'][order_type]} Good / {stats_counter_dict['bad'][order_type]} Bad)"
                     )
-
 
         strategies_dict = {"BULL": dict(), "BEAR": dict()}
 

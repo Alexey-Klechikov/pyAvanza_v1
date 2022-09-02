@@ -8,9 +8,10 @@ import keyring
 import logging
 import pandas as pd
 
+from pytz import timezone
 from datetime import datetime, timedelta
 
-from avanza import Avanza, OrderType, InstrumentType
+from avanza import Avanza, OrderType, InstrumentType, TimePeriod, Resolution
 
 
 log = logging.getLogger("main.utils.context")
@@ -338,3 +339,35 @@ class Context:
                 )
 
         return removed_orders_dict
+
+    def get_today_history_df(self, stock_id):
+        period = TimePeriod.TODAY
+        resolution = Resolution.MINUTE
+
+        history_dict = self.ctx.get_chart_data(stock_id, period, resolution)
+
+        if history_dict is None:
+            return pd.DataFrame(
+                columns=["Datetime", "Open", "High", "Low", "Close", "Volume"]
+            ).set_index("Datetime")
+
+        history_df = pd.DataFrame(history_dict["ohlc"])
+        history_df["Datetime"] = [
+            datetime.fromtimestamp(x / 1000).astimezone(timezone("Europe/Stockholm"))
+            for x in history_df.timestamp
+        ]
+        history_df = (
+            history_df.rename(
+                columns={
+                    "open": "Open",
+                    "high": "High",
+                    "low": "Low",
+                    "close": "Close",
+                    "totalVolumeTraded": "Volume",
+                }
+            )
+            .set_index("Datetime")
+            .drop(["timestamp"], axis=1)
+        )
+
+        return history_df
