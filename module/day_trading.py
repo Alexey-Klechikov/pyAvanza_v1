@@ -137,6 +137,9 @@ class Helper:
         )
 
         for position_dict in certificate_info_dict["positions"]:
+            if position_dict.get("averageAcquiredPrice") is None:
+                continue
+
             instrument_status_dict.update(
                 {
                     "has_position_bool": True,

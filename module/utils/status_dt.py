@@ -40,9 +40,9 @@ class Status_DT:
                                 "has_position_bool"
                             )
                             or len(
-                                self.get_instrument(instrument_type)[
-                                    "active_order_dict"
-                                ]
+                                self.get_instrument(instrument_type).get(
+                                    "active_order_dict", []
+                                )
                             )
                             > 0
                         )
@@ -99,7 +99,7 @@ class Status_DT:
 
         else:
             if instrument_status_dict.get("has_position_bool"):
-                log.warning(f"<<< Trade is complete  ({instrument_type})")
+                log.warning(f"<<< Trade is complete ({instrument_type})")
 
             instrument_status_dict = {
                 **latest_instrument_status_dict,
