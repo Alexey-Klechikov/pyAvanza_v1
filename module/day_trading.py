@@ -87,7 +87,9 @@ class Helper:
         own_capital = self.ava.get_portfolio()["total_own_capital"]
         floating_budget = (own_capital // 1000 - 1) * 1000
 
-        self.settings_trade_dict["budget"] = max(floating_budget, own_capital)
+        self.settings_trade_dict["budget"] = max(
+            floating_budget, self.settings_trade_dict["budget"]
+        )
 
     def get_signal(self, strategies_dict, instrument_type):
         # This needs to change to use avanza data (once I have enough volume data cached) -> deadline 2022-10-02
@@ -295,6 +297,8 @@ class Day_Trading:
         self.helper_obj = Helper(user, account_ids_dict, settings_dict)
         self.balance_dict = {"before": 0, "after": 0}
         self.status_obj = Status(self.settings_trade_dict)
+
+        print(self.settings_trade_dict)
 
         while True:
             try:
