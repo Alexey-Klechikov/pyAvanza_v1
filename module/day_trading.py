@@ -31,6 +31,8 @@ class Helper:
 
         self.overwrite_last_line = {"bool": True, "message_list": []}
 
+        self._update_budget()
+
     def _check_last_candle_buy(
         self, strategy_obj, row, strategies_dict, instrument_type
     ):
@@ -81,7 +83,14 @@ class Helper:
 
         return False
 
+    def _update_budget(self):
+        own_capital = self.ava.get_portfolio()["total_own_capital"]
+        floating_budget = (own_capital // 1000 - 1) * 1000
+
+        self.settings_trade_dict["budget"] = max(floating_budget, own_capital)
+
     def get_signal(self, strategies_dict, instrument_type):
+        # This needs to change to use avanza data (once I have enough volume data cached) -> deadline 2022-10-02
         history_obj = History(
             self.instruments_obj.ids_dict["MONITORING"]["YAHOO"],
             "2d",

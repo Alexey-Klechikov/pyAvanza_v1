@@ -44,7 +44,6 @@ class Calibration:
             self.instrument_id_dict["YAHOO"], "90d", "1m", cache="append", extra_history_df=extra_history_df
         )
 
-        print(history_obj.history_df.tail())
         log.info(
             f"Dates range: {history_obj.history_df.index[0].strftime('%Y.%m.%d')} - {history_obj.history_df.index[-1].strftime('%Y.%m.%d')} ({history_obj.history_df.shape[0]} rows)"  # type: ignore
         )

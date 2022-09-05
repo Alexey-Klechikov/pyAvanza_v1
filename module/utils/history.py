@@ -53,9 +53,9 @@ class History:
                 .strftime("%Y-%m-%d") : datetime.today()
                 .strftime("%Y-%m-%d")
             ]
-        
+
         self.history_df.sort_index(inplace=True)
-        
+
     def read_ticker(self, ticker_yahoo, period, interval):
         ticker_obj = yf.Ticker(ticker_yahoo)
 
