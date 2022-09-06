@@ -317,8 +317,8 @@ class Day_Trading:
 
         main_inst_status_dict = self.status_obj.get_instrument(main_inst_type)
         main_inst_buy_price = self.helper_obj.ava.get_certificate_info(
-            self.helper_obj.instruments_obj.ids_dict["TRADING"][main_inst_type]['buy']
-        )
+            self.helper_obj.instruments_obj.ids_dict["TRADING"][main_inst_type]
+        )["buy"]
         main_inst_buy_signal_bool = self.helper_obj.get_signal(
             strategies_dict, main_inst_type
         )
@@ -330,8 +330,8 @@ class Day_Trading:
             if not main_inst_buy_signal_bool
             else (
                 self.helper_obj.ava.get_certificate_info(
-                    self.helper_obj.instruments_obj.ids_dict["TRADING"][other_inst_type]['sell']
-                )
+                    self.helper_obj.instruments_obj.ids_dict["TRADING"][other_inst_type]
+                )["sell"]
             )
         )
 
