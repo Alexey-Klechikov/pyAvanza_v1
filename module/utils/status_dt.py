@@ -38,7 +38,9 @@ class Status_DT:
                         (
                             self.get_instrument(inst_type).get("has_position_bool")
                             or len(
-                                self.get_instrument(inst_type).get("active_order_dict", [])
+                                self.get_instrument(inst_type).get(
+                                    "active_order_dict", []
+                                )
                             )
                             > 0
                         )
@@ -58,6 +60,19 @@ class Status_DT:
         inst_status_dict = self.get_instrument(inst_type)
 
         if latest_inst_status_dict.get("has_position_bool"):
+            inst_status_dict.update(
+                {
+                    "stop_loss_price": max(
+                        inst_status_dict.get("stop_loss_price", 0),
+                        latest_inst_status_dict.pop("stop_loss_price", 0),
+                    ),
+                    "take_profit_price": max(
+                        inst_status_dict.get("take_profit_price", 0),
+                        latest_inst_status_dict.pop("take_profit_price", 0),
+                    ),
+                }
+            )
+
             inst_status_dict["trailing_stop_loss_price"] = max(
                 inst_status_dict.get("trailing_stop_loss_price", 0),
                 latest_inst_status_dict.pop("trailing_stop_loss_price", 0),
