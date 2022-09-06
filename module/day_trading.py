@@ -327,10 +327,10 @@ class Day_Trading:
         other_inst_status_dict = self.status_obj.get_instrument(other_inst_type)
         other_inst_sell_price = (
             None
-            if not any(
+            if not all(
                 [
-                    not main_inst_buy_signal_bool,
-                    not other_inst_status_dict["has_position_bool"],
+                    main_inst_buy_signal_bool,
+                    other_inst_status_dict.get("has_position_bool", False),
                 ]
             )
             else self.helper_obj.ava.get_certificate_info(
