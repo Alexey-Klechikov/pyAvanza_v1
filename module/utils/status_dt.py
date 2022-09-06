@@ -129,10 +129,13 @@ class Status_DT:
         inst_status_dict.update(
             {
                 "buy_time": datetime.now(),
-                "stop_loss_price": self.settings_dict["limits_dict"]["SL"]
-                * new_relative_price,
-                "take_profit_price": self.settings_dict["limits_dict"]["TP"]
-                * new_relative_price,
+                "trailing_stop_loss_bool": False,
+                "stop_loss_price": round(
+                    self.settings_dict["limits_dict"]["SL"] * new_relative_price, 2
+                ),
+                "take_profit_price": round(
+                    self.settings_dict["limits_dict"]["TP"] * new_relative_price, 2
+                ),
             }
         )
 
