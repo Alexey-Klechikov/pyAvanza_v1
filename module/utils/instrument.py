@@ -26,8 +26,8 @@ class Instrument:
         with open(f"{current_dir}/data/instruments_DT.json", "r") as f:
             instruments_json = json.load(f)
 
-        instrument_ids_dict = {
+        inst_ids_dict = {
             "MONITORING": instruments_json['MONITORING'],
             "TRADING": instruments_json['TRADING'][str(trading_multiplier)]}
 
-        return instrument_ids_dict
+        return inst_ids_dict

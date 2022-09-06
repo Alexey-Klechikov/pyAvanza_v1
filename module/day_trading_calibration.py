@@ -16,11 +16,11 @@ log = logging.getLogger("main.day_trading_calibration")
 
 
 class Calibration:
-    def __init__(self, instrument_id_dict, settings_dict, user):
+    def __init__(self, inst_id_dict, settings_dict, user):
         self.settings_price_limits_dict = settings_dict["trade_dict"]["limits_dict"]
         self.recalibrate_dict = settings_dict["recalibrate_dict"]
 
-        self.instrument_id_dict = instrument_id_dict
+        self.inst_id_dict = inst_id_dict
 
         self.ava = Context(user, settings_dict["accounts"], skip_lists=True)
 
@@ -38,10 +38,10 @@ class Calibration:
             + f' success_limit: {self.recalibrate_dict["success_limit"]}'
         )
 
-        extra_history_df = self.ava.get_today_history_df(self.instrument_id_dict["AVA"])
+        extra_history_df = self.ava.get_today_history_df(self.inst_id_dict["AVA"])
 
         history_obj = History(
-            self.instrument_id_dict["YAHOO"], "90d", "1m", cache="append", extra_history_df=extra_history_df
+            self.inst_id_dict["YAHOO"], "90d", "1m", cache="append", extra_history_df=extra_history_df
         )
 
         log.info(
@@ -63,7 +63,7 @@ class Calibration:
         log.info(f"Testing strategies")
 
         history_obj = History(
-            self.instrument_id_dict["YAHOO"], "2d", "1m", cache="skip"
+            self.inst_id_dict["YAHOO"], "2d", "1m", cache="skip"
         )
 
         strategy_obj = Strategy_DT(

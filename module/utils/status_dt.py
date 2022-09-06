@@ -17,8 +17,8 @@ class Status_DT:
         self.day_time = "morning"
         self.settings_dict = settings_dict
 
-    def get_instrument(self, instrument_type):
-        return self.BULL if instrument_type == "BULL" else self.BEAR
+    def get_instrument(self, inst_type):
+        return self.BULL if inst_type == "BULL" else self.BEAR
 
     def update_day_time(self):
         current_time = datetime.now()
@@ -36,17 +36,13 @@ class Status_DT:
                 not any(
                     [
                         (
-                            self.get_instrument(instrument_type).get(
-                                "has_position_bool"
-                            )
+                            self.get_instrument(inst_type).get("has_position_bool")
                             or len(
-                                self.get_instrument(instrument_type).get(
-                                    "active_order_dict", []
-                                )
+                                self.get_instrument(inst_type).get("active_order_dict", [])
                             )
                             > 0
                         )
-                        for instrument_type in ["BULL", "BEAR"]
+                        for inst_type in ["BULL", "BEAR"]
                     ]
                 )
             ):
@@ -58,51 +54,51 @@ class Status_DT:
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")
 
-    def update_instrument(self, instrument_type, latest_instrument_status_dict):
-        instrument_status_dict = self.get_instrument(instrument_type)
+    def update_instrument(self, inst_type, latest_inst_status_dict):
+        inst_status_dict = self.get_instrument(inst_type)
 
-        if latest_instrument_status_dict.get("has_position_bool"):
-            instrument_status_dict["trailing_stop_loss_price"] = max(
-                instrument_status_dict.get("trailing_stop_loss_price", 0),
-                latest_instrument_status_dict.pop("trailing_stop_loss_price", 0),
-                instrument_status_dict.get("stop_loss_price", 0),
+        if latest_inst_status_dict.get("has_position_bool"):
+            inst_status_dict["trailing_stop_loss_price"] = max(
+                inst_status_dict.get("trailing_stop_loss_price", 0),
+                latest_inst_status_dict.pop("trailing_stop_loss_price", 0),
+                inst_status_dict.get("stop_loss_price", 0),
             )
 
-            if not instrument_status_dict.get("has_position_bool"):
-                instrument_status_dict["buy_time"] = datetime.now()
+            if not inst_status_dict.get("has_position_bool"):
+                inst_status_dict["buy_time"] = datetime.now()
 
                 log.info(
-                    f'{instrument_type}: Stop loss: {latest_instrument_status_dict["stop_loss_price"]}, Take profit: {latest_instrument_status_dict["take_profit_price"]}'
+                    f'{inst_type}: Stop loss: {latest_inst_status_dict["stop_loss_price"]}, Take profit: {latest_inst_status_dict["take_profit_price"]}'
                 )
 
-            if (datetime.now() - instrument_status_dict["buy_time"]).seconds > (
+            if (datetime.now() - inst_status_dict["buy_time"]).seconds > (
                 int(self.settings_dict["trailing_SL_timer"]) * 60
-            ) and not instrument_status_dict["trailing_stop_loss_bool"]:
-                instrument_status_dict["trailing_stop_loss_bool"] = True
+            ) and not inst_status_dict["trailing_stop_loss_bool"]:
+                inst_status_dict["trailing_stop_loss_bool"] = True
 
                 log.info(
                     f"{self.settings_dict['trailing_SL_timer']} min -> Switch to trailing stop_loss"
                 )
 
-            instrument_status_dict.update(latest_instrument_status_dict)
+            inst_status_dict.update(latest_inst_status_dict)
 
-            if instrument_status_dict.get("trailing_stop_loss_bool"):
-                instrument_status_dict["stop_loss_price"] = instrument_status_dict[
+            if inst_status_dict.get("trailing_stop_loss_bool"):
+                inst_status_dict["stop_loss_price"] = inst_status_dict[
                     "trailing_stop_loss_price"
                 ]
 
-                instrument_status_dict["take_profit_price"] = round(
-                    instrument_status_dict["stop_loss_price"]
+                inst_status_dict["take_profit_price"] = round(
+                    inst_status_dict["stop_loss_price"]
                     * float(self.settings_dict["limits_dict"]["TP_trailing"]),
                     2,
                 )
 
         else:
-            if instrument_status_dict.get("has_position_bool"):
-                log.warning(f"<<< Trade is complete ({instrument_type})")
+            if inst_status_dict.get("has_position_bool"):
+                log.warning(f"<<< Trade is complete ({inst_type})")
 
-            instrument_status_dict = {
-                **latest_instrument_status_dict,
+            inst_status_dict = {
+                **latest_inst_status_dict,
                 **{
                     "buy_time": None,
                     "trailing_stop_loss_bool": False,
@@ -110,4 +106,23 @@ class Status_DT:
                 },
             }
 
-        setattr(self, instrument_type, instrument_status_dict)
+        setattr(self, inst_type, inst_status_dict)
+
+    def raise_instrument_trading_limits(self, inst_type, new_relative_price):
+        inst_status_dict = self.get_instrument(inst_type)
+
+        inst_status_dict.update(
+            {
+                "buy_time": datetime.now(),
+                "stop_loss_price": self.settings_dict["limits_dict"]["SL"]
+                * new_relative_price,
+                "take_profit_price": self.settings_dict["limits_dict"]["TP"]
+                * new_relative_price,
+            }
+        )
+
+        log.info(
+            f'{inst_type}: Stop loss: {inst_status_dict["stop_loss_price"]}, Take profit: {inst_status_dict["take_profit_price"]}'
+        )
+
+        setattr(self, inst_type, inst_status_dict)
