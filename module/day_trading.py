@@ -84,7 +84,7 @@ class Helper:
 
             if cs_signal == ta_signal == instrument_type:
                 log.warning(
-                    f">>> signal - BUY: {instrument_type}-{ta_indicator}-{cs_pattern} at {row.name}"
+                    f">>> {instrument_type} - BUY: {ta_indicator}-{cs_pattern} at {str(row.name)[:-9]}"
                 )
                 return True
 
@@ -253,7 +253,7 @@ class Helper:
         )
 
         log.info(
-            f'{order_data["signal"].upper()}: {order_data["name"]} - {order_data["price"]}'
+            f'{instrument_type} - {signal.upper()} - (SET order): {order_data["price"]}'
         )
 
     def update_order(
@@ -273,7 +273,7 @@ class Helper:
         )[0]
 
         log.info(
-            f'{signal.upper()} (UPD): {instrument_type} - {instrument_status["active_order"]["price"]} -> {price}'
+            f'{instrument_type} - {signal.upper()} - (UPD order): {instrument_status["active_order"]["price"]} -> {price}'
         )
 
         self.ava.update_order(instrument_status["active_order"], price)
@@ -467,7 +467,7 @@ class Day_Trading:
 
             self.helper.update_last_stdout_line()
 
-            time.sleep(30)
+            time.sleep(40)
 
         self.balance["after"] = sum(
             self.helper.ava.get_portfolio()["buying_power"].values()
