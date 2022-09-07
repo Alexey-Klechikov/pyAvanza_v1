@@ -2,147 +2,141 @@
 This module is the "frontend" meant for every week use. It will: 
 - analyze every stock to pick the best performing once and place them in one of budget lists.
 - record top 20 performing strategies for every stock and record it to the file "TA_strategies.json"
-It will import other modules to run the analysis on the stocks -> move it to the watchlist -> dump log in Telegram.py
+It will import other modules to run the analysis on the stocks -> move it to the watch_list -> dump log in Telegram.py
 """
 
 import logging
 import traceback
 
 
-from .utils import Settings
 from .utils import History
-from .utils import Strategy_TA
 from .utils import Context
 from .utils import TeleLog
+from .utils import Settings
+from .utils import Strategy_TA
 
 
 log = logging.getLogger("main.long_trading_calibration")
 
 
-class Watchlists_Analysis:
+class Watch_Lists_Analysis:
     def __init__(self, **kwargs):
-        self.ava = Context(kwargs["user"], kwargs["accounts_dict"])
-        self.log_list = ["LT calibration"]
-        self.top_strategies_per_ticket_dict = dict()
+        self.ava = Context(kwargs["user"], kwargs["accounts"])
+        self.logs = ["LT calibration"]
+        self.top_strategies_per_ticket = dict()
 
-        self.run_analysis(
-            kwargs["log_to_telegram"], kwargs["budget_list_threshold_dict"]
-        )
+        self.run_analysis(kwargs["log_to_telegram"], kwargs["budget_list_thresholds"])
 
-    def record_strategies(self, ticker, strategy_obj):
+    def record_strategies(self, ticker: str, strategy: Strategy_TA) -> None:
         log.info(f"Record strategies")
 
-        for strategy_item_list in strategy_obj.summary["sorted_strategies_list"][:20]:
-            self.top_strategies_per_ticket_dict.setdefault(ticker, list()).append(
-                strategy_item_list[0]
+        for strategy_item in strategy.summary["sorted_strategies"][:20]:
+            self.top_strategies_per_ticket.setdefault(ticker, list()).append(
+                strategy_item[0]
             )
 
-    def move_ticker_to_suitable_budgetlist(
+    def move_ticker_to_suitable_budget_list(
         self,
-        initial_watchlist_name,
-        ticker_dict,
-        max_output,
-        budget_list_threshold_dict,
-    ):
-        max_outputs_list = [
-            int(i) for i in budget_list_threshold_dict if max_output > int(i)
-        ]
-        target_watchlist_name = (
+        initial_watch_list_name: str,
+        ticker: dict,
+        max_output: int,
+        budget_list_thresholds: dict,
+    ) -> str:
+        max_outputs = [int(i) for i in budget_list_thresholds if max_output > int(i)]
+        target_watch_list_name = (
             "skip"
-            if len(max_outputs_list) == 0
-            else budget_list_threshold_dict[str(max(max_outputs_list))]
+            if len(max_outputs) == 0
+            else budget_list_thresholds[str(max(max_outputs))]
         )
 
-        def _get_watchlist_id(watchlist_name):
-            if watchlist_name in self.ava.watchlists_dict:
-                return self.ava.watchlists_dict[watchlist_name]["watchlist_id"]
-            return self.ava.budget_rules_dict[watchlist_name]["watchlist_id"]
+        def _get_watch_list_id(watch_list_name: str) -> str:
+            if watch_list_name in self.ava.watch_lists:
+                return self.ava.watch_lists[watch_list_name]["watch_list_id"]
 
-        if target_watchlist_name != initial_watchlist_name:
+            return self.ava.budget_rules[watch_list_name]["watch_list_id"]
+
+        if target_watch_list_name != initial_watch_list_name:
             log.info(f"Move ticker to suitable budget list")
 
             self.ava.ctx.add_to_watchlist(
-                ticker_dict["order_book_id"], _get_watchlist_id(target_watchlist_name)
+                ticker["order_book_id"], _get_watch_list_id(target_watch_list_name)
             )
+
             self.ava.ctx.remove_from_watchlist(
-                ticker_dict["order_book_id"], _get_watchlist_id(initial_watchlist_name)
+                ticker["order_book_id"], _get_watch_list_id(initial_watch_list_name)
             )
 
-            message = f'"{initial_watchlist_name}" -> "{target_watchlist_name}" ({ticker_dict["name"]}) [{max_output}]'
+            message = f'"{initial_watch_list_name}" -> "{target_watch_list_name}" ({ticker["name"]}) [{max_output}]'
+
             log.info(f"> {message}")
-            
-            self.log_list.append(message)
 
-        return target_watchlist_name
+            self.logs.append(message)
 
-    def run_analysis(self, log_to_telegram, budget_list_threshold_dict):
+        return target_watch_list_name
+
+    def run_analysis(self, log_to_telegram: bool, budget_list_thresholds: dict) -> None:
         log.info("Run analysis")
 
-        watchlists_list = [
-            ("budget rules", self.ava.budget_rules_dict),
-            ("watchlists", self.ava.watchlists_dict),
+        watch_lists = [
+            ("budget rules", self.ava.budget_rules),
+            ("watch_lists", self.ava.watch_lists),
         ]
 
-        for watchlist_type, watchlist_dict in watchlists_list:
-            log.info(f"Walk through {watchlist_type}")
-            for watchlist_name, watchlist_sub_dict in watchlist_dict.items():
-                for ticker_dict in watchlist_sub_dict["tickers"]:
-                    log.info(f'Ticker "{ticker_dict["ticker_yahoo"]}"')
+        for watch_list_type, watch_list in watch_lists:
+            log.info(f"Walk through {watch_list_type}")
+
+            for watch_list_name, watch_list_item in watch_list.items():
+                for ticker in watch_list_item["tickers"]:
+                    log.info(f'Ticker "{ticker["ticker_yahoo"]}"')
 
                     try:
-                        history_df = History(
-                            ticker_dict["ticker_yahoo"], "18mo", "1d", cache="skip"
-                        ).history_df
+                        data = History(
+                            ticker["ticker_yahoo"], "18mo", "1d", cache="skip"
+                        ).data
 
-                        if str(history_df.iloc[-1]["Close"]) == "nan":
-                            self.ava.update_todays_ochl(
-                                history_df, ticker_dict["order_book_id"]
-                            )
+                        if str(data.iloc[-1]["Close"]) == "nan":
+                            self.ava.update_todays_ochl(data, ticker["order_book_id"])
 
-                        strategy_obj = Strategy_TA(history_df)
+                        strategy = Strategy_TA(data)
 
                     except Exception as e:
                         log.error(f"Error (run_analysis): {e}")
 
                         continue
 
-                    max_output = strategy_obj.summary["max_output"]["result"]
-                    log.info(f"{watchlist_name}: Max output = {max_output}")
+                    max_output = strategy.summary["max_output"]["result"]
+                    log.info(f"{watch_list_name}: Max output = {max_output}")
 
-                    target_watchlist_name = self.move_ticker_to_suitable_budgetlist(
-                        initial_watchlist_name=watchlist_name,
-                        ticker_dict=ticker_dict,
+                    target_watch_list_name = self.move_ticker_to_suitable_budget_list(
+                        initial_watch_list_name=watch_list_name,
+                        ticker=ticker,
                         max_output=max_output,
-                        budget_list_threshold_dict=budget_list_threshold_dict,
+                        budget_list_thresholds=budget_list_thresholds,
                     )
 
-                    if target_watchlist_name != "skip":
-                        self.record_strategies(
-                            ticker_dict["ticker_yahoo"], strategy_obj
-                        )
+                    if target_watch_list_name != "skip":
+                        self.record_strategies(ticker["ticker_yahoo"], strategy)
 
-        Strategy_TA.dump("TA", self.top_strategies_per_ticket_dict)
+        Strategy_TA.dump("TA", self.top_strategies_per_ticket)
 
         if log_to_telegram:
-            TeleLog(watchlists_analysis_log_list=self.log_list)
+            TeleLog(watch_lists_analysis_log=self.logs)
 
 
-def run():
-    settings_json = Settings().load()
+def run() -> None:
+    settings = Settings().load()
 
-    for user, settings_per_account_dict in settings_json.items():
-        for settings_dict in settings_per_account_dict.values():
-            if not "budget_list_threshold_dict" in settings_dict:
+    for user, settings_per_user in settings.items():
+        for setting_per_setup in settings_per_user.values():
+            if not "budget_list_thresholds" in setting_per_setup:
                 continue
 
             try:
-                Watchlists_Analysis(
+                Watch_Lists_Analysis(
                     user=user,
-                    accounts_dict=settings_dict["accounts"],
-                    log_to_telegram=settings_dict["log_to_telegram"],
-                    budget_list_threshold_dict=settings_dict[
-                        "budget_list_threshold_dict"
-                    ],
+                    accounts=setting_per_setup["accounts"],
+                    log_to_telegram=setting_per_setup["log_to_telegram"],
+                    budget_list_thresholds=setting_per_setup["budget_list_thresholds"],
                 )
 
             except Exception as e:

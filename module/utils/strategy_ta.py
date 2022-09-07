@@ -24,31 +24,19 @@ log = logging.getLogger("main.utils.strategy_ta")
 
 
 class Strategy_TA:
-    def __init__(self, history_df, **kwargs):
-
-        if "adjust_history_dict" in kwargs:
-            shift = history_df.iloc[0]["Open"] - kwargs["adjust_history_dict"]["base"]
-            for col in ["Open", "High", "Low", "Close"]:
-                history_df[col] = history_df[col] - shift
-                if kwargs["adjust_history_dict"]["inverse"]:
-                    history_df[col] = (-1 * history_df[col]) + (
-                        2 * kwargs["adjust_history_dict"]["base"]
-                    )
-
+    def __init__(self, data: pd.DataFrame, **kwargs):
         skip_points = kwargs.get("skip_points", 100)
-        self.history_df, self.conditions_dict = self.prepare_conditions(
-            history_df, skip_points
-        )
+        self.data, self.conditions = self.prepare_conditions(data, skip_points)
 
-        if "strategies_list" in kwargs and kwargs["strategies_list"] != list():
-            strategies_list = self.parse_strategies_list(kwargs["strategies_list"])
+        if kwargs.get("strategies", list()) != list():
+            strategies_component_names = self.parse_strategies_names(
+                kwargs["strategies"]
+            )
         else:
-            strategies_list = self.generate_strategies_list()
+            strategies_component_names = self.generate_strategies_names()
 
-        strategies_dict = self.generate_strategies_dict(strategies_list)
-        self.summary = self.get_signal(
-            kwargs.get("ticker_name", False), strategies_dict
-        )
+        strategies = self.generate_strategies(strategies_component_names)
+        self.summary = self.get_signal(kwargs.get("ticker_name", False), strategies)
 
     def read_ticker(self, ticker_yahoo, ticker_ava, ava, cache, period, interval):
         log.debug(f"Reading ticker")
@@ -70,14 +58,12 @@ class Strategy_TA:
                 if not os.path.exists(pickle_path):
                     with open(pickle_path, "wb") as pcl:
                         ticker_obj = yf.Ticker(ticker_yahoo)
-                        history_df = ticker_obj.history(
-                            period=period, interval=interval
-                        )
+                        data = ticker_obj.history(period=period, interval=interval)
 
-                        if str(history_df.iloc[-1]["Close"]) == "nan":
+                        if str(data.iloc[-1]["Close"]) == "nan":
                             ava.update_todays_ochl(cache[1], ticker_ava)
 
-                        cache = (ticker_obj, history_df)
+                        cache = (ticker_obj, data)
                         pickle.dump(cache, pcl)
 
                 with open(pickle_path, "rb") as pcl:
@@ -89,9 +75,9 @@ class Strategy_TA:
 
         return cache
 
-    def prepare_conditions(self, history_df, skip_points):
-        def _check_enough_data(column, history_df):
-            if column in history_df.columns:
+    def prepare_conditions(self, data, skip_points):
+        def _check_enough_data(column, data):
+            if column in data.columns:
                 return True
 
             else:
@@ -110,46 +96,46 @@ class Strategy_TA:
             "Volume",
             "Cycles",
         )
-        conditions_dict = {ct: dict() for ct in condition_types_list}
+        conditions = {ct: dict() for ct in condition_types_list}
 
         """ Blank """
-        conditions_dict["Blank"]["HOLD"] = {
+        conditions["Blank"]["HOLD"] = {
             "buy": lambda x: True,
             "sell": lambda x: False,
         }
 
         """ Cycles """
         # EBSW (Even Better Sinewave)
-        history_df.ta.ebsw(append=True)
-        if _check_enough_data("EBSW_40_10", history_df):
-            conditions_dict["Cycles"]["EBSW"] = {
+        data.ta.ebsw(append=True)
+        if _check_enough_data("EBSW_40_10", data):
+            conditions["Cycles"]["EBSW"] = {
                 "buy": lambda x: x["EBSW_40_10"] > 0.5,
                 "sell": lambda x: x["EBSW_40_10"] < -0.5,
             }
 
         """ Volume """
         # PVT (Price Volume Trend)
-        history_df.ta.pvt(append=True)
-        if _check_enough_data("PVT", history_df):
-            history_df.ta.sma(close="PVT", length=9, append=True)
-            conditions_dict["Volume"]["PVT"] = {
+        data.ta.pvt(append=True)
+        if _check_enough_data("PVT", data):
+            data.ta.sma(close="PVT", length=9, append=True)
+            conditions["Volume"]["PVT"] = {
                 "buy": lambda x: x["SMA_9"] < x["PVT"],
                 "sell": lambda x: x["SMA_9"] > x["PVT"],
             }
 
         # CMF (Chaikin Money Flow)
-        history_df.ta.cmf(append=True)
-        if _check_enough_data("CMF_20", history_df):
-            conditions_dict["Volume"]["CMF"] = {
+        data.ta.cmf(append=True)
+        if _check_enough_data("CMF_20", data):
+            conditions["Volume"]["CMF"] = {
                 "buy": lambda x: x["CMF_20"] > 0,
                 "sell": lambda x: x["CMF_20"] < 0,
             }
 
         # KVO (Klinger Volume Oscillator)
         try:
-            history_df.ta.kvo(append=True)
-            if _check_enough_data("KVO_34_55_13", history_df):
-                conditions_dict["Volume"]["KVO"] = {
+            data.ta.kvo(append=True)
+            if _check_enough_data("KVO_34_55_13", data):
+                conditions["Volume"]["KVO"] = {
                     "buy": lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
                     "sell": lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
                 }
@@ -158,34 +144,34 @@ class Strategy_TA:
 
         """ Volatility """
         # MASSI (Mass Index)
-        history_df.ta.massi(append=True)
-        if _check_enough_data("MASSI_9_25", history_df):
-            conditions_dict["Volatility"]["MASSI"] = {
+        data.ta.massi(append=True)
+        if _check_enough_data("MASSI_9_25", data):
+            conditions["Volatility"]["MASSI"] = {
                 "buy": lambda x: 26 < x["MASSI_9_25"] < 27,
                 "sell": lambda x: 26 < x["MASSI_9_25"] < 27,
             }
 
         # HWC (Holt-Winter Channel)
-        history_df.ta.hwc(append=True)
-        if _check_enough_data("HWM", history_df):
-            conditions_dict["Volatility"]["HWC"] = {
+        data.ta.hwc(append=True)
+        if _check_enough_data("HWM", data):
+            conditions["Volatility"]["HWC"] = {
                 "buy": lambda x: x["Close"] > x["HWM"],
                 "sell": lambda x: x["Close"] < x["HWM"],
             }
 
         # BBANDS (Bollinger Bands)
-        history_df.ta.bbands(length=20, std=2, append=True)
-        if _check_enough_data("BBL_20_2.0", history_df):
-            conditions_dict["Volatility"]["BBANDS"] = {
+        data.ta.bbands(length=20, std=2, append=True)
+        if _check_enough_data("BBL_20_2.0", data):
+            conditions["Volatility"]["BBANDS"] = {
                 "buy": lambda x: x["Close"] > x["BBL_20_2.0"],
                 "sell": lambda x: x["Close"] < x["BBU_20_2.0"],
             }
 
         """ Candle """
         # HA (Heikin-Ashi)
-        history_df.ta.ha(append=True)
-        if _check_enough_data("HA_open", history_df):
-            conditions_dict["Candle"]["HA"] = {
+        data.ta.ha(append=True)
+        if _check_enough_data("HA_open", data):
+            conditions["Candle"]["HA"] = {
                 "buy": lambda x: (x["HA_open"] < x["HA_close"])
                 and (x["HA_low"] == x["HA_open"]),
                 "sell": lambda x: (x["HA_open"] > x["HA_close"])
@@ -194,87 +180,87 @@ class Strategy_TA:
 
         """ Trend """
         # PSAR (Parabolic Stop and Reverse)
-        history_df.ta.psar(append=True)
-        if _check_enough_data("PSARl_0.02_0.2", history_df):
-            conditions_dict["Trend"]["PSAR"] = {
+        data.ta.psar(append=True)
+        if _check_enough_data("PSARl_0.02_0.2", data):
+            conditions["Trend"]["PSAR"] = {
                 "buy": lambda x: x["Close"] > x["PSARl_0.02_0.2"],
                 "sell": lambda x: x["Close"] < x["PSARs_0.02_0.2"],
             }
 
         # CHOP (Choppiness Index)
-        history_df.ta.chop(append=True)
-        if _check_enough_data("CHOP_14_1_100", history_df):
-            conditions_dict["Trend"]["CHOP"] = {
+        data.ta.chop(append=True)
+        if _check_enough_data("CHOP_14_1_100", data):
+            conditions["Trend"]["CHOP"] = {
                 "buy": lambda x: x["CHOP_14_1_100"] < 61.8,
                 "sell": lambda x: x["CHOP_14_1_100"] > 61.8,
             }
 
         # CKSP (Chande Kroll Stop)
-        history_df.ta.cksp(append=True)
-        if _check_enough_data("CKSPl_10_3_20", history_df):
-            conditions_dict["Trend"]["CKSP"] = {
+        data.ta.cksp(append=True)
+        if _check_enough_data("CKSPl_10_3_20", data):
+            conditions["Trend"]["CKSP"] = {
                 "buy": lambda x: x["CKSPl_10_3_20"] > x["CKSPs_10_3_20"],
                 "sell": lambda x: x["CKSPl_10_3_20"] < x["CKSPs_10_3_20"],
             }
 
         # ADX (Average Directional Movement Index)
-        history_df.ta.adx(append=True)
-        if _check_enough_data("DMP_14", history_df):
-            conditions_dict["Trend"]["ADX"] = {
+        data.ta.adx(append=True)
+        if _check_enough_data("DMP_14", data):
+            conditions["Trend"]["ADX"] = {
                 "buy": lambda x: x["DMP_14"] > x["DMN_14"],
                 "sell": lambda x: x["DMP_14"] < x["DMN_14"],
             }
 
         """ Overlap """
         # ALMA (Arnaud Legoux Moving Average)
-        history_df.ta.alma(length=15, append=True)
-        if _check_enough_data("ALMA_15_6.0_0.85", history_df):
-            conditions_dict["Overlap"]["ALMA"] = {
+        data.ta.alma(length=15, append=True)
+        if _check_enough_data("ALMA_15_6.0_0.85", data):
+            conditions["Overlap"]["ALMA"] = {
                 "buy": lambda x: x["Close"] > x["ALMA_15_6.0_0.85"],
                 "sell": lambda x: x["Close"] < x["ALMA_15_6.0_0.85"],
             }
 
         # GHLA (Gann High-Low Activator)
-        history_df.ta.hilo(append=True)
-        if _check_enough_data("HILO_13_21", history_df):
-            conditions_dict["Overlap"]["GHLA"] = {
+        data.ta.hilo(append=True)
+        if _check_enough_data("HILO_13_21", data):
+            conditions["Overlap"]["GHLA"] = {
                 "buy": lambda x: x["Close"] > x["HILO_13_21"],
                 "sell": lambda x: x["Close"] < x["HILO_13_21"],
             }
 
         # SUPERT (Supertrend)
-        history_df.ta.supertrend(append=True)
-        if _check_enough_data("SUPERT_7_3.0", history_df):
-            conditions_dict["Overlap"]["SUPERT"] = {
+        data.ta.supertrend(append=True)
+        if _check_enough_data("SUPERT_7_3.0", data):
+            conditions["Overlap"]["SUPERT"] = {
                 "buy": lambda x: x["Close"] > x["SUPERT_7_3.0"],
                 "sell": lambda x: x["Close"] < x["SUPERT_7_3.0"],
             }
 
         # LINREG (Linear Regression)
-        history_df.ta.linreg(append=True, r=True, offset=1)
-        if _check_enough_data("LRr_14", history_df):
-            history_df["LRrLag_14"] = history_df["LRr_14"]
-            history_df.ta.linreg(append=True, r=True)
-            conditions_dict["Overlap"]["LINREG"] = {
+        data.ta.linreg(append=True, r=True, offset=1)
+        if _check_enough_data("LRr_14", data):
+            data["LRrLag_14"] = data["LRr_14"]
+            data.ta.linreg(append=True, r=True)
+            conditions["Overlap"]["LINREG"] = {
                 "buy": lambda x: x["LRr_14"] > x["LRrLag_14"],
                 "sell": lambda x: x["LRr_14"] < x["LRrLag_14"],
             }
 
         """ Momentum """
         # STC (Schaff Trend Cycle)
-        history_df.ta.stc(append=True)
-        if _check_enough_data("STC_10_12_26_0.5", history_df):
-            conditions_dict["Momentum"]["STC"] = {
+        data.ta.stc(append=True)
+        if _check_enough_data("STC_10_12_26_0.5", data):
+            conditions["Momentum"]["STC"] = {
                 "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
                 "buy": lambda x: x["STC_10_12_26_0.5"] < 75,
             }
 
         # CCI (Commodity Channel Index)
-        history_df.ta.cci(length=20, append=True, offset=1)
-        if _check_enough_data("CCI_20_0.015", history_df):
-            history_df["CCILag_20_0.015"] = history_df["CCI_20_0.015"]
-            history_df.ta.cci(length=20, append=True)
-            conditions_dict["Momentum"]["CCI"] = {
+        data.ta.cci(length=20, append=True, offset=1)
+        if _check_enough_data("CCI_20_0.015", data):
+            data["CCILag_20_0.015"] = data["CCI_20_0.015"]
+            data.ta.cci(length=20, append=True)
+            conditions["Momentum"]["CCI"] = {
                 "sell": lambda x: x["CCI_20_0.015"] > 100
                 and x["CCI_20_0.015"] < x["CCILag_20_0.015"],
                 "buy": lambda x: x["CCI_20_0.015"] < -100
@@ -282,112 +268,119 @@ class Strategy_TA:
             }
 
         # RSI (Relative Strength Index)
-        history_df.ta.rsi(length=14, append=True)
-        if _check_enough_data("RSI_14", history_df):
-            conditions_dict["Momentum"]["RSI"] = {
+        data.ta.rsi(length=14, append=True)
+        if _check_enough_data("RSI_14", data):
+            conditions["Momentum"]["RSI"] = {
                 "buy": lambda x: x["RSI_14"] > 50,
                 "sell": lambda x: x["RSI_14"] < 50,
             }
 
         # RVGI (Relative Vigor Index)
-        history_df.ta.rvgi(append=True)
-        if _check_enough_data("RVGI_14_4", history_df):
-            conditions_dict["Momentum"]["RVGI"] = {
+        data.ta.rvgi(append=True)
+        if _check_enough_data("RVGI_14_4", data):
+            conditions["Momentum"]["RVGI"] = {
                 "buy": lambda x: x["RVGI_14_4"] > x["RVGIs_14_4"],
                 "sell": lambda x: x["RVGI_14_4"] < x["RVGIs_14_4"],
             }
 
         # MACD (Moving Average Convergence Divergence)
-        history_df.ta.macd(fast=8, slow=21, signal=5, append=True)
-        if _check_enough_data("MACD_8_21_5", history_df):
-            conditions_dict["Momentum"]["MACD"] = {
+        data.ta.macd(fast=8, slow=21, signal=5, append=True)
+        if _check_enough_data("MACD_8_21_5", data):
+            conditions["Momentum"]["MACD"] = {
                 "buy": lambda x: x["MACD_8_21_5"] > x["MACDs_8_21_5"],
                 "sell": lambda x: x["MACD_8_21_5"] < x["MACDs_8_21_5"],
             }
 
         # STOCH (Stochastic Oscillator)
-        history_df.ta.stoch(k=14, d=3, append=True)
-        if _check_enough_data("STOCHd_14_3_3", history_df):
-            conditions_dict["Momentum"]["STOCH"] = {
+        data.ta.stoch(k=14, d=3, append=True)
+        if _check_enough_data("STOCHd_14_3_3", data):
+            conditions["Momentum"]["STOCH"] = {
                 "buy": lambda x: x["STOCHd_14_3_3"] < 80 and x["STOCHk_14_3_3"] < 80,
                 "sell": lambda x: x["STOCHd_14_3_3"] > 20 and x["STOCHk_14_3_3"] > 20,
             }
 
         # UO (Ultimate Oscillator)
-        history_df.ta.uo(append=True)
-        if _check_enough_data("UO_7_14_28", history_df):
-            conditions_dict["Momentum"]["UO"] = {
+        data.ta.uo(append=True)
+        if _check_enough_data("UO_7_14_28", data):
+            conditions["Momentum"]["UO"] = {
                 "buy": lambda x: x["UO_7_14_28"] < 30,
                 "sell": lambda x: x["UO_7_14_28"] > 70,
             }
 
-        return history_df.iloc[skip_points:], conditions_dict
+        return data.iloc[skip_points:], conditions
 
-    def generate_strategies_list(self):
+    def generate_strategies_names(self) -> list:
+        # + Triple indicator strategies (try every combination of different types)
+
         log.debug("Generating strategies list")
 
-        strategies_list = [[("Blank", "HOLD")]]
+        strategies_component_names = [[("Blank", "HOLD")]]
+        indicators_names = list()
+        special_case_indicators_names = "HOLD"
 
-        # + Triple indicator strategies (try every combination of different types)
-        indicators_list = list()
-        special_case_indicators_list = (
-            "HOLD"  # should not participate in autogenerating strategies
-        )
-        for indicator_type, indicators_dict in self.conditions_dict.items():
-            indicators_list += [
+        for indicator_type, indicators_dict in self.conditions.items():
+            indicators_names += [
                 (indicator_type, indicator)
                 for indicator in indicators_dict.keys()
-                if indicator not in special_case_indicators_list
+                if indicator not in special_case_indicators_names
             ]
 
-        for i_1, indicator_1 in enumerate(indicators_list):
-            temp_indicators_list = indicators_list[i_1:]
-            for i_2, indicator_2 in enumerate(temp_indicators_list):
+        for i_1, indicator_1 in enumerate(indicators_names):
+            temp_indicators_names = indicators_names[i_1:]
+
+            for i_2, indicator_2 in enumerate(temp_indicators_names):
                 if indicator_1[0] == indicator_2[0]:
                     continue
-                for indicator_3 in temp_indicators_list[i_2:]:
+
+                for indicator_3 in temp_indicators_names[i_2:]:
                     if indicator_2[0] == indicator_3[0]:
                         continue
-                    strategies_list.append([indicator_1, indicator_2, indicator_3])
 
-        return strategies_list
+                    strategies_component_names.append(
+                        [indicator_1, indicator_2, indicator_3]
+                    )
 
-    def parse_strategies_list(self, strategies_str_list):
+        return strategies_component_names
+
+    def parse_strategies_names(self, strategies_names: list) -> list:
         log.debug("Parsing strategies list")
 
-        strategies_list = [[("Blank", "HOLD")]]
-        for strategy_str in strategies_str_list:
+        strategies_component_names = [[("Blank", "HOLD")]]
+
+        for strategy in strategies_names:
             # "(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH"
-            strategy_components_list = [
-                i.strip().split(" ") for i in strategy_str.split("+")
-            ]
+            strategy_components = [i.strip().split(" ") for i in strategy.split("+")]
+
             # [['(Trend)', 'CKSP'], ['(Overlap)', 'SUPERT'], ['(Momentum)', 'STOCH']]
-            strategy = [(i[0][1:-1], i[1]) for i in strategy_components_list]
+            strategy_components = [(i[0][1:-1], i[1]) for i in strategy_components]
+
             # [('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')]
-            strategies_list.append(strategy)
+            strategies_component_names.append(strategy_components)
 
-        return strategies_list
+        return strategies_component_names
 
-    def generate_strategies_dict(self, strategies_list):
+    def generate_strategies(self, strategies_component_names: list) -> dict:
         log.debug("Generating strategies dict")
 
-        strategies_dict = dict()
-        for strategy_list in strategies_list:
-            strategy_dict = dict()
+        strategies = dict()
+        for strategy_components_names in strategies_component_names:
+            strategy = dict()
+
             for order_type in ("buy", "sell"):
-                strategy_dict[order_type] = [
-                    self.conditions_dict[strategy_component[0]][strategy_component[1]][
-                        order_type
-                    ]
-                    for strategy_component in strategy_list
+                strategy[order_type] = [
+                    self.conditions[strategy_component_name[0]][
+                        strategy_component_name[1]
+                    ][order_type]
+                    for strategy_component_name in strategy_components_names
                 ]
-            strategies_dict[
-                " + ".join([f"({i[0]}) {i[1]}" for i in strategy_list])
-            ] = strategy_dict
 
-        return strategies_dict
+            strategies[
+                " + ".join([f"({i[0]}) {i[1]}" for i in strategy_components_names])
+            ] = strategy
 
-    def get_signal(self, ticker_name, strategies_dict):
+        return strategies
+
+    def get_signal(self, ticker_name: str, strategies: dict) -> dict:
         log.debug("Getting signal")
 
         summary = {
@@ -396,13 +389,13 @@ class Strategy_TA:
             "max_output": dict(),
         }
 
-        for strategy in strategies_dict:
+        for strategy in strategies:
             summary["strategies"][strategy] = {"transactions": list(), "result": 0}
 
-            TRANSACTION_COMISSION = 0.0025
+            TRANSACTION_COMMISSION = 0.0025
 
-            balance_list = list()
-            balance_dict = {
+            balance_sequence = list()
+            balance = {
                 "deposit": 1000,
                 "market": None,
                 "total": 1000,
@@ -410,72 +403,71 @@ class Strategy_TA:
                 "buy_signal": np.nan,
                 "sell_signal": np.nan,
             }
-            for i, row in self.history_df.iterrows():
+
+            for i, row in self.data.iterrows():
                 date = str(i)[:-6]
 
                 # Sell event
                 if (
-                    all(map(lambda x: x(row), strategies_dict[strategy]["sell"]))
-                    and balance_dict["market"] is not None
+                    all(map(lambda x: x(row), strategies[strategy]["sell"]))
+                    and balance["market"] is not None
                 ):
                     summary["strategies"][strategy]["transactions"].append(
                         f'({date}) Sell at {row["Close"]}'
                     )
-                    price_change = (
-                        row["Close"] - balance_dict["order_price"]
-                    ) / balance_dict["order_price"]
-                    balance_dict["deposit"] = (
-                        balance_dict["market"]
+                    price_change = (row["Close"] - balance["order_price"]) / balance[
+                        "order_price"
+                    ]
+                    balance["deposit"] = (
+                        balance["market"]
                         * (1 + price_change)
-                        * (1 - TRANSACTION_COMISSION)
+                        * (1 - TRANSACTION_COMMISSION)
                     )
-                    balance_dict["market"] = None
-                    balance_dict["total"] = balance_dict["deposit"]
-                    balance_dict["sell_signal"] = balance_dict["total"]
+                    balance["market"] = None
+                    balance["total"] = balance["deposit"]
+                    balance["sell_signal"] = balance["total"]
 
                 # Buy event
                 elif (
-                    all(map(lambda x: x(row), strategies_dict[strategy]["buy"]))
-                    and balance_dict["deposit"] is not None
+                    all(map(lambda x: x(row), strategies[strategy]["buy"]))
+                    and balance["deposit"] is not None
                 ):
                     summary["strategies"][strategy]["transactions"].append(
                         f'({date}) Buy at {row["Close"]}'
                     )
-                    balance_dict["buy_signal"] = balance_dict["total"]
-                    balance_dict["order_price"] = row["Close"]
-                    balance_dict["market"] = balance_dict["deposit"] * (
-                        1 - TRANSACTION_COMISSION
+                    balance["buy_signal"] = balance["total"]
+                    balance["order_price"] = row["Close"]
+                    balance["market"] = balance["deposit"] * (
+                        1 - TRANSACTION_COMMISSION
                     )
-                    balance_dict["deposit"] = None
-                    balance_dict["total"] = balance_dict["market"]
+                    balance["deposit"] = None
+                    balance["total"] = balance["market"]
 
                 # Hold on market
                 else:
-                    if balance_dict["deposit"] is None:
+                    if balance["deposit"] is None:
                         price_change = (
-                            row["Close"] - balance_dict["order_price"]
-                        ) / balance_dict["order_price"]
-                        balance_dict["total"] = balance_dict["market"] * (
-                            1 + price_change
-                        )
-                        balance_dict["buy_signal"] = np.nan
-                        balance_dict["sell_signal"] = np.nan
+                            row["Close"] - balance["order_price"]
+                        ) / balance["order_price"]
+                        balance["total"] = balance["market"] * (1 + price_change)
+                        balance["buy_signal"] = np.nan
+                        balance["sell_signal"] = np.nan
 
-                balance_list.append(copy(balance_dict))
+                balance_sequence.append(copy(balance))
 
-            summary["strategies"][strategy]["result"] = round(balance_dict["total"])
+            summary["strategies"][strategy]["result"] = round(balance["total"])
             summary["strategies"][strategy]["signal"] = (
-                "sell" if balance_dict["market"] is None else "buy"
+                "sell" if balance["market"] is None else "buy"
             )
             summary["strategies"][strategy]["transactions_counter"] = len(
                 summary["strategies"][strategy]["transactions"]
             )
             if (
-                balance_dict["total"] > summary["max_output"].get("result", 0)
+                balance["total"] > summary["max_output"].get("result", 0)
                 and strategy != "(Blank) HOLD"
             ):
                 for col in ["total", "buy_signal", "sell_signal"]:
-                    self.history_df.loc[:, col] = [i[col] for i in balance_list]
+                    self.data.loc[:, col] = [i[col] for i in balance_sequence]
 
                 summary["max_output"] = {
                     "strategy": strategy,
@@ -487,19 +479,17 @@ class Strategy_TA:
                 }
 
         summary["hold_result"] = summary["strategies"].pop("(Blank) HOLD")["result"]
-        summary["sorted_strategies_list"] = sorted(
+        summary["sorted_strategies"] = sorted(
             summary["strategies"].items(),
             key=lambda x: int(x[1]["result"]),
             reverse=True,
         )
         summary["signal"] = summary["max_output"]["signal"]
 
-        sorted_signals_list = [
-            i[1]["signal"] for i in summary["sorted_strategies_list"]
-        ]
+        sorted_signals = [i[1]["signal"] for i in summary["sorted_strategies"]]
         if summary["max_output"]["transactions_counter"] == 1:
             summary["signal"] = (
-                "buy" if sorted_signals_list[:3].count("buy") >= 2 else "sell"
+                "buy" if sorted_signals[:3].count("buy") >= 2 else "sell"
             )
 
         log.info(
@@ -509,24 +499,27 @@ class Strategy_TA:
         return summary
 
     @staticmethod
-    def load(filename_suffix):
+    def load(filename_suffix: str) -> dict:
         log.info(f"Loading strategies_{filename_suffix}.json")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
         try:
             with open(
                 f"{current_dir}/data/strategies_{filename_suffix}.json", "r"
             ) as f:
-                strategies_json = json.load(f)
-        except:
-            strategies_json = dict()
+                strategies = json.load(f)
 
-        return strategies_json
+        except:
+            strategies = dict()
+
+        return strategies
 
     @staticmethod
-    def dump(filename_suffix, strategies_json):
+    def dump(filename_suffix, strategies):
         log.info(f"Dump strategies_{filename_suffix}.json")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
         with open(f"{current_dir}/data/strategies_{filename_suffix}.json", "w") as f:
-            json.dump(strategies_json, f, indent=4)
+            json.dump(strategies, f, indent=4)

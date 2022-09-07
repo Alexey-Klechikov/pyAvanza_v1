@@ -16,104 +16,118 @@ log = logging.getLogger("main.utils.history")
 class History:
     def __init__(
         self,
-        ticker_yahoo,
-        period,
-        interval,
-        cache="append",
-        extra_history_df=pd.DataFrame(),
+        ticker_yahoo: str,
+        period: str,
+        interval: str,
+        cache: str = "append",
+        extra_data: pd.DataFrame = pd.DataFrame(
+            columns=["Open", "High", "Low", "Close", "Volume"]
+        ),
     ):
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        pickle_path = f"{current_dir}/cache/{ticker_yahoo}.pickle"
+        self.pickle_path = f"{current_dir}/cache/{ticker_yahoo}.pickle"
+        self.extra_data = extra_data
+        self.ticker_yahoo = ticker_yahoo
+        self.interval = interval
+        self.period = period
+        self.cache = cache
 
-        if cache == "reuse":
-            self.history_df = self.read_cache(pickle_path)
+        self.data = self.get_data()
 
-            if self.history_df.empty:
-                cache = "skip"
+    def get_data(self) -> pd.DataFrame:
+        data = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
 
-        if cache == "skip":
-            self.history_df = self.read_ticker(ticker_yahoo, period, interval)
+        if self.cache == "reuse":
+            data = self._read_cache(self.pickle_path)
 
-        if cache == "append":
-            self.history_df = (
-                self.read_cache(pickle_path)
-                .append(self.read_ticker(ticker_yahoo, period, interval))
-                .append(extra_history_df)
+            if data.empty:
+                self.cache = "skip"
+
+        if self.cache == "skip":
+            data = self._read_ticker(self.ticker_yahoo, self.period, self.interval)
+
+        if self.cache == "append":
+            data = (
+                self._read_cache(self.pickle_path)
+                .append(
+                    self._read_ticker(self.ticker_yahoo, self.period, self.interval)
+                )
+                .append(self.extra_data)
                 .fillna(0)
             )
 
-            self.history_df = self.history_df[
-                ~self.history_df.index.duplicated(keep="last")
-            ]
+            data = data.groupby(data.index).last()
 
-            self.dump_cache(pickle_path)
+            self._dump_cache(self.pickle_path, data)
 
-            self.history_df = self.history_df.loc[
-                (datetime.today() - timedelta(days=int(period[:-1])))
+            data = data.loc[
+                (datetime.today() - timedelta(days=int(self.period[:-1])))
                 .strftime("%Y-%m-%d") : datetime.today()
                 .strftime("%Y-%m-%d")
             ]
 
-        self.history_df.sort_index(inplace=True)
+        data.sort_index(inplace=True)
 
-    def read_ticker(self, ticker_yahoo, period, interval):
-        ticker_obj = yf.Ticker(ticker_yahoo)
+        return data
 
-        total_period_int = int("".join([i for i in period if i.isdigit()]))
+    def _read_ticker(
+        self, ticker_yahoo: str, period: str, interval: str
+    ) -> pd.DataFrame:
+        ticker = yf.Ticker(ticker_yahoo)
+
+        period_num = int("".join([i for i in period if i.isdigit()]))
 
         # Progressive loader if more than a week of data with 1 min interval is requested
-        if (period.endswith("d") and total_period_int > 7) and interval == "1m":
+        if (period.endswith("d") and period_num > 7) and interval == "1m":
 
-            earliest_date = datetime.today() - timedelta(days=min(total_period_int, 29))
+            earliest_date = datetime.today() - timedelta(days=min(period_num, 29))
 
-            intervals_list = list()
+            intervals = list()
             end_date = datetime.today() + timedelta(days=1)
             while True:
                 start_date = max(earliest_date, end_date - timedelta(days=5))
                 if end_date.date() == start_date.date():
                     break
 
-                intervals_list.append(
+                intervals.append(
                     [start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")]
                 )
                 end_date = start_date
 
-            history_df = pd.DataFrame()
-            for start_date, end_date in intervals_list:
-                history_df = history_df.append(
-                    ticker_obj.history(
-                        interval=interval, start=start_date, end=end_date
-                    )
+            data = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
+            for start_date, end_date in intervals:
+                data = data.append(
+                    ticker.history(interval=interval, start=start_date, end=end_date)
                 )
-            history_df.drop_duplicates(inplace=True)
+            data.drop_duplicates(inplace=True)
 
         # Simple loader
         else:
-            history_df = ticker_obj.history(period=period, interval=interval)
+            data = ticker.history(period=period, interval=interval)
 
-        return history_df
+        return data
 
-    def read_cache(self, pickle_path):
-        history_df = pd.DataFrame()
+    def _read_cache(self, pickle_path: str) -> pd.DataFrame:
+        data = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
 
         directory_exists = os.path.exists("/".join(pickle_path.split("/")[:-1]))
         if not directory_exists:
             os.makedirs("/".join(pickle_path.split("/")[:-1]))
-            return history_df
+            return data
 
         if not os.path.exists(pickle_path):
-            return history_df
+            return data
 
         # Check if cache exists (and is completed)
         try:
             with open(pickle_path, "rb") as pcl:
-                history_df = pickle.load(pcl)
+                data = pickle.load(pcl)
 
         except EOFError:
             os.remove(pickle_path)
 
-        return history_df
+        return data
 
-    def dump_cache(self, pickle_path):
+    def _dump_cache(self, pickle_path: str, data: pd.DataFrame) -> None:
         with open(pickle_path, "wb") as pcl:
-            pickle.dump(self.history_df, pcl)
+            pickle.dump(data, pcl)

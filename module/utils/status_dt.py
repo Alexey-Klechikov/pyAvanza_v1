@@ -11,23 +11,23 @@ log = logging.getLogger("main.utils.status_dt")
 
 
 class Status_DT:
-    def __init__(self, settings_dict):
+    def __init__(self, settings: dict):
         self.BULL = dict()
         self.BEAR = dict()
         self.day_time = "morning"
-        self.settings_dict = settings_dict
+        self.settings = settings
 
-    def get_instrument(self, inst_type):
+    def get_instrument(self, inst_type: str) -> dict:
         return self.BULL if inst_type == "BULL" else self.BEAR
 
-    def update_day_time(self):
+    def update_day_time(self) -> None:
         current_time = datetime.now()
-
         old_day_time = self.day_time
 
         if current_time <= current_time.replace(hour=9, minute=40):
-            time.sleep(60)
             self.day_time = "morning"
+
+            time.sleep(60)
 
         elif current_time >= current_time.replace(hour=17, minute=25):
             self.day_time = "evening"
@@ -36,7 +36,7 @@ class Status_DT:
                 not any(
                     [
                         (
-                            self.get_instrument(inst_type).get("has_position_bool")
+                            self.get_instrument(inst_type).get("has_position")
                             or len(
                                 self.get_instrument(inst_type).get(
                                     "active_order_dict", []
@@ -56,91 +56,95 @@ class Status_DT:
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")
 
-    def update_instrument(self, inst_type, latest_inst_status_dict):
-        inst_status_dict = self.get_instrument(inst_type)
+    def update_instrument(self, inst_type: str, latest_instrument_status: dict) -> None:
+        instrument_status = self.get_instrument(inst_type)
 
-        if latest_inst_status_dict.get("has_position_bool"):
-            inst_status_dict.update(
+        if latest_instrument_status.get("has_position"):
+            instrument_status.update(
                 {
-                    "stop_loss_price": max(
-                        inst_status_dict.get("stop_loss_price", 0),
-                        latest_inst_status_dict.pop("stop_loss_price", 0),
+                    "current_price": latest_instrument_status.get("current_price"),
+                    "active_order": latest_instrument_status.get("active_order"),
+                    "stop_loss_price": instrument_status.get(
+                        "stop_loss_price",
+                        latest_instrument_status.pop("stop_loss_price", 0),
                     ),
-                    "take_profit_price": max(
-                        inst_status_dict.get("take_profit_price", 0),
-                        latest_inst_status_dict.pop("take_profit_price", 0),
+                    "take_profit_price": instrument_status.get(
+                        "take_profit_price",
+                        latest_instrument_status.pop("take_profit_price", 0),
                     ),
                 }
             )
 
-            inst_status_dict["trailing_stop_loss_price"] = max(
-                inst_status_dict.get("trailing_stop_loss_price", 0),
-                latest_inst_status_dict.pop("trailing_stop_loss_price", 0),
-                inst_status_dict.get("stop_loss_price", 0),
+            instrument_status["trailing_stop_loss_price"] = max(
+                instrument_status.get("trailing_stop_loss_price", 0),
+                latest_instrument_status.pop("trailing_stop_loss_price", 0),
+                instrument_status.get("stop_loss_price", 0),
             )
 
-            if not inst_status_dict.get("has_position_bool"):
-                inst_status_dict["buy_time"] = datetime.now()
-
-                log.info(
-                    f'{inst_type}: Stop loss: {latest_inst_status_dict["stop_loss_price"]}, Take profit: {latest_inst_status_dict["take_profit_price"]}'
+            if not instrument_status.get("has_position"):
+                instrument_status.update(
+                    {"buy_time": datetime.now(), "has_position": True}
                 )
 
-            if (datetime.now() - inst_status_dict["buy_time"]).seconds > (
-                int(self.settings_dict["trailing_SL_timer"]) * 60
-            ) and not inst_status_dict["trailing_stop_loss_bool"]:
-                inst_status_dict["trailing_stop_loss_bool"] = True
-
                 log.info(
-                    f"{self.settings_dict['trailing_SL_timer']} min -> Switch to trailing stop_loss"
+                    f'{inst_type}: Stop loss: {instrument_status.get("stop_loss_price")}, Take profit: {instrument_status.get("take_profit_price")}'
                 )
 
-            inst_status_dict.update(latest_inst_status_dict)
+            if (datetime.now() - instrument_status["buy_time"]).seconds > (
+                int(self.settings["trailing_SL_timer"]) * 60
+            ) and not instrument_status.get("trailing_stop_loss_active", False):
+                instrument_status["trailing_stop_loss_active"] = True
 
-            if inst_status_dict.get("trailing_stop_loss_bool"):
-                inst_status_dict["stop_loss_price"] = inst_status_dict[
+                log.info(
+                    f"{self.settings['trailing_SL_timer']} min -> Switch to trailing stop_loss"
+                )
+
+            if instrument_status.get("trailing_stop_loss_active"):
+                instrument_status["stop_loss_price"] = instrument_status[
                     "trailing_stop_loss_price"
                 ]
 
-                inst_status_dict["take_profit_price"] = round(
-                    inst_status_dict["stop_loss_price"]
-                    * float(self.settings_dict["limits_dict"]["TP_trailing"]),
+                instrument_status["take_profit_price"] = round(
+                    instrument_status["stop_loss_price"]
+                    * float(self.settings["limits"]["TP_trailing"]),
                     2,
                 )
 
         else:
-            if inst_status_dict.get("has_position_bool"):
+            if instrument_status.get("has_position"):
                 log.warning(f"<<< Trade is complete ({inst_type})")
 
-            inst_status_dict = {
-                **latest_inst_status_dict,
+            instrument_status = {
+                **latest_instrument_status,
                 **{
                     "buy_time": None,
-                    "trailing_stop_loss_bool": False,
+                    "trailing_stop_loss_active": False,
                     "trailing_stop_loss_price": 0,
                 },
             }
 
-        setattr(self, inst_type, inst_status_dict)
+        setattr(self, inst_type, instrument_status)
 
-    def raise_instrument_trading_limits(self, inst_type, new_relative_price):
-        inst_status_dict = self.get_instrument(inst_type)
+    def update_instrument_trading_limits(
+        self, inst_type: str, new_relative_price: float
+    ) -> None:
+        instrument_status = self.get_instrument(inst_type)
 
-        inst_status_dict.update(
+        instrument_status.update(
             {
                 "buy_time": datetime.now(),
-                "trailing_stop_loss_bool": False,
+                "trailing_stop_loss_active": False,
                 "stop_loss_price": round(
-                    self.settings_dict["limits_dict"]["SL"] * new_relative_price, 2
+                    self.settings["limits"]["SL"] * new_relative_price, 2
                 ),
                 "take_profit_price": round(
-                    self.settings_dict["limits_dict"]["TP"] * new_relative_price, 2
+                    self.settings["limits"]["TP"] * new_relative_price, 2
                 ),
             }
         )
 
         log.info(
-            f'{inst_type}: Stop loss: {inst_status_dict["stop_loss_price"]}, Take profit: {inst_status_dict["take_profit_price"]}'
+            f'{inst_type}: Update limits: Stop loss: {instrument_status["stop_loss_price"]}, Take profit: {instrument_status["take_profit_price"]}'
         )
 
-        setattr(self, inst_type, inst_status_dict)
+        setattr(self, inst_type, instrument_status)

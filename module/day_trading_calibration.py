@@ -1,6 +1,7 @@
 import logging
 import platform
 import traceback
+import pandas as pd
 import yfinance as yf
 
 from .utils import Plot
@@ -16,99 +17,100 @@ log = logging.getLogger("main.day_trading_calibration")
 
 
 class Calibration:
-    def __init__(self, inst_id_dict, settings_dict, user):
-        self.settings_price_limits_dict = settings_dict["trade_dict"]["limits_dict"]
-        self.recalibrate_dict = settings_dict["recalibrate_dict"]
+    def __init__(self, instrument_ids: dict, settings: dict, user: str):
+        self.settings_price_limits = settings["trading"]["limits"]
+        self.calibration = settings["calibration"]
 
-        self.inst_id_dict = inst_id_dict
+        self.instrument_ids = instrument_ids
 
-        self.ava = Context(user, settings_dict["accounts"], skip_lists=True)
+        self.ava = Context(user, settings["accounts"], skip_lists=True)
 
         self.update_strategies()
-        history_df = self.test_strategies()
-        self.plot_strategies(history_df)
+        data = self.test_strategies()
+        self.plot_strategies(data)
 
-    def update_strategies(self):
-        if not self.recalibrate_dict["update_bool"]:
+    def update_strategies(self) -> None:
+        if not self.calibration["update"]:
             return
 
         log.info(
-            f"Updating strategies_dict: "
-            + str(self.settings_price_limits_dict)
-            + f' success_limit: {self.recalibrate_dict["success_limit"]}'
+            f"Updating strategies: "
+            + str(self.settings_price_limits)
+            + f' success_limit: {self.calibration["success_limit"]}'
         )
 
-        extra_history_df = self.ava.get_today_history_df(self.inst_id_dict["AVA"])
+        extra_data = self.ava.get_today_history(self.instrument_ids["AVA"])
 
-        history_obj = History(
-            self.inst_id_dict["YAHOO"], "90d", "1m", cache="append", extra_history_df=extra_history_df
+        history = History(
+            self.instrument_ids["YAHOO"],
+            "90d",
+            "1m",
+            cache="append",
+            extra_data=extra_data,
         )
 
         log.info(
-            f"Dates range: {history_obj.history_df.index[0].strftime('%Y.%m.%d')} - {history_obj.history_df.index[-1].strftime('%Y.%m.%d')} ({history_obj.history_df.shape[0]} rows)"  # type: ignore
+            f"Dates range: {history.data.index[0].strftime('%Y.%m.%d')} - {history.data.index[-1].strftime('%Y.%m.%d')} ({history.data.shape[0]} rows)"  # type: ignore
         )
 
-        strategy_obj = Strategy_DT(
-            history_obj.history_df,
-            order_price_limits_dict=self.settings_price_limits_dict,
+        strategy = Strategy_DT(
+            history.data,
+            order_price_limits=self.settings_price_limits,
         )
 
-        strategies_dict = strategy_obj.get_successful_strategies(
-            self.recalibrate_dict["success_limit"]
+        strategies = strategy.get_successful_strategies(
+            self.calibration["success_limit"]
         )
 
-        strategy_obj.dump("DT", strategies_dict)
+        strategy.dump("DT", strategies)
 
-    def test_strategies(self):
+    def test_strategies(self) -> pd.DataFrame:
         log.info(f"Testing strategies")
 
-        history_obj = History(
-            self.inst_id_dict["YAHOO"], "2d", "1m", cache="skip"
+        history = History(self.instrument_ids["YAHOO"], "2d", "1m", cache="skip")
+
+        strategy = Strategy_DT(
+            history.data,
+            order_price_limits=self.settings_price_limits,
         )
 
-        strategy_obj = Strategy_DT(
-            history_obj.history_df,
-            order_price_limits_dict=self.settings_price_limits_dict,
-        )
+        strategies = strategy.load("DT")
 
-        strategies_dict = strategy_obj.load("DT")
+        strategy.backtest_strategies(strategies)
 
-        strategy_obj.backtest_strategies(strategies_dict)
+        return strategy.data
 
-        return strategy_obj.history_df
-
-    def plot_strategies(self, history_df):
+    def plot_strategies(self, data: pd.DataFrame) -> None:
         if platform.system() != "Darwin":
             return
 
-        history_df["buy_signal"] = history_df.apply(
+        data["buy_signal"] = data.apply(
             lambda x: x["High"] if x["signal"] == "BUY" else None, axis=1
         )
-        history_df["sell_signal"] = history_df.apply(
+        data["sell_signal"] = data.apply(
             lambda x: x["Low"] if x["signal"] == "SELL" else None, axis=1
         )
 
-        plot_obj = Plot(
-            data_df=history_df,
+        plot = Plot(
+            data=data,
             title=f"Signals",
         )
-        plot_obj.add_orders_to_main_plot()
-        plot_obj.show_single_ticker()
+        plot.add_orders_to_main_plot()
+        plot.show_single_ticker()
 
 
-def run():
-    settings_json = Settings().load()
+def run() -> None:
+    settings = Settings().load()
 
-    for user, settings_per_account_dict in settings_json.items():
-        for settings_dict in settings_per_account_dict.values():
-            if not settings_dict.get("run_day_trading", False):
+    for user, settings_per_user in settings.items():
+        for setting_per_setup in settings_per_user.values():
+            if not setting_per_setup.get("run_day_trading", False):
                 continue
 
             try:
-                settings_trade_dict = settings_dict["trade_dict"]
-                instruments_obj = Instrument(settings_trade_dict["multiplier"])
+                instrument = Instrument(setting_per_setup["trading"]["multiplier"])
 
-                Calibration(instruments_obj.ids_dict["MONITORING"], settings_dict, user)
+                Calibration(instrument.ids["MONITORING"], setting_per_setup, user)
 
                 TeleLog(message=f"DT calibration: done.")
 

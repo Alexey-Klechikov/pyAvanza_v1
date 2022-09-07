@@ -13,105 +13,105 @@ class TeleLog:
     def __init__(self, **kwargs):
         self.message = ""
 
-        if "portfolio_dict" in kwargs:
-            self.parse_portfolio_dict(kwargs["portfolio_dict"])
+        if "portfolio" in kwargs:
+            self.parse_portfolio(kwargs["portfolio"])
 
-        if "orders_dict" in kwargs:
-            self.parse_orders_dict(kwargs["orders_dict"])
+        if "orders" in kwargs:
+            self.parse_orders(kwargs["orders"])
 
-        if "watchlists_analysis_log_list" in kwargs:
-            self.parse_watchlists_analysis_log(kwargs["watchlists_analysis_log_list"])
+        if "watch_lists_analysis_log" in kwargs:
+            self.parse_watch_lists_analysis_log(kwargs["watch_lists_analysis_log"])
 
-        if "completed_orders_list" in kwargs:
-            self.parse_completed_orders_list(kwargs["completed_orders_list"])
+        if "completed_orders" in kwargs:
+            self.parse_completed_orders(kwargs["completed_orders"])
 
-        if "day_trading_stats_dict" in kwargs:
-            self.parse_day_trading_stats_dict(kwargs["day_trading_stats_dict"])
+        if "day_trading_stats" in kwargs:
+            self.parse_day_trading_stats(kwargs["day_trading_stats"])
 
         if "crash_report" in kwargs:
             self.message = kwargs["crash_report"]
-        
+
         if "message" in kwargs:
             self.message = kwargs["message"]
-            
+
         self.dump_to_telegram()
 
-    def parse_day_trading_stats_dict(self, day_trading_stats_dict):
-        log.debug("Parse day_trading_stats_dict")
+    def parse_day_trading_stats(self, day_trading_stats: dict) -> None:
+        log.debug("Parse day_trading_stats")
 
         profit = round(
-            day_trading_stats_dict["balance_after"]
-            - day_trading_stats_dict["balance_before"]
+            day_trading_stats["balance_after"] - day_trading_stats["balance_before"]
         )
 
-        profit_percentage = round(100 * profit / day_trading_stats_dict["budget"], 2)
+        profit_percentage = round(100 * profit / day_trading_stats["budget"], 2)
 
-        self.message += f'DT: budget: {day_trading_stats_dict["budget"]}, profit: {profit_percentage}% ({profit} SEK)'
+        self.message += f'DT: budget: {day_trading_stats["budget"]}, profit: {profit_percentage}% ({profit} SEK)'
 
-    def parse_portfolio_dict(self, portfolio_dict):
-        log.debug("Parse portfolio_dict")
+    def parse_portfolio(self, portfolio: dict) -> None:
+        log.debug("Parse portfolio")
 
         free_funds = "\n".join(
             [
                 f"> {account}: {funds}"
-                for account, funds in portfolio_dict["buying_power"].items()
+                for account, funds in portfolio["buying_power"].items()
             ]
         )
-        self.message += f'LT: Total value: {round(portfolio_dict["total_own_capital"])}\n\nTotal free funds:\n{free_funds}\n\n'
+        self.message += f'LT: Total value: {round(portfolio["total_own_capital"])}\n\nTotal free funds:\n{free_funds}\n\n'
 
-    def parse_watchlists_analysis_log(self, watchlists_analysis_log_list):
-        log.debug("Parse watchlists_analysis_log_list")
+    def parse_watch_lists_analysis_log(self, watch_lists_analysis_log: list) -> None:
+        log.debug("Parse watch_lists_analysis_log")
 
-        self.message = "\n".join(watchlists_analysis_log_list)
+        self.message = "\n".join(watch_lists_analysis_log)
 
-    def parse_orders_dict(self, orders_dict):
-        log.debug("Parse orders_dict")
+    def parse_orders(self, orders: dict) -> str:
+        log.debug("Parse orders")
 
-        for order_type, orders_list in orders_dict.items():
-            if len(orders_list) == 0:
+        for order_type, orders_by_type in orders.items():
+            if len(orders_by_type) == 0:
                 continue
 
             self.message += f"{order_type.upper()} orders:\n\n"
-            for order_dict in orders_list:
-                message_list = list()
+
+            for order in orders_by_type:
+                order_messages = list()
 
                 if order_type == "buy":
-                    message_list = [
-                        f"> Ticker: {order_dict['name']} ({order_dict['ticker_yahoo']})",
-                        f">> Budget: {order_dict['budget']} SEK",
+                    order_messages = [
+                        f"> Ticker: {order['name']} ({order['ticker_yahoo']})",
+                        f">> Budget: {order['budget']} SEK",
                     ]
 
                 elif order_type == "sell":
-                    message_list = [
-                        f"> Ticker: {order_dict['name']} ({order_dict['ticker_yahoo']})",
-                        f">> Value: {round(float(order_dict['price']) * int(order_dict['volume']))} SEK",
-                        f">> Profit: {order_dict['profit']} %",
+                    order_messages = [
+                        f"> Ticker: {order['name']} ({order['ticker_yahoo']})",
+                        f">> Value: {round(float(order['price']) * int(order['volume']))} SEK",
+                        f">> Profit: {order['profit']} %",
                     ]
 
                 elif order_type == "take_profit":
-                    message_list = [
-                        f"> Ticker: {order_dict['name']} ({order_dict['ticker_yahoo']})",
-                        f">> Value: {round(float(order_dict['price']) * int(order_dict['volume']))} SEK",
-                        f">> Profit: {order_dict['profit']} %",
+                    order_messages = [
+                        f"> Ticker: {order['name']} ({order['ticker_yahoo']})",
+                        f">> Value: {round(float(order['price']) * int(order['volume']))} SEK",
+                        f">> Profit: {order['profit']} %",
                     ]
 
-                self.message += "\n".join(message_list + ["\n"])
+                self.message += "\n".join(order_messages + ["\n"])
 
         return self.message
 
-    def parse_completed_orders_list(self, completed_orders_list):
-        log.debug("Parse completed_orders_list")
+    def parse_completed_orders(self, completed_orders: list) -> str:
+        log.debug("Parse completed_orders")
 
-        orders_list = [
-            " / ".join([f"{k}: {v}" for k, v in order_dict.items()])
-            for order_dict in completed_orders_list
+        orders = [
+            " / ".join([f"{k}: {v}" for k, v in order.items()])
+            for order in completed_orders
         ]
 
-        self.message = "\n".join(orders_list)
+        self.message = "\n".join(orders)
 
         return self.message
 
-    def dump_to_telegram(self):
+    def dump_to_telegram(self) -> None:
         log.info("Dump log to Telegram")
 
         telegram_send.send(messages=[self.message])

@@ -5,7 +5,7 @@ It will import other modules to run the analysis on the stocks -> place orders -
 
 import logging
 import traceback
-
+from typing import Tuple
 
 from .utils import Settings
 from .utils import History
@@ -19,61 +19,61 @@ log = logging.getLogger("main.long_trading")
 
 class Portfolio_Analysis:
     def __init__(self, **kwargs):
-        self.strategies_dict = Strategy_TA.load("TA")
-        self.signals_dict = kwargs.get("signals_dict", dict())
+        self.strategies = Strategy_TA.load("TA")
+        self.signals = kwargs.get("signals", dict())
 
-        self.ava = Context(kwargs["user"], kwargs["accounts_dict"])
-        self.run_analysis(kwargs["accounts_dict"], kwargs["log_to_telegram"])
+        self.ava = Context(kwargs["user"], kwargs["accounts"])
+        self.run_analysis(kwargs["accounts"], kwargs["log_to_telegram"])
 
-    def get_signal_on_ticker(self, ticker_yahoo, ticker_ava):
+    def get_signal_on_ticker(self, ticker_yahoo: str, ticker_ava: str) -> dict:
         log.info(f"Getting signal")
 
-        if ticker_yahoo not in self.signals_dict:
+        if ticker_yahoo not in self.signals:
             try:
-                history_df = History(
-                    ticker_yahoo, "18mo", "1d", cache="skip"
-                ).history_df
+                data = History(ticker_yahoo, "18mo", "1d", cache="skip").data
 
-                if str(history_df.iloc[-1]["Close"]) == "nan":
-                    self.ava.update_todays_ochl(history_df, ticker_ava)
+                if str(data.iloc[-1]["Close"]) == "nan":
+                    self.ava.update_todays_ochl(data, ticker_ava)
 
                 strategy_obj = Strategy_TA(
-                    history_df,
-                    strategies_list=self.strategies_dict.get(ticker_yahoo, list()),
+                    data,
+                    strategies=self.strategies.get(ticker_yahoo, list()),
                 )
 
             except Exception as e:
                 log.error(f"Error (get_signal_on_ticker): {e}")
 
-                return None
+                return {}
 
-            self.signals_dict[ticker_yahoo] = {
+            self.signals[ticker_yahoo] = {
                 "signal": strategy_obj.summary["signal"],
                 "return": strategy_obj.summary["max_output"]["result"],
             }
 
-        return self.signals_dict[ticker_yahoo]
+        return self.signals[ticker_yahoo]
 
-    def create_sell_orders(self):
+    def create_sell_orders(self) -> Tuple[list, dict]:
         log.info(f"Walk through portfolio (sell)")
 
-        orders_list, portfolio_tickers_dict = list(), dict()
-        if self.ava.portfolio_dict["positions"]["df"] is not None:
-            for i, row in self.ava.portfolio_dict["positions"]["df"].iterrows():
+        orders, portfolio_tickers = list(), dict()
+        if self.ava.portfolio["positions"]["df"] is not None:
+            for i, row in self.ava.portfolio["positions"]["df"].iterrows():
                 log.info(
-                    f'Portfolio ({int(i) + 1}/{self.ava.portfolio_dict["positions"]["df"].shape[0]}): {row["ticker_yahoo"]}'
+                    f'Portfolio ({int(i) + 1}/{self.ava.portfolio["positions"]["df"].shape[0]}): {row["ticker_yahoo"]}'
                 )
 
-                portfolio_tickers_dict[row["ticker_yahoo"]] = {"row": row}
+                portfolio_tickers[row["ticker_yahoo"]] = {"row": row}
 
-                signal_dict = self.get_signal_on_ticker(
+                signal = self.get_signal_on_ticker(
                     row["ticker_yahoo"], row["orderbookId"]
                 )
-                if signal_dict is None or signal_dict["signal"] == "buy":
+
+                if signal.get("signal") != "sell":
                     continue
 
                 log.info("> SELL")
-                orders_list.append(
+
+                orders.append(
                     {
                         "account_id": row["accountId"],
                         "order_book_id": row["orderbookId"],
@@ -82,157 +82,158 @@ class Portfolio_Analysis:
                         "profit": row["profitPercent"],
                         "name": row["name"],
                         "ticker_yahoo": row["ticker_yahoo"],
-                        "max_return": signal_dict["return"],
+                        "max_return": signal["return"],
                     }
                 )
 
-        self.ava.create_orders(orders_list, "sell")
+        self.ava.create_orders(orders, "sell")
 
-        return orders_list, portfolio_tickers_dict
+        return orders, portfolio_tickers
 
-    def create_buy_orders(self, portfolio_tickers_dict):
+    def create_buy_orders(self, portfolio_tickers: dict) -> Tuple[list, dict]:
         log.info(f"Walk through budget lists (buy)")
 
-        orders_list = list()
-        for budget_rule_name, watchlist_dict in self.ava.budget_rules_dict.items():
-            for ticker_dict in watchlist_dict["tickers"]:
-                if ticker_dict["ticker_yahoo"] in portfolio_tickers_dict:
-                    portfolio_tickers_dict[ticker_dict["ticker_yahoo"]]["budget"] = (
+        orders = list()
+        for budget_rule_name, watch_list in self.ava.budget_rules.items():
+            for ticker in watch_list["tickers"]:
+                if ticker["ticker_yahoo"] in portfolio_tickers:
+                    portfolio_tickers[ticker["ticker_yahoo"]]["budget"] = (
                         int(budget_rule_name) * 1000
                     )
 
                     continue
 
                 log.info(
-                    f'> Budget list "{budget_rule_name}": {ticker_dict["ticker_yahoo"]}'
+                    f'> Budget list "{budget_rule_name}": {ticker["ticker_yahoo"]}'
                 )
 
-                signal_dict = self.get_signal_on_ticker(
-                    ticker_dict["ticker_yahoo"], ticker_dict["order_book_id"]
+                signal = self.get_signal_on_ticker(
+                    ticker["ticker_yahoo"], ticker["order_book_id"]
                 )
-                if signal_dict is None or signal_dict["signal"] == "sell":
+
+                if signal.get("signal") != "buy":
                     continue
 
-                stock_price_dict = self.ava.get_stock_price(
-                    ticker_dict["order_book_id"]
-                )
+                stock_price = self.ava.get_stock_price(ticker["order_book_id"])
+
                 try:
-                    volume = int(
-                        int(budget_rule_name) * 1000 // stock_price_dict["buy"]
-                    )
+                    volume = int(int(budget_rule_name) * 1000 // stock_price["buy"])
+
                 except Exception as e:
                     log.error(f"Error (create_buy_orders): {e}")
                     continue
 
                 log.info("> BUY")
-                orders_list.append(
+
+                orders.append(
                     {
-                        "ticker_yahoo": ticker_dict["ticker_yahoo"],
-                        "order_book_id": ticker_dict["order_book_id"],
+                        "ticker_yahoo": ticker["ticker_yahoo"],
+                        "order_book_id": ticker["order_book_id"],
                         "budget": int(budget_rule_name) * 1000,
-                        "price": stock_price_dict["buy"],
+                        "price": stock_price["buy"],
                         "volume": volume,
-                        "name": ticker_dict["name"],
-                        "max_return": signal_dict["return"],
+                        "name": ticker["name"],
+                        "max_return": signal["return"],
                     }
                 )
 
-        created_orders_list = self.ava.create_orders(orders_list, "buy")
+        created_orders = self.ava.create_orders(orders, "buy")
 
-        return created_orders_list, portfolio_tickers_dict
+        return created_orders, portfolio_tickers
 
     def create_take_profit_orders(
-        self, portfolio_tickers_dict, created_sell_orders_list
-    ):
+        self, portfolio_tickers: dict, created_sell_orders: list
+    ) -> list:
         log.info(f"Walk through portfolio (take profit)")
 
-        for sell_order_dict in created_sell_orders_list:
-            if sell_order_dict["ticker_yahoo"] in portfolio_tickers_dict:
-                portfolio_tickers_dict.pop(sell_order_dict["ticker_yahoo"])
+        for sell_order in created_sell_orders:
+            if sell_order["ticker_yahoo"] in portfolio_tickers:
+                portfolio_tickers.pop(sell_order["ticker_yahoo"])
 
-        orders_list = list()
-        for ticker_dict in portfolio_tickers_dict.values():
-            ticker_row, ticker_budget = ticker_dict["row"], ticker_dict.get(
-                "budget", None
-            )
+        orders = list()
+
+        for ticker in portfolio_tickers.values():
+            ticker_budget = ticker.get("budget")
 
             if ticker_budget is None:
-                log.error(f'> Ticker "{ticker_row["ticker_yahoo"]}" has no budget')
+                log.error(f'> Ticker "{ticker["row"]["ticker_yahoo"]}" has no budget')
 
                 continue
 
-            log.info(f'> Ticker: {ticker_row["ticker_yahoo"]}')
+            log.info(f'> Ticker: {ticker["row"]["ticker_yahoo"]}')
 
             volume_sell = (
-                ticker_row["value"] - max(ticker_row["acquiredValue"], ticker_budget)
-            ) // ticker_row["lastPrice"]
+                ticker["row"]["value"]
+                - max(ticker["row"]["acquiredValue"], ticker_budget)
+            ) // ticker["row"]["lastPrice"]
 
-            skip_conditions_list = [ticker_row["profitPercent"] < 10, volume_sell <= 0]
+            conditions_skip = [ticker["row"]["profitPercent"] < 10, volume_sell <= 0]
 
-            if any(skip_conditions_list):
+            if any(conditions_skip):
                 continue
 
             log.info("> TAKE PROFIT")
-            orders_list.append(
+            orders.append(
                 {
-                    "account_id": ticker_row["accountId"],
-                    "order_book_id": ticker_row["orderbookId"],
+                    "account_id": ticker["row"]["accountId"],
+                    "order_book_id": ticker["row"]["orderbookId"],
                     "volume": volume_sell,
-                    "price": ticker_row["lastPrice"],
+                    "price": ticker["row"]["lastPrice"],
                     "profit": round(
                         (
-                            (volume_sell * ticker_row["lastPrice"])
-                            / max(ticker_row["acquiredValue"], ticker_budget)
+                            (volume_sell * ticker["row"]["lastPrice"])
+                            / max(ticker["row"]["acquiredValue"], ticker_budget)
                         )
                         * 100,
                         1,
                     ),
-                    "name": ticker_row["name"],
-                    "ticker_yahoo": ticker_row["ticker_yahoo"],
+                    "name": ticker["row"]["name"],
+                    "ticker_yahoo": ticker["row"]["ticker_yahoo"],
                 }
             )
 
-        self.ava.create_orders(orders_list, "take_profit")
+        self.ava.create_orders(orders, "take_profit")
 
-        return orders_list
+        return orders
 
-    def run_analysis(self, accounts_dict, log_to_telegram):
-        log.info(f'Running analysis for account(s): {" & ".join(accounts_dict)}')
-        self.ava.remove_active_orders(account_ids_list=list(accounts_dict.values()))
+    def run_analysis(self, accounts: dict, log_to_telegram: bool) -> None:
+        log.info(f'Running analysis for account(s): {" & ".join(accounts)}')
 
-        created_orders_dict = dict()
-        created_orders_dict["sell"], portfolio_tickers_dict = self.create_sell_orders()
-        created_orders_dict["buy"], portfolio_tickers_dict = self.create_buy_orders(
-            portfolio_tickers_dict
+        self.ava.remove_active_orders(account_ids=list(accounts.values()))
+
+        created_orders = dict()
+        created_orders["sell"], portfolio_tickers = self.create_sell_orders()
+        created_orders["buy"], portfolio_tickers = self.create_buy_orders(
+            portfolio_tickers
         )
-        created_orders_dict["take_profit"] = self.create_take_profit_orders(
-            portfolio_tickers_dict, created_orders_dict["sell"]
+        created_orders["take_profit"] = self.create_take_profit_orders(
+            portfolio_tickers, created_orders["sell"]
         )
 
         if log_to_telegram:
-            TeleLog(
-                portfolio_dict=self.ava.get_portfolio(), orders_dict=created_orders_dict
-            )
+            TeleLog(portfolio=self.ava.get_portfolio(), orders=created_orders)
 
 
-def run():
-    settings_json = Settings().load()
+def run() -> None:
+    settings: dict = Settings().load()
+    signals = dict()
 
-    signals_dict = dict()
-    for user, settings_per_account_dict in settings_json.items():
-        for settings_dict in settings_per_account_dict.values():
-            if not settings_dict.get("run_long_trading", False):
+    for user, settings_per_user in settings.items():
+        for setting_per_setup in settings_per_user.values():
+            if not setting_per_setup.get("run_long_trading", False):
                 continue
 
             try:
-                walkthrough_obj = Portfolio_Analysis(
+                walkthrough = Portfolio_Analysis(
                     user=user,
-                    accounts_dict=settings_dict["accounts"],
-                    signals_dict=signals_dict,
-                    log_to_telegram=settings_dict.get("log_to_telegram", True),
-                    buy_delay_after_sell=settings_dict.get("buy_delay_after_sell", 2),
+                    accounts=setting_per_setup["accounts"],
+                    signals=signals,
+                    log_to_telegram=setting_per_setup.get("log_to_telegram", True),
+                    buy_delay_after_sell=setting_per_setup.get(
+                        "buy_delay_after_sell", 2
+                    ),
                 )
-                signals_dict = walkthrough_obj.signals_dict
+                signals = walkthrough.signals
 
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
