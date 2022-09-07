@@ -49,14 +49,14 @@ class History:
         if self.cache == "append":
             data = (
                 self._read_cache(self.pickle_path)
+                .append(self.extra_data)
                 .append(
                     self._read_ticker(self.ticker_yahoo, self.period, self.interval)
                 )
-                .append(self.extra_data)
                 .fillna(0)
             )
 
-            data = data.groupby(data.index).last()
+            data = data.groupby(data.index).first()
 
             self._dump_cache(self.pickle_path, data)
 

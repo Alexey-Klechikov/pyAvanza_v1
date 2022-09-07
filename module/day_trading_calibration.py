@@ -49,8 +49,12 @@ class Calibration:
             extra_data=extra_data,
         )
 
+        daily_volumes = history.data.groupby([history.data.index.date]).sum()['Volume'].values.tolist() # type: ignore
+
         log.info(
-            f"Dates range: {history.data.index[0].strftime('%Y.%m.%d')} - {history.data.index[-1].strftime('%Y.%m.%d')} ({history.data.shape[0]} rows)"  # type: ignore
+            f"Dates range: {history.data.index[0].strftime('%Y.%m.%d')} - {history.data.index[-1].strftime('%Y.%m.%d')} " # type: ignore
+            + f"({history.data.shape[0]} rows) " 
+            + f"({len([i for i in daily_volumes if i > 0])} / {len(daily_volumes)} days with Volume)" 
         )
 
         strategy = Strategy_DT(

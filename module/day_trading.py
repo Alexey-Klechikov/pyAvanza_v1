@@ -253,7 +253,7 @@ class Helper:
         )
 
         log.info(
-            f'{instrument_type} - {signal.upper()} - (SET order): {order_data["price"]}'
+            f'{instrument_type} - (SET {signal.upper()} order): {order_data["price"]}'
         )
 
     def update_order(
@@ -273,7 +273,7 @@ class Helper:
         )[0]
 
         log.info(
-            f'{instrument_type} - {signal.upper()} - (UPD order): {instrument_status["active_order"]["price"]} -> {price}'
+            f'{instrument_type} - (UPD {signal.upper()} order): {instrument_status["active_order"]["price"]} -> {price}'
         )
 
         self.ava.update_order(instrument_status["active_order"], price)
