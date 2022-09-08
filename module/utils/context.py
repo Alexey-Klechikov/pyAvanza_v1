@@ -11,7 +11,7 @@ import pandas as pd
 from pytz import timezone
 from copy import copy
 from datetime import datetime, timedelta
-from typing import Tuple
+from typing import Tuple, Union
 
 from avanza import Avanza, OrderType, InstrumentType, TimePeriod, Resolution
 
@@ -132,7 +132,7 @@ class Context:
 
         return budget_rules, watch_lists
 
-    def create_orders(self, orders: list, order_type: str) -> list:
+    def create_orders(self, orders: list[dict], order_type: str) -> list[dict]:
         log.debug(f"Creating {order_type} order(s)")
 
         created_orders = list()
@@ -225,6 +225,7 @@ class Context:
 
         try:
             self.ctx.edit_order(**order_attr)
+
         except Exception as e:
             log.error(f"Exception: {e} - {order_attr}")
 
@@ -292,7 +293,7 @@ class Context:
         return data
 
     def remove_active_orders(
-        self, orderbook_ids: list = [], account_ids: list = []
+        self, orderbook_ids: list[Union[str, int]] = [], account_ids: list[Union[str, int]] = []
     ) -> dict:
         active_orders = list()
         removed_orders = {"buy": list(), "sell": list()}

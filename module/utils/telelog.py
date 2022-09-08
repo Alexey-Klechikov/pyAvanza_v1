@@ -58,7 +58,7 @@ class TeleLog:
         )
         self.message += f'LT: Total value: {round(portfolio["total_own_capital"])}\n\nTotal free funds:\n{free_funds}\n\n'
 
-    def parse_watch_lists_analysis_log(self, watch_lists_analysis_log: list) -> None:
+    def parse_watch_lists_analysis_log(self, watch_lists_analysis_log: list[str]) -> None:
         log.debug("Parse watch_lists_analysis_log")
 
         self.message = "\n".join(watch_lists_analysis_log)
@@ -99,7 +99,7 @@ class TeleLog:
 
         return self.message
 
-    def parse_completed_orders(self, completed_orders: list) -> str:
+    def parse_completed_orders(self, completed_orders: list[dict]) -> str:
         log.debug("Parse completed_orders")
 
         orders = [

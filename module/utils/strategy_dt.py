@@ -10,7 +10,7 @@ import warnings
 import pandas as pd
 
 from copy import copy
-from typing import Union, Tuple
+from typing import Tuple, Optional, Literal
 
 
 warnings.filterwarnings("ignore")
@@ -19,6 +19,9 @@ pd.set_option("display.max_rows", 0)
 pd.set_option("display.expand_frame_repr", False)
 
 log = logging.getLogger("main.utils.strategy_dt")
+
+SIGNAL = Literal["BUY", "SELL"]
+ORDER_TYPE = Literal["BULL", "BEAR"]
 
 
 class Strategy_DT:
@@ -136,8 +139,8 @@ class Strategy_DT:
     # Strategies testing
     def get_successful_strategies(self, success_limit: int) -> dict:
         def _buy_order(
-            order: dict, last_candle_signal: Union[str, None]
-        ) -> Union[str, None]:
+            order: dict, last_candle_signal: Optional[SIGNAL]
+        ) -> Optional[ORDER_TYPE]:
             order_type = None
 
             if last_candle_signal == "BUY" and order["BULL"]["status"] == "SELL":
@@ -157,7 +160,7 @@ class Strategy_DT:
 
             return order_type
 
-        def _sell_order(order: dict, stats_counter: dict, orders_history: list) -> None:
+        def _sell_order(order: dict, stats_counter: dict, orders_history: list[dict]) -> None:
             for order_type in order.keys():
                 if order[order_type]["status"] == "BUY":
                     order[order_type]["sell_price"] = (row["High"] + row["Low"]) / 2
@@ -202,7 +205,7 @@ class Strategy_DT:
                     stats_counter[verdict][order_type] += 1
                     orders_history.append(copy(order[order_type]))
 
-        def _get_signal(value: int) -> Union[str, None]:
+        def _get_signal(value: int) -> Optional[SIGNAL]:
             signal = None
 
             if value > 0 and ta_indicator_lambda["buy"](row):
@@ -298,8 +301,8 @@ class Strategy_DT:
 
     def backtest_strategies(self, strategies: dict) -> None:
         def _buy_order(
-            order: dict, last_candle_signal: Union[str, None]
-        ) -> Union[str, None]:
+            order: dict, last_candle_signal: Optional[SIGNAL]
+        ) -> Optional[ORDER_TYPE]:
             order_type = None
 
             if last_candle_signal == "BUY" and order["BULL"]["status"] == "SELL":
@@ -317,7 +320,7 @@ class Strategy_DT:
 
             return order_type
 
-        def _sell_order(order: dict, stats_counter: dict, orders_history: list) -> None:
+        def _sell_order(order: dict, stats_counter: dict, orders_history: list[dict]) -> None:
             for order_type in order.keys():
                 if order[order_type]["status"] == "BUY":
                     order[order_type]["sell_price"] = (row["High"] + row["Low"]) / 2
@@ -362,7 +365,7 @@ class Strategy_DT:
                     stats_counter[order_type][verdict] += 1
                     orders_history.append(copy(order[order_type]))
 
-        def _get_ta_signal(row: pd.Series, ta_indicator: str) -> Union[str, None]:
+        def _get_ta_signal(row: pd.Series, ta_indicator: str) -> Optional[SIGNAL]:
 
             ta_signal = None
 
@@ -375,8 +378,8 @@ class Strategy_DT:
             return ta_signal
 
         def _get_cs_signal(
-            row: pd.Series, patterns: list
-        ) -> Tuple[Union[str, None], Union[str, None]]:
+            row: pd.Series, patterns: list[str]
+        ) -> Tuple[Optional[SIGNAL], Optional[str]]:
             cs_signal, cs_pattern = None, None
 
             for pattern in patterns:
@@ -392,7 +395,7 @@ class Strategy_DT:
             return cs_signal, cs_pattern
 
         def _update_strategies(
-            stats_counter: dict, orders_history: list, strategies: dict
+            stats_counter: dict, orders_history: list[dict], strategies: dict
         ) -> dict:
             for order_type in stats_counter:
                 log.info(

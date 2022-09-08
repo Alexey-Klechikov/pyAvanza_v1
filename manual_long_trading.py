@@ -6,7 +6,6 @@ This module is used for manual runs (checkups, improvements, tests)
 import logging
 import traceback
 import pandas as pd
-from typing import Union
 
 from module.utils import Plot
 from module.utils import Logger

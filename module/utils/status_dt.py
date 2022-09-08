@@ -56,7 +56,9 @@ class Status_DT:
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")
 
-    def update_instrument(self, instrument_type: str, latest_instrument_status: dict) -> None:
+    def update_instrument(
+        self, instrument_type: str, latest_instrument_status: dict
+    ) -> None:
         instrument_status = self.get_instrument(instrument_type)
 
         if latest_instrument_status.get("has_position"):

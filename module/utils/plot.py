@@ -23,7 +23,7 @@ class Plot:
 
         self.plots = list()
 
-    def add_horizontal_lines(self, level_color: list, panel_num: int) -> None:
+    def add_horizontal_lines(self, level_color: list[tuple], panel_num: int) -> None:
         horizontal_lines_plots = list()
 
         for level, color in level_color:

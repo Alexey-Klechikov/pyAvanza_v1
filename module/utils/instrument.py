@@ -7,6 +7,7 @@ import os
 import json
 import logging
 import yfinance as yf
+from typing import Union
 
 
 log = logging.getLogger("main.utils.instruments")
@@ -16,7 +17,7 @@ class Instrument:
     def __init__(self, trading_multiplier: int):
         self.ids = self.get_ids(trading_multiplier)
 
-    def get_ids(self, trading_multiplier: int) -> dict:
+    def get_ids(self, trading_multiplier: Union[int, str]) -> dict:
         log.info(
             f"Getting instrument_ids from instruments_DT.json for trading_multiplier={trading_multiplier}"
         )

@@ -23,22 +23,23 @@ class ColoredFormatter(logging.Formatter):
     PREFIX = "\033["
     SUFFIX = "\033[0m"
 
-    def __init__(self, pattern):
+    def __init__(self, pattern: str) -> None:
         logging.Formatter.__init__(self, pattern)
         self.ptn = pattern
 
-    def format(self, record):
+    def format(self, record) -> str:
         colored_record = copy.copy(record)
         levelname = colored_record.levelname
         colored_levelname = (
             f"{self.PREFIX}{self.MAPPING.get(levelname, 38)}m{levelname}{self.SUFFIX}"
         )
         colored_record.levelname = colored_levelname
+
         return logging.Formatter.format(self, colored_record)
 
 
 class OneLineFormatter(logging.Formatter):
-    def format(self, record):
+    def format(self, record) -> str:
         s = super(OneLineFormatter, self).format(record)
         s = s.replace("\n", "")
         if s.find("Done"):

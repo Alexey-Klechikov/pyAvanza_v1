@@ -52,7 +52,7 @@ class Portfolio_Analysis:
 
         return self.signals[ticker_yahoo]
 
-    def create_sell_orders(self) -> Tuple[list, dict]:
+    def create_sell_orders(self) -> Tuple[list[dict], dict]:
         log.info(f"Walk through portfolio (sell)")
 
         orders, portfolio_tickers = list(), dict()
@@ -90,7 +90,7 @@ class Portfolio_Analysis:
 
         return orders, portfolio_tickers
 
-    def create_buy_orders(self, portfolio_tickers: dict) -> Tuple[list, dict]:
+    def create_buy_orders(self, portfolio_tickers: dict) -> Tuple[list[dict], dict]:
         log.info(f"Walk through budget lists (buy)")
 
         orders = list()
@@ -142,8 +142,8 @@ class Portfolio_Analysis:
         return created_orders, portfolio_tickers
 
     def create_take_profit_orders(
-        self, portfolio_tickers: dict, created_sell_orders: list
-    ) -> list:
+        self, portfolio_tickers: dict, created_sell_orders: list[dict]
+    ) -> list[dict]:
         log.info(f"Walk through portfolio (take profit)")
 
         for sell_order in created_sell_orders:

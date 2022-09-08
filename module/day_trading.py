@@ -5,7 +5,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 from requests import ReadTimeout
-from typing import Tuple, Union
+from typing import Tuple, Optional
 
 from .utils import History
 from .utils import Context
@@ -41,7 +41,7 @@ class Helper:
         strategies: dict,
         instrument_type: str,
     ) -> bool:
-        def _get_ta_signal(row: pd.Series, ta_indicator: str) -> Union[str, None]:
+        def _get_ta_signal(row: pd.Series, ta_indicator: str) -> Optional[str]:
             ta_signal = None
 
             if strategy.ta_indicators[ta_indicator]["buy"](row):
@@ -54,7 +54,7 @@ class Helper:
 
         def _get_cs_signal(
             row: pd.Series, patterns: list
-        ) -> Tuple[Union[str, None], Union[str, None]]:
+        ) -> Tuple[Optional[str], Optional[str]]:
             cs_signal, cs_pattern = None, None
 
             for pattern in patterns:
@@ -261,7 +261,7 @@ class Helper:
         signal: str,
         instrument_type: str,
         instrument_status: dict,
-        price: Union[float, None],
+        price: Optional[float],
     ) -> None:
         if price is None:
             return
@@ -467,7 +467,7 @@ class Day_Trading:
 
             self.helper.update_last_stdout_line()
 
-            time.sleep(40)
+            time.sleep(60)
 
         self.balance["after"] = sum(
             self.helper.ava.get_portfolio()["buying_power"].values()

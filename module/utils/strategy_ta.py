@@ -14,6 +14,8 @@ import yfinance as yf
 import pandas_ta as ta
 
 from copy import copy
+from typing import Tuple
+from context import Context
 
 
 warnings.filterwarnings("ignore")
@@ -38,45 +40,8 @@ class Strategy_TA:
         strategies = self.generate_strategies(strategies_component_names)
         self.summary = self.get_signal(kwargs.get("ticker_name", False), strategies)
 
-    def read_ticker(self, ticker_yahoo, ticker_ava, ava, cache, period, interval):
-        log.debug(f"Reading ticker")
-
-        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        pickle_path = f"{current_dir}/cache/{ticker_yahoo}.pickle"
-
-        directory_exists = os.path.exists("/".join(pickle_path.split("/")[:-1]))
-        if not directory_exists:
-            os.makedirs("/".join(pickle_path.split("/")[:-1]))
-
-        if not cache:
-            if os.path.exists(pickle_path):
-                os.remove(pickle_path)
-
-        # Check if cache exists (and is completed)
-        for _ in range(2):
-            try:
-                if not os.path.exists(pickle_path):
-                    with open(pickle_path, "wb") as pcl:
-                        ticker_obj = yf.Ticker(ticker_yahoo)
-                        data = ticker_obj.history(period=period, interval=interval)
-
-                        if str(data.iloc[-1]["Close"]) == "nan":
-                            ava.update_todays_ochl(cache[1], ticker_ava)
-
-                        cache = (ticker_obj, data)
-                        pickle.dump(cache, pcl)
-
-                with open(pickle_path, "rb") as pcl:
-                    cache = pickle.load(pcl)
-                    break
-
-            except EOFError:
-                os.remove(pickle_path)
-
-        return cache
-
-    def prepare_conditions(self, data, skip_points):
-        def _check_enough_data(column, data):
+    def prepare_conditions(self, data: pd.DataFrame, skip_points: int) -> Tuple[pd.DataFrame, dict]:
+        def _check_enough_data(column: str, data: pd.DataFrame) -> bool:
             if column in data.columns:
                 return True
 
@@ -342,7 +307,7 @@ class Strategy_TA:
 
         return strategies_component_names
 
-    def parse_strategies_names(self, strategies_names: list) -> list:
+    def parse_strategies_names(self, strategies_names: list[str]) -> list[list[tuple[str, str]]]:
         log.debug("Parsing strategies list")
 
         strategies_component_names = [[("Blank", "HOLD")]]
@@ -355,11 +320,11 @@ class Strategy_TA:
             strategy_components = [(i[0][1:-1], i[1]) for i in strategy_components]
 
             # [('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')]
-            strategies_component_names.append(strategy_components)
+            strategies_component_names += [strategy_components]
 
         return strategies_component_names
 
-    def generate_strategies(self, strategies_component_names: list) -> dict:
+    def generate_strategies(self, strategies_component_names: list[list[tuple[str, str]]]) -> dict:
         log.debug("Generating strategies dict")
 
         strategies = dict()
@@ -467,7 +432,7 @@ class Strategy_TA:
                 and strategy != "(Blank) HOLD"
             ):
                 for col in ["total", "buy_signal", "sell_signal"]:
-                    self.data.loc[:, col] = [i[col] for i in balance_sequence]
+                    self.data.loc[:, col] = [i[col] for i in balance_sequence]  # type: ignore
 
                 summary["max_output"] = {
                     "strategy": strategy,
@@ -516,7 +481,7 @@ class Strategy_TA:
         return strategies
 
     @staticmethod
-    def dump(filename_suffix, strategies):
+    def dump(filename_suffix: str, strategies: dict):
         log.info(f"Dump strategies_{filename_suffix}.json")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
