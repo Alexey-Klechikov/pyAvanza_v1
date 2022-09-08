@@ -44,7 +44,7 @@ class OneLineFormatter(logging.Formatter):
         if s.find("Done"):
             s = s.split("--")[0]
 
-        for (block, length) in zip(s.split("]")[:3], [8, 25, 29]):
+        for (block, length) in zip(s.split("]")[:3], [8, 25, 30]):
             s = s.replace(
                 f"{block}]", f"{block}]" + (" " * (length - len(block)))
             )

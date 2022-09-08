@@ -135,7 +135,9 @@ class Strategy_DT:
 
     # Strategies testing
     def get_successful_strategies(self, success_limit: int) -> dict:
-        def _buy_order(order: dict, last_candle_signal: Union[str, None]) -> Union[str, None]:
+        def _buy_order(
+            order: dict, last_candle_signal: Union[str, None]
+        ) -> Union[str, None]:
             order_type = None
 
             if last_candle_signal == "BUY" and order["BULL"]["status"] == "SELL":
@@ -145,7 +147,11 @@ class Strategy_DT:
                 order_type = "BEAR"
 
             if order_type is not None:
-                order[order_type]["buy_price"] = (row["High"] + row["Low"]) / 2
+                order[order_type]["buy_price"] = ((row["High"] + row["Low"]) / 2) * (
+                    1.00015 if order_type == "BULL" else 0.99985
+                )
+                order[order_type]["status"] = "BUY"
+                order[order_type]["buy_time"] = row.name
                 order[order_type]["status"] = "BUY"
                 order[order_type]["time_buy"] = index
 
@@ -166,10 +172,10 @@ class Strategy_DT:
                             1 + self.order_price_limits["TP"]
                         )
 
-                        if row["Low"] <= stop_loss:
+                        if order[order_type]["sell_price"] <= stop_loss:
                             verdict = "bad"
 
-                        elif row["High"] >= take_profit:
+                        elif order[order_type]["sell_price"] >= take_profit:
                             verdict = "good"
 
                     elif order_type == "BEAR":
@@ -180,10 +186,10 @@ class Strategy_DT:
                             1 + self.order_price_limits["SL"]
                         )
 
-                        if row["Low"] <= take_profit:
+                        if order[order_type]["sell_price"] <= take_profit:
                             verdict = "good"
 
-                        elif row["High"] >= stop_loss:
+                        elif order[order_type]["sell_price"] >= stop_loss:
                             verdict = "bad"
 
                     if verdict is None:
@@ -291,7 +297,9 @@ class Strategy_DT:
         return strategies
 
     def backtest_strategies(self, strategies: dict) -> None:
-        def _buy_order(order: dict, last_candle_signal: Union[str, None]) -> Union[str, None]:
+        def _buy_order(
+            order: dict, last_candle_signal: Union[str, None]
+        ) -> Union[str, None]:
             order_type = None
 
             if last_candle_signal == "BUY" and order["BULL"]["status"] == "SELL":
@@ -301,7 +309,9 @@ class Strategy_DT:
                 order_type = "BEAR"
 
             if order_type is not None:
-                order[order_type]["buy_price"] = (row["High"] + row["Low"]) / 2
+                order[order_type]["buy_price"] = ((row["High"] + row["Low"]) / 2) * (
+                    1.00015 if order_type == "BULL" else 0.99985
+                )
                 order[order_type]["status"] = "BUY"
                 order[order_type]["time_buy"] = index
 
@@ -322,10 +332,10 @@ class Strategy_DT:
                             1 + self.order_price_limits["TP"]
                         )
 
-                        if row["Low"] <= stop_loss:
+                        if order[order_type]["sell_price"] <= stop_loss:
                             verdict = "bad"
 
-                        elif row["High"] >= take_profit:
+                        elif order[order_type]["sell_price"] >= take_profit:
                             verdict = "good"
 
                     elif order_type == "BEAR":
@@ -336,15 +346,15 @@ class Strategy_DT:
                             1 + self.order_price_limits["SL"]
                         )
 
-                        if row["Low"] <= take_profit:
+                        if order[order_type]["sell_price"] <= take_profit:
                             verdict = "good"
 
-                        elif row["High"] >= stop_loss:
+                        elif order[order_type]["sell_price"] >= stop_loss:
                             verdict = "bad"
 
                     if verdict is None:
                         continue
-                    
+
                     order[order_type].update(
                         {"order_type": order_type, "status": "SELL", "verdict": verdict}
                     )
@@ -364,7 +374,9 @@ class Strategy_DT:
 
             return ta_signal
 
-        def _get_cs_signal(row: pd.Series, patterns: list) -> Tuple[Union[str, None], Union[str, None]]:
+        def _get_cs_signal(
+            row: pd.Series, patterns: list
+        ) -> Tuple[Union[str, None], Union[str, None]]:
             cs_signal, cs_pattern = None, None
 
             for pattern in patterns:
@@ -379,7 +391,9 @@ class Strategy_DT:
 
             return cs_signal, cs_pattern
 
-        def _update_strategies(stats_counter: dict, orders_history: list, strategies: dict) -> dict:
+        def _update_strategies(
+            stats_counter: dict, orders_history: list, strategies: dict
+        ) -> dict:
             for order_type in stats_counter:
                 log.info(
                     f"{order_type}: {stats_counter[order_type]['good']} Good / {stats_counter[order_type]['bad']} Bad"
@@ -388,9 +402,7 @@ class Strategy_DT:
             orders_stats = dict()
             for order in orders_history:
                 key = f'{order["order_type"]}-{order["ta_indicator"]}-{order["cs_pattern"]}'
-                orders_stats.setdefault(key, dict()).setdefault(
-                    order["verdict"], 0
-                )
+                orders_stats.setdefault(key, dict()).setdefault(order["verdict"], 0)
                 orders_stats[key][order["verdict"]] += 1
 
             for path, stats in orders_stats.items():
@@ -469,7 +481,7 @@ class Strategy_DT:
     @staticmethod
     def load(filename_suffix: str) -> dict:
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        
+
         try:
             with open(
                 f"{current_dir}/data/strategies_{filename_suffix}.json", "r"

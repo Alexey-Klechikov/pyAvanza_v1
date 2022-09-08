@@ -1,0 +1,40 @@
+{
+    "ava_elbe": {
+        "1": {
+            "accounts": {
+                "Bostad - Elena": 6574382,
+                "Bostad - Alex": 9568450
+            },
+            "log_to_telegram": true,
+            "run_long_trading": true,
+            "budget_list_thresholds": {
+                "2200": "10",
+                "2000": "5",
+                "1800": "3",
+                "1600": "1"
+            }
+        },
+        "2": {
+            "accounts": {
+                "DT": 5554179
+            },
+            "log_to_telegram": true,
+            "run_day_trading": true,
+            "trading": {
+                "budget": 3000,
+                "multiplier": 20, 
+                "limits": {
+                    "TP": 1.03,
+                    "SL": 0.975, 
+                    "TP_trailing": 1.051,
+                    "SL_trailing": 0.98               
+                },
+                "trailing_SL_timer": 20
+            },
+            "calibration": {
+                "update": true,
+                "success_limit": 61
+            }
+        }
+    }
+}
