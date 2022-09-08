@@ -15,7 +15,7 @@ import pandas_ta as ta
 
 from copy import copy
 from typing import Tuple
-from context import Context
+from .context import Context
 
 
 warnings.filterwarnings("ignore")

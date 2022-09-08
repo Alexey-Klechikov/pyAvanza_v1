@@ -26,14 +26,14 @@
                 "limits": {
                     "TP": 1.03,
                     "SL": 0.975, 
-                    "TP_trailing": 1.051,
-                    "SL_trailing": 0.98               
+                    "TP_trailing": 1.046,
+                    "SL_trailing": 0.985               
                 },
-                "trailing_SL_timer": 20
+                "trailing_SL_timer": 30
             },
             "calibration": {
                 "update": true,
-                "success_limit": 61
+                "success_limit": 63
             }
         }
     }

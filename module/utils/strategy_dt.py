@@ -178,7 +178,7 @@ class Strategy_DT:
                         if order[order_type]["sell_price"] <= stop_loss:
                             verdict = "bad"
 
-                        elif order[order_type]["sell_price"] >= take_profit:
+                        elif row["High"] >= take_profit:
                             verdict = "good"
 
                     elif order_type == "BEAR":
@@ -189,7 +189,7 @@ class Strategy_DT:
                             1 + self.order_price_limits["SL"]
                         )
 
-                        if order[order_type]["sell_price"] <= take_profit:
+                        if row["Low"] <= take_profit:
                             verdict = "good"
 
                         elif order[order_type]["sell_price"] >= stop_loss:
@@ -233,7 +233,7 @@ class Strategy_DT:
                     )
                 )
 
-                if efficiency_percent > success_limit:
+                if efficiency_percent >= success_limit:
                     strategies[order_type].setdefault(ta_indicator, list())
                     strategies[order_type][ta_indicator].append(column)
 
@@ -338,7 +338,7 @@ class Strategy_DT:
                         if order[order_type]["sell_price"] <= stop_loss:
                             verdict = "bad"
 
-                        elif order[order_type]["sell_price"] >= take_profit:
+                        elif row["High"] >= take_profit:
                             verdict = "good"
 
                     elif order_type == "BEAR":
@@ -349,7 +349,7 @@ class Strategy_DT:
                             1 + self.order_price_limits["SL"]
                         )
 
-                        if order[order_type]["sell_price"] <= take_profit:
+                        if row['Low'] <= take_profit:
                             verdict = "good"
 
                         elif order[order_type]["sell_price"] >= stop_loss:
