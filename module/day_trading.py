@@ -238,6 +238,10 @@ class Helper:
                 if certificate_info[signal] < instrument_status["stop_loss_price"]
                 else instrument_status["take_profit_price"]
             )
+            
+            if len(certificate_info["positions"]) == 0:
+                log.error(f"Nothing to sell: order_data: {order_data} // certificate_info: {certificate_info}")
+                return
 
             order_data.update(
                 {
