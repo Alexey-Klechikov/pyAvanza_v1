@@ -31,6 +31,13 @@ class Helper:
         self.instrument = Instrument(self.settings_trading["multiplier"])
 
         self.last_line = {"overwrite": True, "messages": list()}
+        self.log_data = {
+            "balance_before": 0,
+            "balance_after": 0,
+            "number_errors": 0,
+            "number_trades": 0,
+            "budget": self.settings_trading["budget"],
+        }
 
         self._update_budget()
 
@@ -218,10 +225,15 @@ class Helper:
         }
 
         if certificate_info[signal] is None:
+            self.log_data["number_errors"] += 1
+
             log.error(f"Certificate info could not be fetched")
+            
             return
 
         if signal == "buy":
+            self.log_data["number_trades"] += 1
+
             order_data.update(
                 {
                     "price": certificate_info[signal],
@@ -238,9 +250,14 @@ class Helper:
                 if certificate_info[signal] < instrument_status["stop_loss_price"]
                 else instrument_status["take_profit_price"]
             )
-            
+
             if len(certificate_info["positions"]) == 0:
-                log.error(f"Nothing to sell: order_data: {order_data} // certificate_info: {certificate_info}")
+                self.log_data["number_errors"] += 1
+                
+                log.error(
+                    f"Nothing to sell: order_data: {order_data} // certificate_info: {certificate_info}"
+                )
+
                 return
 
             order_data.update(
@@ -309,7 +326,6 @@ class Day_Trading:
         self.settings_trading = settings["trading"]
 
         self.helper = Helper(user, accounts, settings)
-        self.balance = {"before": 0, "after": 0}
         self.status = Status(self.settings_trading)
 
         while True:
@@ -439,12 +455,12 @@ class Day_Trading:
 
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:
-        self.balance["before"] = sum(
+        self.helper.log_data["balance_before"] = sum(
             self.helper.ava.get_portfolio()["buying_power"].values()
         )
 
         log.info(
-            f'> Running trading for account(s): {" & ".join(self.helper.accounts)} [{self.balance["before"]}]'
+            f'> Running trading for account(s): {" & ".join(self.helper.accounts)} [{self.helper.log_data["balance_before"]}]'
         )
 
         strategies = dict()
@@ -473,20 +489,14 @@ class Day_Trading:
 
             time.sleep(60)
 
-        self.balance["after"] = sum(
+        self.helper.log_data["balance_after"] = sum(
             self.helper.ava.get_portfolio()["buying_power"].values()
         )
 
-        log.info(f'> End of the day. [{self.balance["after"]}]')
+        log.info(f'> End of the day. [{self.helper.log_data["balance_after"]}]')
 
         if log_to_telegram:
-            TeleLog(
-                day_trading_stats={
-                    "balance_before": self.balance["before"],
-                    "balance_after": self.balance["after"],
-                    "budget": self.settings_trading["budget"],
-                }
-            )
+            TeleLog(day_trading_stats=self.helper.log_data)
 
 
 def run() -> None:

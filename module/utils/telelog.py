@@ -45,7 +45,17 @@ class TeleLog:
 
         profit_percentage = round(100 * profit / day_trading_stats["budget"], 2)
 
-        self.message += f'DT: budget: {day_trading_stats["budget"]}, profit: {profit_percentage}% ({profit} SEK)'
+        messages = [
+            f'DT: Total value: {round(day_trading_stats["balance_after"])}',
+            f'> Budget: {day_trading_stats["budget"]}',
+            f"> Profit: {profit_percentage}% ({profit} SEK)",
+            f'> Trades: {day_trading_stats["number_trades"]}',
+        ]
+
+        if day_trading_stats["number_errors"] > 0:
+            messages.append(f'> Errors: {day_trading_stats["number_errors"]}')
+
+        self.message += "\n".join(messages)
 
     def parse_portfolio(self, portfolio: dict) -> None:
         log.debug("Parse portfolio")
@@ -58,7 +68,9 @@ class TeleLog:
         )
         self.message += f'LT: Total value: {round(portfolio["total_own_capital"])}\n\nTotal free funds:\n{free_funds}\n\n'
 
-    def parse_watch_lists_analysis_log(self, watch_lists_analysis_log: list[str]) -> None:
+    def parse_watch_lists_analysis_log(
+        self, watch_lists_analysis_log: list[str]
+    ) -> None:
         log.debug("Parse watch_lists_analysis_log")
 
         self.message = "\n".join(watch_lists_analysis_log)

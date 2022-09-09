@@ -37,12 +37,7 @@ class Status_DT:
                     [
                         (
                             self.get_instrument(instrument_type).get("has_position")
-                            or len(
-                                self.get_instrument(instrument_type).get(
-                                    "active_order_dict", []
-                                )
-                            )
-                            > 0
+                            or self.get_instrument(instrument_type).get("active_order")
                         )
                         for instrument_type in ["BULL", "BEAR"]
                     ]
