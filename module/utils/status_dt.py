@@ -24,7 +24,7 @@ class Status_DT:
         current_time = datetime.now()
         old_day_time = self.day_time
 
-        if current_time <= current_time.replace(hour=9, minute=40):
+        if current_time <= current_time.replace(hour=9, minute=0):
             self.day_time = "morning"
 
             time.sleep(60)
