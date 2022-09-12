@@ -228,7 +228,7 @@ class Helper:
             self.log_data["number_errors"] += 1
 
             log.error(f"Certificate info could not be fetched")
-            
+
             return
 
         if signal == "buy":
@@ -253,7 +253,7 @@ class Helper:
 
             if len(certificate_info["positions"]) == 0:
                 self.log_data["number_errors"] += 1
-                
+
                 log.error(
                     f"Nothing to sell: order_data: {order_data} // certificate_info: {certificate_info}"
                 )
@@ -355,6 +355,9 @@ class Day_Trading:
             strategies, main_instrument_type
         )
 
+        if not main_instrument_signal_buy:
+            return
+
         other_instrument_type = "BEAR" if main_instrument_type == "BULL" else "BULL"
         other_instrument_status = self.status.get_instrument(other_instrument_type)
         other_instrument_sell_price = (
@@ -370,23 +373,8 @@ class Day_Trading:
             ).get("sell")
         )
 
-        if all(
-            [
-                main_instrument_signal_buy,
-                main_instrument_status["has_position"],
-            ]
-        ):
-            self.status.update_instrument_trading_limits(
-                main_instrument_type, main_instrument_buy_price
-            )
-
-        elif all(
-            [
-                main_instrument_signal_buy,
-                not main_instrument_status["has_position"],
-                not main_instrument_status["active_order"],
-            ]
-        ):
+        # action for other instrument
+        if other_instrument_status["has_position"]:
             self.helper.update_order(
                 "sell",
                 other_instrument_type,
@@ -395,22 +383,22 @@ class Day_Trading:
             )
             time.sleep(1)
 
-            self.helper.place_order("buy", main_instrument_type, main_instrument_status)
-            time.sleep(2)
+        # action for main instrument
+        if main_instrument_status["has_position"]:
+            self.status.update_instrument_trading_limits(
+                main_instrument_type, main_instrument_buy_price
+            )
 
-        elif all(
-            [
-                not main_instrument_status["has_position"],
-                main_instrument_status["active_order"],
-            ]
-        ):
+        elif main_instrument_status["active_order"]:
             self.helper.update_order(
                 "buy",
                 main_instrument_type,
                 main_instrument_status,
                 main_instrument_buy_price,
             )
-            time.sleep(2)
+
+        else:
+            self.helper.place_order("buy", main_instrument_type, main_instrument_status)
 
     def check_instrument_for_sell_action(
         self, instrument_type: str, enforce_sell_bool: bool = False
