@@ -383,6 +383,11 @@ class Day_Trading:
             )
             time.sleep(1)
 
+            self.status.update_instrument(
+                other_instrument_type,
+                self.helper.fetch_instrument_status(other_instrument_type),
+            )
+
         # action for main instrument
         if main_instrument_status["has_position"]:
             self.status.update_instrument_trading_limits(
