@@ -29,7 +29,13 @@ class Status_DT:
 
             time.sleep(60)
 
-        elif current_time >= current_time.replace(hour=17, minute=25):
+        else:
+            self.day_time = "day"
+
+        if current_time >= current_time.replace(hour=17, minute=25):
+            self.day_time = "evening_transition"
+
+        if current_time >= current_time.replace(hour=17, minute=35):
             self.day_time = "evening"
 
             if (current_time >= current_time.replace(hour=18, minute=30)) or (
@@ -44,9 +50,6 @@ class Status_DT:
                 )
             ):
                 self.day_time = "night"
-
-        else:
-            self.day_time = "day"
 
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")

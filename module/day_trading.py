@@ -464,6 +464,11 @@ class Day_Trading:
 
             if self.status.day_time == "morning":
                 continue
+            
+            elif self.status.day_time == "evening_transition":
+                time.sleep(60)
+                
+                continue
 
             elif self.status.day_time == "night":
                 break
