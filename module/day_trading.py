@@ -123,7 +123,7 @@ class Helper:
 
         last_full_candle_index = -2
 
-        if (datetime.now() - strategy.data.iloc[last_full_candle_index].name.replace(tzinfo=None)).seconds > 120:  # type: ignore
+        if (datetime.now() - strategy.data.iloc[last_full_candle_index].name.replace(tzinfo=None)).seconds > 122:  # type: ignore
             return False
 
         last_candle_signal_buy = self._check_last_candle_buy(
