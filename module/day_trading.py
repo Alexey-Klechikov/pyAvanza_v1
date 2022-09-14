@@ -138,16 +138,17 @@ class Helper:
     def fetch_instrument_status(self, instrument_type: str) -> dict:
         instrument_id = str(self.instrument.ids["TRADING"][instrument_type])
 
-        instrument_status = {
-            "has_position": False,
-            "active_order": dict(),
-        }
-
-        # Check if instrument has a position
         certificate_info = self.ava.get_certificate_info(
             self.instrument.ids["TRADING"][instrument_type]
         )
 
+        instrument_status = {
+            "has_position": False,
+            "active_order": dict(),
+            "current_price": certificate_info["sell"],
+        }
+
+        # Check if instrument has a position
         for position in certificate_info["positions"]:
             if position.get("averageAcquiredPrice") is None:
                 continue
@@ -155,7 +156,6 @@ class Helper:
             instrument_status.update(
                 {
                     "has_position": True,
-                    "current_price": certificate_info["sell"],
                     "stop_loss_price": round(
                         position["averageAcquiredPrice"]
                         * self.settings_trading["limits"]["SL"],
@@ -169,6 +169,11 @@ class Helper:
                     "trailing_stop_loss_price": round(
                         certificate_info["sell"]
                         * self.settings_trading["limits"]["SL_trailing"],
+                        2,
+                    ),
+                    "super_take_profit": round(
+                        position["averageAcquiredPrice"]
+                        * self.settings_trading["limits"]["TP_super"],
                         2,
                     ),
                 }
@@ -248,7 +253,7 @@ class Helper:
             price = (
                 certificate_info[signal]
                 if certificate_info[signal] < instrument_status["stop_loss_price"]
-                else instrument_status["take_profit_price"]
+                else instrument_status["super_take_profit"]
             )
 
             if len(certificate_info["positions"]) == 0:
@@ -428,16 +433,14 @@ class Day_Trading:
                 self.helper.instrument.ids["TRADING"][instrument_type]
             )["sell"]
 
-            if (
-                current_sell_price < instrument_status["stop_loss_price"]
-            ) or enforce_sell_bool:
-                sell_price = current_sell_price
-
-            elif (
-                instrument_status["active_order"]["price"]
-                != instrument_status["take_profit_price"]
+            if any(
+                [
+                    current_sell_price <= instrument_status["stop_loss_price"],
+                    current_sell_price >= instrument_status["take_profit_price"],
+                    enforce_sell_bool,
+                ]
             ):
-                sell_price = instrument_status["take_profit_price"]
+                sell_price = current_sell_price
 
             self.helper.update_order(
                 "sell",
@@ -464,10 +467,10 @@ class Day_Trading:
 
             if self.status.day_time == "morning":
                 continue
-            
+
             elif self.status.day_time == "evening_transition":
                 time.sleep(60)
-                
+
                 continue
 
             elif self.status.day_time == "night":

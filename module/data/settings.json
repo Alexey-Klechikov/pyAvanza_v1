@@ -24,9 +24,9 @@
                 "budget": 3000,
                 "multiplier": 20, 
                 "limits": {
+                    "TP_super": 1.05,
                     "TP": 1.03,
                     "SL": 0.975, 
-                    "TP_trailing": 1.046,
                     "SL_trailing": 0.985               
                 },
                 "trailing_SL_timer": 30

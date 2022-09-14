@@ -64,6 +64,9 @@ class Status_DT:
                 {
                     "current_price": latest_instrument_status.get("current_price"),
                     "active_order": latest_instrument_status.get("active_order"),
+                    "super_take_profit": latest_instrument_status.get(
+                        "super_take_profit"
+                    ),
                     "stop_loss_price": instrument_status.get(
                         "stop_loss_price",
                         latest_instrument_status.get("stop_loss_price", 0),
@@ -104,15 +107,24 @@ class Status_DT:
                     "trailing_stop_loss_price"
                 ]
 
-                instrument_status["take_profit_price"] = round(
-                    instrument_status["stop_loss_price"]
-                    * float(self.settings["limits"]["TP_trailing"]),
-                    2,
-                )
-
         else:
             if instrument_status.get("has_position"):
-                log.warning(f"<<< {instrument_type} - Trade is complete")
+
+                trade_success_status = "(???)"
+                if (
+                    latest_instrument_status["current_price"]
+                    >= instrument_status["take_profit_price"]
+                ):
+                    trade_success_status = "(+++)"
+                elif (
+                    latest_instrument_status["current_price"]
+                    < instrument_status["stop_loss_price"]
+                ):
+                    trade_success_status = "(---)"
+
+                log.warning(
+                    f"<<< {instrument_type} - Trade is complete {trade_success_status}"
+                )
 
             instrument_status = {
                 **latest_instrument_status,
