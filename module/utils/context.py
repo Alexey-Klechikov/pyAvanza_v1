@@ -20,9 +20,16 @@ log = logging.getLogger("main.utils.context")
 
 
 class Context:
-    def __init__(self, user: str, accounts: dict, skip_lists: bool = False):
+    def __init__(
+        self,
+        user: str,
+        accounts: dict,
+        skip_lists: bool = False,
+        log_number_errors: int = 0,
+    ):
         self.ctx = self.get_ctx(user)
         self.accounts = accounts
+        self.log_number_errors = log_number_errors
 
         if not skip_lists:
             self.portfolio = self.get_portfolio()
@@ -248,22 +255,28 @@ class Context:
         return stock_price
 
     def get_certificate_info(self, certificate_id: str) -> dict:
+        certificate = dict()
+
         for _ in range(5):
             certificate = self.ctx.get_certificate_info(certificate_id)
-
-            if certificate is None:
-                certificate = dict()
+            certificate = dict() if certificate is None else certificate
 
             if certificate.get(
-                "spread", 2
+                "spread", 1
             ) < 0.5 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
                 return {
                     "buy": certificate.get("sellPrice", None),
                     "sell": certificate.get("buyPrice", None),
-                    "positions": certificate.get("positions", []),
+                    "positions": certificate.get("positions", list()),
                 }
 
             time.sleep(2)
+
+        log.error(
+            f"Certificate prices could not be fetched -> spread was always too high {certificate.get('spread')}"
+        )
+
+        self.log_number_errors += 1
 
         return {
             "buy": None,
@@ -293,7 +306,9 @@ class Context:
         return data
 
     def remove_active_orders(
-        self, orderbook_ids: list[Union[str, int]] = [], account_ids: list[Union[str, int]] = []
+        self,
+        orderbook_ids: list[Union[str, int]] = list(),
+        account_ids: list[Union[str, int]] = list(),
     ) -> dict:
         active_orders = list()
         removed_orders = {"buy": list(), "sell": list()}

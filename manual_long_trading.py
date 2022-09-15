@@ -322,7 +322,7 @@ if __name__ == "__main__":
         check_only_watch_list=False,
         show_only_tickers_to_act_on=False,
         print_transactions=False,
-        extra_tickers_plot=[],
+        extra_tickers_plot=list(),
         plot_portfolio_tickers=False,
         plot_total_algo_performance_vs_hold=True,
         plot_tickers_to_act_on=True,

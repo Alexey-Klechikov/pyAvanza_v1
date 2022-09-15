@@ -26,7 +26,6 @@ class Helper:
         self.trading_done = False
         self.accounts = accounts
 
-        self.ava = Context(user, accounts, skip_lists=True)
         self.strategies = Strategy_DT.load("DT")
         self.instrument = Instrument(self.settings_trading["multiplier"])
 
@@ -38,6 +37,13 @@ class Helper:
             "number_trades": 0,
             "budget": self.settings_trading["budget"],
         }
+
+        self.ava = Context(
+            user,
+            accounts,
+            skip_lists=True,
+            log_number_errors=self.log_data["number_errors"],
+        )
 
         self._update_budget()
 
@@ -139,7 +145,7 @@ class Helper:
         instrument_id = str(self.instrument.ids["TRADING"][instrument_type])
 
         certificate_info = self.ava.get_certificate_info(
-            self.instrument.ids["TRADING"][instrument_type]
+            self.instrument.ids["TRADING"][instrument_type],
         )
 
         instrument_status = {
@@ -218,7 +224,7 @@ class Helper:
         self.last_line["overwrite"] = False
 
         certificate_info = self.ava.get_certificate_info(
-            self.instrument.ids["TRADING"][instrument_type]
+            self.instrument.ids["TRADING"][instrument_type],
         )
 
         order_data = {
@@ -230,10 +236,6 @@ class Helper:
         }
 
         if certificate_info[signal] is None:
-            self.log_data["number_errors"] += 1
-
-            log.error(f"Certificate info could not be fetched")
-
             return
 
         if signal == "buy":
@@ -257,12 +259,6 @@ class Helper:
             )
 
             if len(certificate_info["positions"]) == 0:
-                self.log_data["number_errors"] += 1
-
-                log.error(
-                    f"Nothing to sell: order_data: {order_data} // certificate_info: {certificate_info}"
-                )
-
                 return
 
             order_data.update(
@@ -463,7 +459,7 @@ class Day_Trading:
 
         while True:
             self.status.update_day_time()
-            self.helper.last_line["messages"] = []
+            self.helper.last_line["messages"] = list()
 
             if self.status.day_time == "morning":
                 continue

@@ -14,7 +14,7 @@ from typing import Tuple, Optional, Literal
 
 
 warnings.filterwarnings("ignore")
-pd.options.mode.chained_assignment = None
+pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.max_rows", 0)
 pd.set_option("display.expand_frame_repr", False)
 
@@ -29,7 +29,7 @@ class Strategy_DT:
         self.data = data.groupby(data.index).last()
         self.order_price_limits = {
             k: abs(round((1 - v) / 20, 5))
-            for k, v in kwargs.get("order_price_limits", {}).items()
+            for k, v in kwargs.get("order_price_limits", dict()).items()
         }
 
         self.get_candlestick_patterns()
@@ -37,7 +37,7 @@ class Strategy_DT:
         self.ta_indicators = self.get_ta_indicators()
 
     def get_ta_indicators(self) -> dict:
-        ta_indicators = {}
+        ta_indicators = dict()
 
         """ Trend """
         # PSAR (Parabolic Stop and Reverse)
@@ -160,7 +160,9 @@ class Strategy_DT:
 
             return order_type
 
-        def _sell_order(order: dict, stats_counter: dict, orders_history: list[dict]) -> None:
+        def _sell_order(
+            order: dict, stats_counter: dict, orders_history: list[dict]
+        ) -> None:
             for order_type in order.keys():
                 if order[order_type]["status"] == "BUY":
                     order[order_type]["sell_price"] = (row["High"] + row["Low"]) / 2
@@ -320,7 +322,9 @@ class Strategy_DT:
 
             return order_type
 
-        def _sell_order(order: dict, stats_counter: dict, orders_history: list[dict]) -> None:
+        def _sell_order(
+            order: dict, stats_counter: dict, orders_history: list[dict]
+        ) -> None:
             for order_type in order.keys():
                 if order[order_type]["status"] == "BUY":
                     order[order_type]["sell_price"] = (row["High"] + row["Low"]) / 2
@@ -349,7 +353,7 @@ class Strategy_DT:
                             1 + self.order_price_limits["SL"]
                         )
 
-                        if row['Low'] <= take_profit:
+                        if row["Low"] <= take_profit:
                             verdict = "good"
 
                         elif order[order_type]["sell_price"] >= stop_loss:

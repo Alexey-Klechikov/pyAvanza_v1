@@ -43,7 +43,7 @@ class Portfolio_Analysis:
             except Exception as e:
                 log.error(f"Error (get_signal_on_ticker): {e}")
 
-                return {}
+                return dict()
 
             self.signals[ticker_yahoo] = {
                 "signal": strategy_obj.summary["signal"],
