@@ -71,7 +71,7 @@ class Calibration:
     def test_strategies(self) -> pd.DataFrame:
         log.info(f"Testing strategies")
 
-        history = History(self.instrument_ids["YAHOO"], "2d", "1m", cache="skip")
+        history = History(self.instrument_ids["YAHOO"], "4d", "1m", cache="skip")
 
         strategy = Strategy_DT(
             history.data,

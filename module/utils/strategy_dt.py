@@ -94,14 +94,6 @@ class Strategy_DT:
             "columns": ["RSI_14"],
         }
 
-        # RVGI (Relative Vigor Index)
-        self.data.ta.rvgi(append=True)
-        ta_indicators["RVGI"] = {
-            "buy": lambda x: x["RVGI_14_4"] > x["RVGIs_14_4"],
-            "sell": lambda x: x["RVGI_14_4"] < x["RVGIs_14_4"],
-            "columns": ["RVGI_14_4", "RVGIs_14_4"],
-        }
-
         # MACD (Moving Average Convergence Divergence)
         self.data.ta.macd(fast=8, slow=21, signal=5, append=True)
         ta_indicators["MACD"] = {
@@ -229,7 +221,7 @@ class Strategy_DT:
 
                 efficiency_percent = (
                     0
-                    if number_transactions <= 1
+                    if stats_counter["good"][order_type] - stats_counter["bad"][order_type] <= 1
                     else round(
                         (stats_counter["good"][order_type] / number_transactions) * 100
                     )
