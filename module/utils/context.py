@@ -256,7 +256,7 @@ class Context:
 
             if certificate.get(
                 "spread", 2
-            ) < 1 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
+            ) < 0.5 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
                 return {
                     "buy": certificate.get("sellPrice", None),
                     "sell": certificate.get("buyPrice", None),
