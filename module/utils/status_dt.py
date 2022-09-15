@@ -110,17 +110,17 @@ class Status_DT:
         else:
             if instrument_status.get("has_position"):
 
-                trade_success_status = "(???)"
+                trade_success_status = "( ? )"
                 if (
                     latest_instrument_status["current_price"]
                     >= instrument_status["take_profit_price"]
                 ):
-                    trade_success_status = "(+++)"
+                    trade_success_status = "( + )"
                 elif (
                     latest_instrument_status["current_price"]
                     < instrument_status["stop_loss_price"]
                 ):
-                    trade_success_status = "(---)"
+                    trade_success_status = "( - )"
 
                 log.warning(
                     f"<<< {instrument_type} - Trade is complete {trade_success_status}"
