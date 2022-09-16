@@ -263,7 +263,7 @@ class Context:
 
             if certificate.get(
                 "spread", 1
-            ) < 0.5 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
+            ) <= 0.6 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
                 return {
                     "buy": certificate.get("sellPrice", None),
                     "sell": certificate.get("buyPrice", None),
@@ -273,7 +273,7 @@ class Context:
             time.sleep(2)
 
         log.error(
-            f"Certificate prices could not be fetched -> spread was always too high {certificate.get('spread')}"
+            f"Certificate {certificate_id} -> spread is too high {certificate.get('spread')}"
         )
 
         self.log_number_errors += 1
@@ -365,7 +365,7 @@ class Context:
 
         chart_data = self.ctx.get_chart_data(stock_id, period, resolution)
 
-        if chart_data is None or len(chart_data['ohlc']) == 0:
+        if chart_data is None or len(chart_data["ohlc"]) == 0:
             return pd.DataFrame(
                 columns=["Datetime", "Open", "High", "Low", "Close", "Volume"]
             ).set_index("Datetime")

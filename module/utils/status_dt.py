@@ -64,6 +64,10 @@ class Status_DT:
                 {
                     "current_price": latest_instrument_status.get("current_price"),
                     "active_order": latest_instrument_status.get("active_order"),
+                    "buy_price": instrument_status.get(
+                        "buy_price",
+                        latest_instrument_status.get("current_price"),
+                    ),
                     "super_take_profit": latest_instrument_status.get(
                         "super_take_profit"
                     ),
@@ -113,12 +117,12 @@ class Status_DT:
                 trade_success_status = "( ? )"
                 if (
                     latest_instrument_status["current_price"]
-                    >= instrument_status["take_profit_price"]
+                    >= instrument_status["buy_price"]
                 ):
                     trade_success_status = "( + )"
                 elif (
                     latest_instrument_status["current_price"]
-                    < instrument_status["stop_loss_price"]
+                    < instrument_status["buy_price"]
                 ):
                     trade_success_status = "( - )"
 
@@ -129,7 +133,6 @@ class Status_DT:
             instrument_status = {
                 **latest_instrument_status,
                 **{
-                    "buy_time": None,
                     "trailing_stop_loss_active": False,
                     "trailing_stop_loss_price": 0,
                 },
