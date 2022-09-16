@@ -74,6 +74,14 @@ class Strategy_DT:
             "columns": ["STC_10_12_26_0.5"],
         }
 
+        # BOP (Balance Of Power)
+        self.data.ta.bop(append=True)
+        ta_indicators["BOP"] = {
+            "sell": lambda x: x["BOP"] > 0.3,
+            "buy": lambda x: x["BOP"] < -0.25,
+            "columns": ["BOP"],
+        }
+
         # CCI (Commodity Channel Index)
         self.data.ta.cci(length=20, append=True, offset=1)
         self.data["CCI_20_0.015_lag"] = self.data["CCI_20_0.015"]

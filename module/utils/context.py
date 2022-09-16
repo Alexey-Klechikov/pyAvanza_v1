@@ -365,7 +365,7 @@ class Context:
 
         chart_data = self.ctx.get_chart_data(stock_id, period, resolution)
 
-        if chart_data is None:
+        if chart_data is None or len(chart_data['ohlc']) == 0:
             return pd.DataFrame(
                 columns=["Datetime", "Open", "High", "Low", "Close", "Volume"]
             ).set_index("Datetime")
