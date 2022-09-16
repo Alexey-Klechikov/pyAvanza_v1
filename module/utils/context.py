@@ -24,12 +24,10 @@ class Context:
         self,
         user: str,
         accounts: dict,
-        skip_lists: bool = False,
-        log_number_errors: int = 0,
+        skip_lists: bool = False
     ):
         self.ctx = self.get_ctx(user)
         self.accounts = accounts
-        self.log_number_errors = log_number_errors
 
         if not skip_lists:
             self.portfolio = self.get_portfolio()
@@ -268,20 +266,16 @@ class Context:
                     "buy": certificate.get("sellPrice", None),
                     "sell": certificate.get("buyPrice", None),
                     "positions": certificate.get("positions", list()),
+                    "spread": certificate.get("spread"),
                 }
 
             time.sleep(2)
-
-        log.error(
-            f"Certificate {certificate_id} -> spread is too high {certificate.get('spread')}"
-        )
-
-        self.log_number_errors += 1
 
         return {
             "buy": None,
             "sell": None,
             "positions": list(),
+            "spread": certificate.get("spread"),
         }
 
     def update_todays_ochl(self, data: pd.DataFrame, stock_id: str) -> pd.DataFrame:

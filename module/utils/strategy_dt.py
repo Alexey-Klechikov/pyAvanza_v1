@@ -150,7 +150,7 @@ class Strategy_DT:
                 order_type = "BEAR"
 
             if order_type is not None:
-                order[order_type]["buy_price"] = ((row["High"] + row["Low"]) / 2) * (
+                order[order_type]["price_buy"] = ((row["High"] + row["Low"]) / 2) * (
                     1.00015 if order_type == "BULL" else 0.99985
                 )
                 order[order_type]["status"] = "BUY"
@@ -165,36 +165,36 @@ class Strategy_DT:
         ) -> None:
             for order_type in order.keys():
                 if order[order_type]["status"] == "BUY":
-                    order[order_type]["sell_price"] = (row["High"] + row["Low"]) / 2
+                    order[order_type]["price_sell"] = (row["High"] + row["Low"]) / 2
                     order[order_type]["time_sell"] = index
 
                     verdict = None
                     if order_type == "BULL":
-                        stop_loss = order[order_type]["buy_price"] * (
-                            1 - self.order_price_limits["SL"]
+                        stop_loss = order[order_type]["price_buy"] * (
+                            1 - self.order_price_limits["stop_loss"]
                         )
-                        take_profit = order[order_type]["buy_price"] * (
-                            1 + self.order_price_limits["TP"]
+                        take_profit = order[order_type]["price_buy"] * (
+                            1 + self.order_price_limits["take_profit"]
                         )
 
-                        if order[order_type]["sell_price"] <= stop_loss:
+                        if order[order_type]["price_sell"] <= stop_loss:
                             verdict = "bad"
 
                         elif row["High"] >= take_profit:
                             verdict = "good"
 
                     elif order_type == "BEAR":
-                        take_profit = order[order_type]["buy_price"] * (
-                            1 - self.order_price_limits["TP"]
+                        take_profit = order[order_type]["price_buy"] * (
+                            1 - self.order_price_limits["take_profit"]
                         )
-                        stop_loss = order[order_type]["buy_price"] * (
-                            1 + self.order_price_limits["SL"]
+                        stop_loss = order[order_type]["price_buy"] * (
+                            1 + self.order_price_limits["stop_loss"]
                         )
 
                         if row["Low"] <= take_profit:
                             verdict = "good"
 
-                        elif order[order_type]["sell_price"] >= stop_loss:
+                        elif order[order_type]["price_sell"] >= stop_loss:
                             verdict = "bad"
 
                     if verdict is None:
@@ -229,7 +229,9 @@ class Strategy_DT:
 
                 efficiency_percent = (
                     0
-                    if stats_counter["good"][order_type] - stats_counter["bad"][order_type] <= 1
+                    if stats_counter["good"][order_type]
+                    - stats_counter["bad"][order_type]
+                    <= 1
                     else round(
                         (stats_counter["good"][order_type] / number_transactions) * 100
                     )
@@ -264,8 +266,8 @@ class Strategy_DT:
                 order = {
                     i: {
                         "status": "SELL",
-                        "buy_price": None,
-                        "sell_price": None,
+                        "price_buy": None,
+                        "price_sell": None,
                         "time_buy": None,
                         "time_sell": None,
                         "verdict": None,
@@ -314,7 +316,7 @@ class Strategy_DT:
                 order_type = "BEAR"
 
             if order_type is not None:
-                order[order_type]["buy_price"] = ((row["High"] + row["Low"]) / 2) * (
+                order[order_type]["price_buy"] = ((row["High"] + row["Low"]) / 2) * (
                     1.00015 if order_type == "BULL" else 0.99985
                 )
                 order[order_type]["status"] = "BUY"
@@ -327,36 +329,36 @@ class Strategy_DT:
         ) -> None:
             for order_type in order.keys():
                 if order[order_type]["status"] == "BUY":
-                    order[order_type]["sell_price"] = (row["High"] + row["Low"]) / 2
+                    order[order_type]["price_sell"] = (row["High"] + row["Low"]) / 2
                     order[order_type]["time_sell"] = index
 
                     verdict = None
                     if order_type == "BULL":
-                        stop_loss = order[order_type]["buy_price"] * (
-                            1 - self.order_price_limits["SL"]
+                        stop_loss = order[order_type]["price_buy"] * (
+                            1 - self.order_price_limits["stop_loss"]
                         )
-                        take_profit = order[order_type]["buy_price"] * (
-                            1 + self.order_price_limits["TP"]
+                        take_profit = order[order_type]["price_buy"] * (
+                            1 + self.order_price_limits["take_profit"]
                         )
 
-                        if order[order_type]["sell_price"] <= stop_loss:
+                        if order[order_type]["price_sell"] <= stop_loss:
                             verdict = "bad"
 
                         elif row["High"] >= take_profit:
                             verdict = "good"
 
                     elif order_type == "BEAR":
-                        take_profit = order[order_type]["buy_price"] * (
-                            1 - self.order_price_limits["TP"]
+                        take_profit = order[order_type]["price_buy"] * (
+                            1 - self.order_price_limits["take_profit"]
                         )
-                        stop_loss = order[order_type]["buy_price"] * (
-                            1 + self.order_price_limits["SL"]
+                        stop_loss = order[order_type]["price_buy"] * (
+                            1 + self.order_price_limits["stop_loss"]
                         )
 
                         if row["Low"] <= take_profit:
                             verdict = "good"
 
-                        elif order[order_type]["sell_price"] >= stop_loss:
+                        elif order[order_type]["price_sell"] >= stop_loss:
                             verdict = "bad"
 
                     if verdict is None:
@@ -432,8 +434,8 @@ class Strategy_DT:
         order = {
             i: {
                 "status": "SELL",
-                "buy_price": None,
-                "sell_price": None,
+                "price_buy": None,
+                "price_sell": None,
                 "time_buy": None,
                 "time_sell": None,
                 "verdict": None,

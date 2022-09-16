@@ -62,30 +62,31 @@ class Status_DT:
         if latest_instrument_status.get("has_position"):
             instrument_status.update(
                 {
-                    "current_price": latest_instrument_status.get("current_price"),
+                    "spread": latest_instrument_status.get("spread"),
                     "active_order": latest_instrument_status.get("active_order"),
-                    "buy_price": instrument_status.get(
-                        "buy_price",
-                        latest_instrument_status.get("current_price"),
+                    "price_current": latest_instrument_status.get("price_current"),
+                    "price_buy": instrument_status.get(
+                        "price_buy",
+                        latest_instrument_status.get("price_current"),
                     ),
-                    "super_take_profit": latest_instrument_status.get(
-                        "super_take_profit"
+                    "price_take_profit_super": latest_instrument_status.get(
+                        "price_take_profit_super"
                     ),
-                    "stop_loss_price": instrument_status.get(
-                        "stop_loss_price",
-                        latest_instrument_status.get("stop_loss_price", 0),
+                    "price_stop_loss": instrument_status.get(
+                        "price_stop_loss",
+                        latest_instrument_status.get("price_stop_loss", 0),
                     ),
-                    "take_profit_price": instrument_status.get(
-                        "take_profit_price",
-                        latest_instrument_status.get("take_profit_price", 0),
+                    "price_take_profit": instrument_status.get(
+                        "price_take_profit",
+                        latest_instrument_status.get("price_take_profit", 0),
                     ),
                 }
             )
 
-            instrument_status["trailing_stop_loss_price"] = max(
-                instrument_status.get("trailing_stop_loss_price", 0),
-                latest_instrument_status.get("trailing_stop_loss_price", 0),
-                instrument_status.get("stop_loss_price", 0),
+            instrument_status["price_stop_loss_trailing"] = max(
+                instrument_status.get("price_stop_loss_trailing", 0),
+                latest_instrument_status.get("price_stop_loss_trailing", 0),
+                instrument_status.get("price_stop_loss", 0),
             )
 
             if not instrument_status.get("has_position"):
@@ -94,21 +95,21 @@ class Status_DT:
                 )
 
                 log.info(
-                    f'{instrument_type} - (SET limits): SL: {instrument_status.get("stop_loss_price")}, TP: {instrument_status.get("take_profit_price")}'
+                    f'{instrument_type} - (SET limits): SL: {instrument_status.get("price_stop_loss")}, TP: {instrument_status.get("price_take_profit")}'
                 )
 
             if (datetime.now() - instrument_status["buy_time"]).seconds > (
-                int(self.settings["trailing_SL_timer"]) * 60
+                int(self.settings["stop_loss_trailing_timer"]) * 60
             ) and not instrument_status.get("trailing_stop_loss_active", False):
                 instrument_status["trailing_stop_loss_active"] = True
 
                 log.info(
-                    f"{instrument_type} - {self.settings['trailing_SL_timer']} min -> Switch to trailing stop_loss"
+                    f"{instrument_type} - {self.settings['stop_loss_trailing_timer']} min -> Switch to trailing stop_loss"
                 )
 
             if instrument_status.get("trailing_stop_loss_active"):
-                instrument_status["stop_loss_price"] = instrument_status[
-                    "trailing_stop_loss_price"
+                instrument_status["price_stop_loss"] = instrument_status[
+                    "price_stop_loss_trailing"
                 ]
 
         else:
@@ -116,13 +117,13 @@ class Status_DT:
 
                 trade_success_status = "( ? )"
                 if (
-                    latest_instrument_status["current_price"]
-                    >= instrument_status["buy_price"]
+                    latest_instrument_status["price_current"]
+                    >= instrument_status["price_buy"]
                 ):
                     trade_success_status = "( + )"
                 elif (
-                    latest_instrument_status["current_price"]
-                    < instrument_status["buy_price"]
+                    latest_instrument_status["price_current"]
+                    < instrument_status["price_buy"]
                 ):
                     trade_success_status = "( - )"
 
@@ -134,7 +135,7 @@ class Status_DT:
                 **latest_instrument_status,
                 **{
                     "trailing_stop_loss_active": False,
-                    "trailing_stop_loss_price": 0,
+                    "price_stop_loss_trailing": 0,
                 },
             }
 
@@ -149,17 +150,18 @@ class Status_DT:
             {
                 "buy_time": datetime.now(),
                 "trailing_stop_loss_active": False,
-                "stop_loss_price": round(
-                    self.settings["limits"]["SL"] * new_relative_price, 2
+                "price_stop_loss": round(
+                    self.settings["limits_percent"]["stop_loss"] * new_relative_price, 2
                 ),
-                "take_profit_price": round(
-                    self.settings["limits"]["TP"] * new_relative_price, 2
+                "price_take_profit": round(
+                    self.settings["limits_percent"]["take_profit"] * new_relative_price,
+                    2,
                 ),
             }
         )
 
         log.info(
-            f'{instrument_type} - (UPD limits): SL: {instrument_status["stop_loss_price"]}, TP: {instrument_status["take_profit_price"]}'
+            f'{instrument_type} - (UPD limits): SL: {instrument_status["price_stop_loss"]}, TP: {instrument_status["price_take_profit"]}'
         )
 
         setattr(self, instrument_type, instrument_status)
