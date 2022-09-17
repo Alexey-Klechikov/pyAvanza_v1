@@ -227,29 +227,29 @@ class Status_DT:
     def update_instrument(
         self, instrument_type: str, certificate_info: dict, active_order: dict
     ) -> InstrumentStatus:
-        instrument = self.get_instrument(instrument_type)
+        instrument_status = self.get_instrument(instrument_type)
 
-        instrument.spread = certificate_info.get("spread")
-        instrument.price_current = certificate_info.get("sell")
+        instrument_status.spread = certificate_info.get("spread")
+        instrument_status.price_current = certificate_info.get("sell")
 
-        instrument.update_prices_on_position(
+        instrument_status.update_prices_on_position(
             certificate_info["positions"],
             self.settings["limits_percent"],
         )
 
-        instrument.update_on_active_buy_order(
+        instrument_status.update_on_active_buy_order(
             active_order,
             self.settings["limits_percent"],
         )
 
-        instrument.set_trailing_stop_loss_after_timer(
+        instrument_status.set_trailing_stop_loss_after_timer(
             self.settings["stop_loss_trailing_timer"]
         )
 
-        if instrument.check_trade_is_completed():
+        if instrument_status.check_trade_is_completed():
             setattr(self, instrument_type, InstrumentStatus(instrument_type))
 
-        return instrument
+        return instrument_status
 
     def update_instrument_trading_limits(
         self, instrument_type: str, new_relative_price: Optional[float]
@@ -257,8 +257,8 @@ class Status_DT:
         if new_relative_price is None:
             return
 
-        instrument = self.get_instrument(instrument_type)
+        instrument_status = self.get_instrument(instrument_type)
 
-        instrument.update_on_new_signal(
+        instrument_status.update_on_new_signal(
             self.settings["limits_percent"], new_relative_price
         )
