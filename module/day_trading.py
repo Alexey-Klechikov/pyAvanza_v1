@@ -13,7 +13,7 @@ from .utils import TeleLog
 from .utils import Settings
 from .utils import Instrument
 from .utils import Strategy_DT
-from .utils import Status_DT as Status
+from .utils import InstrumentStatus, Status_DT as Status
 
 
 log = logging.getLogger("main.day_trading")
@@ -212,16 +212,16 @@ class Helper:
         return instrument_status
 
     def place_order(
-        self, signal: str, instrument_type: str, instrument_status: dict
+        self, signal: str, instrument_type: str, instrument_status: InstrumentStatus
     ) -> None:
-        if (signal == "buy" and instrument_status["has_position"]) or (
-            signal == "sell" and not instrument_status["has_position"]
+        if (signal == "buy" and instrument_status.has_position) or (
+            signal == "sell" and not instrument_status.has_position
         ):
             return
 
-        if instrument_status.get("spread", 1) > 0.6:
+        if instrument_status.spread is None or instrument_status.spread > 0.6:
             log.error(
-                f'{instrument_type} - (place_order) HIGH SPREAD: {instrument_status["spread"]}'
+                f"{instrument_type} - (place_order) HIGH SPREAD: {instrument_status.spread}"
             )
 
             self.log_data["number_errors"] += 1
@@ -261,8 +261,8 @@ class Helper:
         elif signal == "sell":
             price = (
                 certificate_info[signal]
-                if certificate_info[signal] < instrument_status["price_stop_loss"]
-                else instrument_status["price_take_profit_super"]
+                if certificate_info[signal] < instrument_status.price_stop_loss
+                else instrument_status.price_take_profit_super
             )
 
             if len(certificate_info["positions"]) == 0:
@@ -289,13 +289,13 @@ class Helper:
         self,
         signal: str,
         instrument_type: str,
-        instrument_status: dict,
+        instrument_status: InstrumentStatus,
         price: Optional[float],
     ) -> None:
 
-        if instrument_status.get("spread", 1) > 0.6:
+        if instrument_status.spread is None or instrument_status.spread > 0.6:
             log.error(
-                f'{instrument_type} - (update_order) HIGH SPREAD: {instrument_status["spread"]}'
+                f"{instrument_type} - (update_order) HIGH SPREAD: {instrument_status.spread}"
             )
 
             self.log_data["number_errors"] += 1
@@ -307,22 +307,22 @@ class Helper:
 
         self.last_line["overwrite"] = False
 
-        instrument_type = instrument_status["active_order"]["orderbook"]["name"].split(
+        instrument_type = instrument_status.active_order["orderbook"]["name"].split(
             " "
         )[0]
 
         log.info(
-            f'{instrument_type} - (UPD {signal.upper()} order): {instrument_status["active_order"]["price"]} -> {price}'
+            f'{instrument_type} - (UPD {signal.upper()} order): {instrument_status.active_order["price"]} -> {price}'
         )
 
-        self.ava.update_order(instrument_status["active_order"], price)
+        self.ava.update_order(instrument_status.active_order, price)
 
     def combine_stdout_line(self, instrument_type: str, status: Status) -> None:
         instrument_status = status.get_instrument(instrument_type)
 
-        if instrument_status["has_position"]:
+        if instrument_status.has_position:
             self.last_line["messages"].append(
-                f'{instrument_type} - {instrument_status["price_stop_loss"]} < {instrument_status["price_current"]} < {instrument_status["price_take_profit"]}'
+                f"{instrument_type} - {instrument_status.price_stop_loss} < {instrument_status.price_current} < {instrument_status.price_take_profit}"
             )
 
     def update_last_stdout_line(self) -> None:
@@ -383,7 +383,7 @@ class Day_Trading:
             if not all(
                 [
                     main_instrument_signal_buy,
-                    other_instrument_status.get("has_position", False),
+                    other_instrument_status.has_position,
                 ]
             )
             else self.helper.ava.get_certificate_info(
@@ -392,7 +392,7 @@ class Day_Trading:
         )
 
         # action for other instrument
-        if other_instrument_status["has_position"]:
+        if other_instrument_status.has_position:
             self.helper.update_order(
                 "sell",
                 other_instrument_type,
@@ -407,12 +407,12 @@ class Day_Trading:
             )
 
         # action for main instrument
-        if main_instrument_status["has_position"]:
+        if main_instrument_status.has_position:
             self.status.update_instrument_trading_limits(
                 main_instrument_type, main_instrument_price_buy
             )
 
-        elif main_instrument_status["active_order"]:
+        elif main_instrument_status.active_order:
             self.helper.update_order(
                 "buy",
                 main_instrument_type,
@@ -432,11 +432,11 @@ class Day_Trading:
 
         instrument_status = self.status.get_instrument(instrument_type)
 
-        if not instrument_status["has_position"]:
+        if not instrument_status.has_position:
             return
 
         # Create sell orders (take_profit)
-        if not instrument_status["active_order"]:
+        if not instrument_status.active_order:
             self.helper.place_order("sell", instrument_type, instrument_status)
 
         # Update sell order (if hit stop_loss / enforced / trailing_stop_loss initiated, so price_take_profit has changed)
@@ -448,8 +448,8 @@ class Day_Trading:
 
             if any(
                 [
-                    current_price_sell <= instrument_status["price_stop_loss"],
-                    current_price_sell >= instrument_status["price_take_profit"],
+                    current_price_sell <= instrument_status.price_stop_loss,
+                    current_price_sell >= instrument_status.price_take_profit,
                     enforce_sell_bool,
                 ]
             ):
