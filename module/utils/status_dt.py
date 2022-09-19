@@ -248,6 +248,8 @@ class Status_DT:
 
         if instrument_status.check_trade_is_completed():
             setattr(self, instrument_type, InstrumentStatus(instrument_type))
+            
+            instrument_status = self.get_instrument(instrument_type)
 
         return instrument_status
 

@@ -65,6 +65,30 @@ class Strategy_DT:
             "columns": ["BBL_20_1.0", "BBU_20_1.0"],
         }
 
+        # ACCBANDS (Acceleration Bands)
+        self.data.ta.accbands(append=True)
+        ta_indicators["ACCBANDS"] = {
+            "buy": lambda x: x["Close"] > x["ACCBU_20"],
+            "sell": lambda x: x["Close"] < x["ACCBL_20"],
+            "columns": ["ACCBU_20", "ACCBL_20"],
+        }
+
+        # KC (Keltner Channel)
+        self.data.ta.kc(append=True)
+        ta_indicators["KC"] = {
+            "buy": lambda x: x["Close"] > x["KCUe_20_2"],
+            "sell": lambda x: x["Close"] < x["KCLe_20_2"],
+            "columns": ["KCLe_20_2", "KCUe_20_2"],
+        }
+
+        # RVI (Relative Volatility Index)
+        self.data.ta.rvi(append=True)
+        ta_indicators["RVI"] = {
+            "sell": lambda x: x["RVI_14"] > 50,
+            "buy": lambda x: x["RVI_14"] < 50,
+            "columns": ["RVI_14"],
+        }
+
         """ Momentum """
         # STC (Schaff Trend Cycle)
         self.data.ta.stc(append=True)
@@ -97,8 +121,8 @@ class Strategy_DT:
         # RSI (Relative Strength Index)
         self.data.ta.rsi(length=14, append=True)
         ta_indicators["RSI"] = {
-            "sell": lambda x: x["RSI_14"] > 70,
-            "buy": lambda x: x["RSI_14"] < 30,
+            "sell": lambda x: x["RSI_14"] < 50,
+            "buy": lambda x: x["RSI_14"] > 50,
             "columns": ["RSI_14"],
         }
 
@@ -135,6 +159,8 @@ class Strategy_DT:
             left_index=True,
             right_index=True,
         )
+
+        self.data.drop(columns=["CDL_LADDERBOTTOM"], inplace=True)
 
     # Strategies testing
     def get_successful_strategies(self, success_limit: int) -> dict:
