@@ -93,7 +93,7 @@ class Helper:
 
             if cs_signal == ta_signal == instrument_type:
                 log.warning(
-                    f">>> {instrument_type} - BUY: {ta_indicator}-{cs_pattern} at {str(row.name)[:-9]}"
+                    f">>> {instrument_type} - {ta_indicator}-{cs_pattern} at {str(row.name)[:-9]}"
                 )
                 return True
 
@@ -154,7 +154,9 @@ class Helper:
         ]
         active_order = dict() if not active_orders else active_orders[0]
 
-        instrument_status = self.status.update_instrument(instrument_type, certificate_info, active_order)
+        instrument_status = self.status.update_instrument(
+            instrument_type, certificate_info, active_order
+        )
 
         return instrument_status
 
@@ -305,7 +307,9 @@ class Day_Trading:
         self, strategies: dict, instrument_type: str
     ) -> None:
         main_instrument_type = instrument_type
-        main_instrument_status = self.helper.update_instrument_status(main_instrument_type)
+        main_instrument_status = self.helper.update_instrument_status(
+            main_instrument_type
+        )
         main_instrument_price_buy = self.helper.ava.get_certificate_info(
             self.helper.instrument.ids["TRADING"][main_instrument_type]
         ).get("buy")
@@ -317,7 +321,9 @@ class Day_Trading:
             return
 
         other_instrument_type = "BEAR" if main_instrument_type == "BULL" else "BULL"
-        other_instrument_status = self.helper.update_instrument_status(other_instrument_type)
+        other_instrument_status = self.helper.update_instrument_status(
+            other_instrument_type
+        )
 
         # action for other instrument
         if other_instrument_status.has_position:
@@ -333,7 +339,9 @@ class Day_Trading:
             )
             time.sleep(1)
 
-            other_instrument_status = self.helper.update_instrument_status(other_instrument_type)
+            other_instrument_status = self.helper.update_instrument_status(
+                other_instrument_type
+            )
 
             if other_instrument_status.has_position:
                 return

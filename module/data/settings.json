@@ -33,7 +33,7 @@
             },
             "calibration": {
                 "update": true,
-                "success_limit": 63
+                "success_limit": 62
             }
         }
     }

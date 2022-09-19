@@ -104,21 +104,18 @@ class InstrumentStatus:
 
     def update_on_active_buy_order(
         self,
-        active_order: dict,
         settings_limits_percent: dict,
     ) -> None:
-        self.active_order = active_order
-
-        if active_order.get("type") != "BUY":
+        if self.active_order.get("type") != "BUY":
             return
 
         self.price_stop_loss = round(
-            active_order["price"] * settings_limits_percent["stop_loss"],
+            self.active_order["price"] * settings_limits_percent["stop_loss"],
             2,
         )
 
         self.price_take_profit = round(
-            active_order["price"] * settings_limits_percent["take_profit"],
+            self.active_order["price"] * settings_limits_percent["take_profit"],
             2,
         )
 
@@ -229,6 +226,7 @@ class Status_DT:
     ) -> InstrumentStatus:
         instrument_status = self.get_instrument(instrument_type)
 
+        instrument_status.active_order = active_order
         instrument_status.spread = certificate_info.get("spread")
         instrument_status.price_current = certificate_info.get("sell")
 
@@ -238,7 +236,6 @@ class Status_DT:
         )
 
         instrument_status.update_on_active_buy_order(
-            active_order,
             self.settings["limits_percent"],
         )
 
@@ -248,7 +245,7 @@ class Status_DT:
 
         if instrument_status.check_trade_is_completed():
             setattr(self, instrument_type, InstrumentStatus(instrument_type))
-            
+
             instrument_status = self.get_instrument(instrument_type)
 
         return instrument_status

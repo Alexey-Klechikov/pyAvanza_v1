@@ -35,20 +35,22 @@ class ColoredFormatter(logging.Formatter):
         )
         colored_record.levelname = colored_levelname
 
-        return logging.Formatter.format(self, colored_record)
+        s = logging.Formatter.format(self, colored_record)
+        s = s.replace("BULL", "🟢 BULL").replace("BEAR", "🔴 BEAR")
+
+        return s
 
 
 class OneLineFormatter(logging.Formatter):
     def format(self, record) -> str:
+
         s = super(OneLineFormatter, self).format(record)
-        s = s.replace("\n", "")
+        s = s.replace("\n", "").replace("BULL", "🟢 BULL").replace("BEAR", "🔴 BEAR")
         if s.find("Done"):
             s = s.split("--")[0]
 
         for (block, length) in zip(s.split("]")[:3], [8, 25, 30]):
-            s = s.replace(
-                f"{block}]", f"{block}]" + (" " * (length - len(block)))
-            )
+            s = s.replace(f"{block}]", f"{block}]" + (" " * (length - len(block))))
 
         return s
 

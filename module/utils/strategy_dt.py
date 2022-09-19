@@ -39,6 +39,30 @@ class Strategy_DT:
     def get_ta_indicators(self) -> dict:
         ta_indicators = dict()
 
+        """ Volume """
+        """
+        # CMF (Chaikin Money Flow)
+        self.data.ta.cmf(append=True)
+        ta_indicators["CMF"] = {
+            "buy": lambda x: x["CMF_20"] < 0,
+            "sell": lambda x: x["CMF_20"] > 0,
+            "columns": ["CMF_20"],
+        }
+
+        # EFI (Elder's Force Index)
+        self.data.ta.efi(append=True)
+        ta_indicators["EFI"] = {
+            "buy": lambda x: x["EFI_13"] < 0,
+            "sell": lambda x: x["EFI_13"] > 0,
+            "columns": ["EFI_13"],
+        }
+        ta_indicators["EFI_R"] = {
+            "buy": lambda x: x["EFI_13"] > 0,
+            "sell": lambda x: x["EFI_13"] < 0,
+            "columns": ["EFI_13"],
+        }
+        """
+
         """ Trend """
         # PSAR (Parabolic Stop and Reverse)
         self.data.ta.psar(append=True)
@@ -84,8 +108,8 @@ class Strategy_DT:
         # RVI (Relative Volatility Index)
         self.data.ta.rvi(append=True)
         ta_indicators["RVI"] = {
-            "sell": lambda x: x["RVI_14"] > 50,
             "buy": lambda x: x["RVI_14"] < 50,
+            "sell": lambda x: x["RVI_14"] > 50,
             "columns": ["RVI_14"],
         }
 
@@ -93,16 +117,26 @@ class Strategy_DT:
         # STC (Schaff Trend Cycle)
         self.data.ta.stc(append=True)
         ta_indicators["STC"] = {
-            "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
             "buy": lambda x: x["STC_10_12_26_0.5"] < 75,
+            "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
+            "columns": ["STC_10_12_26_0.5"],
+        }
+        ta_indicators["STC_R"] = {
+            "buy": lambda x: x["STC_10_12_26_0.5"] > 75,
+            "sell": lambda x: x["STC_10_12_26_0.5"] < 25,
             "columns": ["STC_10_12_26_0.5"],
         }
 
         # BOP (Balance Of Power)
         self.data.ta.bop(append=True)
         ta_indicators["BOP"] = {
-            "sell": lambda x: x["BOP"] > 0.3,
             "buy": lambda x: x["BOP"] < -0.25,
+            "sell": lambda x: x["BOP"] > 0.3,
+            "columns": ["BOP"],
+        }
+        ta_indicators["BOP_R"] = {
+            "buy": lambda x: x["BOP"] > 0,
+            "sell": lambda x: x["BOP"] < 0,
             "columns": ["BOP"],
         }
 
@@ -111,18 +145,18 @@ class Strategy_DT:
         self.data["CCI_20_0.015_lag"] = self.data["CCI_20_0.015"]
         self.data.ta.cci(length=20, append=True)
         ta_indicators["CCI"] = {
-            "sell": lambda x: x["CCI_20_0.015"] > 100
-            and x["CCI_20_0.015"] < x["CCI_20_0.015_lag"],
             "buy": lambda x: x["CCI_20_0.015"] < -100
             and x["CCI_20_0.015"] > x["CCI_20_0.015_lag"],
+            "sell": lambda x: x["CCI_20_0.015"] > 100
+            and x["CCI_20_0.015"] < x["CCI_20_0.015_lag"],
             "columns": ["CCI_20_0.015", "CCI_20_0.015_lag"],
         }
 
         # RSI (Relative Strength Index)
         self.data.ta.rsi(length=14, append=True)
         ta_indicators["RSI"] = {
-            "sell": lambda x: x["RSI_14"] < 50,
             "buy": lambda x: x["RSI_14"] > 50,
+            "sell": lambda x: x["RSI_14"] < 50,
             "columns": ["RSI_14"],
         }
 
@@ -187,7 +221,7 @@ class Strategy_DT:
             return order_type
 
         def _sell_order(
-            order: dict, stats_counter: dict, orders_history: list[dict]
+            order: dict, stats_strategy: dict, orders_history: list[dict]
         ) -> None:
             for order_type in order.keys():
                 if order[order_type]["status"] == "BUY":
@@ -230,7 +264,7 @@ class Strategy_DT:
                         {"order_type": order_type, "status": "SELL", "verdict": verdict}
                     )
 
-                    stats_counter[verdict][order_type] += 1
+                    stats_strategy[verdict][order_type] += 1
                     orders_history.append(copy(order[order_type]))
 
         def _get_signal(value: int) -> Optional[SIGNAL]:
@@ -245,38 +279,88 @@ class Strategy_DT:
             return signal
 
         def _filter_out_strategies(
-            strategies: dict, stats_counter: dict, ta_indicator: str, column: str
+            strategies: dict, stats_strategy: dict, ta_indicator: str, column: str
         ) -> None:
             for order_type in strategies:
 
                 number_transactions = (
-                    stats_counter["good"][order_type] + stats_counter["bad"][order_type]
+                    stats_strategy["good"][order_type]
+                    + stats_strategy["bad"][order_type]
                 )
 
                 efficiency_percent = (
                     0
-                    if stats_counter["good"][order_type]
-                    - stats_counter["bad"][order_type]
-                    <= 1
+                    if number_transactions == 0
                     else round(
-                        (stats_counter["good"][order_type] / number_transactions) * 100
+                        (stats_strategy["good"][order_type] / number_transactions) * 100
                     )
                 )
 
-                if efficiency_percent >= success_limit:
+                stats_strategy["keep"] = (
+                    True
+                    if (
+                        efficiency_percent >= success_limit
+                        and stats_strategy["good"][order_type]
+                        - stats_strategy["bad"][order_type]
+                        >= 2
+                    )
+                    else False
+                )
+
+                if stats_strategy["keep"]:
                     strategies[order_type].setdefault(ta_indicator, list())
                     strategies[order_type][ta_indicator].append(column)
 
                     log.info(
-                        f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_counter['good'][order_type]} Good / {stats_counter['bad'][order_type]} Bad)"
+                        f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_strategy['good'][order_type]} Good / {stats_strategy['bad'][order_type]} Bad)"
                     )
 
                 else:
                     log.debug(
-                        f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_counter['good'][order_type]} Good / {stats_counter['bad'][order_type]} Bad)"
+                        f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_strategy['good'][order_type]} Good / {stats_strategy['bad'][order_type]} Bad)"
                     )
 
+        def _record_stats_per_pattern(
+            column: str, stats_patterns: dict, stats_strategy: dict
+        ) -> None:
+            stats_patterns.setdefault(
+                column,
+                {
+                    "total_good": {"BULL": 0, "BEAR": 0},
+                    "total_bad": {"BULL": 0, "BEAR": 0},
+                    "keep_good": {"BULL": 0, "BEAR": 0},
+                    "keep_bad": {"BULL": 0, "BEAR": 0},
+                },
+            )
+
+            for verdict in ["good", "bad"]:
+                for order_type in stats_strategy[verdict]:
+                    stats_patterns[column][f"total_{verdict}"][
+                        order_type
+                    ] += stats_strategy[verdict][order_type]
+
+                    if not stats_strategy["keep"]:
+                        continue
+
+                    stats_patterns[column][f"keep_{verdict}"][
+                        order_type
+                    ] += stats_strategy[verdict][order_type]
+
+        def _print_stats_per_pattern(stats_patterns: dict) -> None:
+            log.warning("Stats per pattern:")
+
+            for column, stats in stats_patterns.items():
+                message = [
+                    column,
+                    f"- Total: {sum(stats['keep_good'].values())} / {sum(stats['total_good'].values())}",
+                    f'- BULL: {stats["keep_good"]["BULL"]} / {stats["total_good"]["BULL"]}',
+                    f'- BEAR: {stats["keep_good"]["BEAR"]} / {stats["total_good"]["BEAR"]}',
+                ]
+
+                log.info(" ".join(message))
+
         strategies = {"BULL": dict(), "BEAR": dict()}
+        stats_patterns = {}
 
         for ta_indicator in self.ta_indicators:
             ta_indicator_lambda = self.ta_indicators[ta_indicator]
@@ -284,9 +368,10 @@ class Strategy_DT:
             for column in self.data.columns:
                 orders_history = list()
 
-                stats_counter = {
-                    "good": {"BULL": 0, "BEAR": 0, "percent": 0.0},
-                    "bad": {"BULL": 0, "BEAR": 0, "percent": 0.0},
+                stats_strategy = {
+                    "good": {"BULL": 0, "BEAR": 0},
+                    "bad": {"BULL": 0, "BEAR": 0},
+                    "keep": False,
                 }
 
                 order = {
@@ -317,15 +402,19 @@ class Strategy_DT:
                     if order_type is not None:
                         continue
 
-                    _sell_order(order, stats_counter, orders_history)
+                    _sell_order(order, stats_strategy, orders_history)
                     last_candle_signal = _get_signal(row[column])
 
                 _filter_out_strategies(
                     strategies,
-                    stats_counter,
+                    stats_strategy,
                     ta_indicator,
                     column,
                 )
+
+                _record_stats_per_pattern(column, stats_patterns, stats_strategy)
+
+        _print_stats_per_pattern(stats_patterns)
 
         return strategies
 
@@ -351,7 +440,7 @@ class Strategy_DT:
             return order_type
 
         def _sell_order(
-            order: dict, stats_counter: dict, orders_history: list[dict]
+            order: dict, stats_strategy: dict, orders_history: list[dict]
         ) -> None:
             for order_type in order.keys():
                 if order[order_type]["status"] == "BUY":
@@ -394,7 +483,7 @@ class Strategy_DT:
                         {"order_type": order_type, "status": "SELL", "verdict": verdict}
                     )
 
-                    stats_counter[order_type][verdict] += 1
+                    stats_strategy[order_type][verdict] += 1
                     orders_history.append(copy(order[order_type]))
 
         def _get_ta_signal(row: pd.Series, ta_indicator: str) -> Optional[SIGNAL]:
@@ -427,11 +516,11 @@ class Strategy_DT:
             return cs_signal, cs_pattern
 
         def _update_strategies(
-            stats_counter: dict, orders_history: list[dict], strategies: dict
+            stats_strategy: dict, orders_history: list[dict], strategies: dict
         ) -> dict:
-            for order_type in stats_counter:
+            for order_type in stats_strategy:
                 log.info(
-                    f"{order_type}: {stats_counter[order_type]['good']} Good / {stats_counter[order_type]['bad']} Bad"
+                    f"{order_type}: {stats_strategy[order_type]['good']} Good / {stats_strategy[order_type]['bad']} Bad"
                 )
 
             orders_stats = dict()
@@ -452,7 +541,7 @@ class Strategy_DT:
 
         orders_history = list()
 
-        stats_counter = {
+        stats_strategy = {
             "BULL": {"good": 0, "bad": 0, "percent": 0.0},
             "BEAR": {"good": 0, "bad": 0, "percent": 0.0},
         }
@@ -478,7 +567,7 @@ class Strategy_DT:
             if order_type is not None:
                 continue
 
-            _sell_order(order, stats_counter, orders_history)
+            _sell_order(order, stats_strategy, orders_history)
             if order["BULL" if order_type == "BUY" else "BEAR"]["status"] == "BUY":
                 continue
 
@@ -510,7 +599,7 @@ class Strategy_DT:
                         f"{str(index)[5:16]} / {round(row['Close'], 2)} / {order_type}-{ta_indicator}-{cs_pattern}"
                     )
 
-        _update_strategies(stats_counter, orders_history, strategies)
+        _update_strategies(stats_strategy, orders_history, strategies)
 
     # File management
     @staticmethod
