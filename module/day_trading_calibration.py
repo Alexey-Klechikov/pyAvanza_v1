@@ -42,7 +42,7 @@ class CalibrationOrder:
             1.00015 if self.instrument == "BULL" else 0.99985
         )
         self.time_buy = index
-        
+
     def sell(self, row, index, enforce=False):
         self.price_sell = random.uniform(row["High"], row["Low"])
         self.time_sell = index
@@ -66,9 +66,13 @@ class CalibrationOrder:
         )
 
         if enforce:
-            stop_loss_normalized = self.price_buy if self.price_buy is not None else stop_loss_normalized
-            take_profit_normalized = self.price_buy if self.price_buy is not None else take_profit_normalized
-            
+            stop_loss_normalized = (
+                self.price_buy if self.price_buy is not None else stop_loss_normalized
+            )
+            take_profit_normalized = (
+                self.price_buy if self.price_buy is not None else take_profit_normalized
+            )
+
         if (self.price_sell <= stop_loss_normalized and self.instrument == "BULL") or (
             self.price_sell >= stop_loss_normalized and self.instrument == "BEAR"
         ):
@@ -88,14 +92,14 @@ class CalibrationOrder:
             "time_sell": self.time_sell,
             "verdict": self.verdict,
         }
-        
+
         self.on_balance = False
         self.price_buy = None
         self.price_sell = None
         self.time_buy = None
         self.time_sell = None
         self.verdict = None
-        
+
         return result
 
 
@@ -120,7 +124,7 @@ class Helper:
 
         # Update_strategies variables
         self.success_limit = settings["calibration"]["success_limit"]
-        
+
         self.stats_patterns: dict = dict()
 
         self.filtered_strategies = {"BULL": dict(), "BEAR": dict()}
@@ -145,7 +149,6 @@ class Helper:
                 instrument_sell = "BULL" if instrument_buy == "BEAR" else "BEAR"
                 self.sell_order(index, row, enforce_sell_instrument=instrument_sell)
 
-
             self.orders[instrument_buy].buy(row, index)
 
         return instrument_buy
@@ -169,10 +172,9 @@ class Helper:
 
             if instrument_order.verdict is None:
                 continue
-            
+
             self.stats_strategy[instrument_order.verdict][instrument] += 1
             self.orders_history.append(instrument_order.pop_result())
-
 
     def get_signal(
         self, value: int, ta_indicator: dict, row: pd.Series
@@ -289,6 +291,7 @@ class Helper:
 
             log.info(" ".join(message))
 
+
 class Calibration:
     def __init__(self, settings: dict, user: str):
         self.settings = settings
@@ -404,8 +407,10 @@ class Calibration:
                         signal = helper.get_signal(
                             row[cs_column], ta_indicator, row  # type: ignore
                         )
-           
-                        if signal is not None and (signal == ('BUY' if instrument == 'BULL' else 'SELL')):
+
+                        if signal is not None and (
+                            signal == ("BUY" if instrument == "BULL" else "SELL")
+                        ):
                             log.warning(
                                 f"{str(index)[5:16]} / {round(row['Close'], 2)} / {instrument}-{ta_indicator_name}-{cs_column}"
                             )
@@ -454,7 +459,7 @@ def run() -> None:
                     calibration.update_strategies()
 
                 data = calibration.test_strategies()
-                #calibration.plot_strategies(data)
+                calibration.plot_strategies(data)
 
                 TeleLog(message=f"DT calibration: done.")
 

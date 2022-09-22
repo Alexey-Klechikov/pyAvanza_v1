@@ -40,7 +40,9 @@ class Strategy_TA:
         strategies = self.generate_strategies(strategies_component_names)
         self.summary = self.get_signal(kwargs.get("ticker_name", False), strategies)
 
-    def prepare_conditions(self, data: pd.DataFrame, skip_points: int) -> Tuple[pd.DataFrame, dict]:
+    def prepare_conditions(
+        self, data: pd.DataFrame, skip_points: int
+    ) -> Tuple[pd.DataFrame, dict]:
         def _check_enough_data(column: str, data: pd.DataFrame) -> bool:
             if column in data.columns:
                 return True
@@ -307,7 +309,9 @@ class Strategy_TA:
 
         return strategies_component_names
 
-    def parse_strategies_names(self, strategies_names: list[str]) -> list[list[tuple[str, str]]]:
+    def parse_strategies_names(
+        self, strategies_names: list[str]
+    ) -> list[list[tuple[str, str]]]:
         log.debug("Parsing strategies list")
 
         strategies_component_names = [[("Blank", "HOLD")]]
@@ -324,7 +328,9 @@ class Strategy_TA:
 
         return strategies_component_names
 
-    def generate_strategies(self, strategies_component_names: list[list[tuple[str, str]]]) -> dict:
+    def generate_strategies(
+        self, strategies_component_names: list[list[tuple[str, str]]]
+    ) -> dict:
         log.debug("Generating strategies dict")
 
         strategies = dict()

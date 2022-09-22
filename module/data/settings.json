@@ -31,7 +31,7 @@
                 "stop_loss_trailing_timer": 30
             },
             "calibration": {
-                "update": false,
+                "update": true,
                 "success_limit": 62
             },
             "instruments": {

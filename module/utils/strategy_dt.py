@@ -194,7 +194,6 @@ class Strategy_DT:
 
         return ta_indicators
 
-
     @staticmethod
     def load(filename_suffix: str) -> dict:
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
