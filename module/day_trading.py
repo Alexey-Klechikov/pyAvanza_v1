@@ -11,7 +11,6 @@ from .utils import History
 from .utils import Context
 from .utils import TeleLog
 from .utils import Settings
-from .utils import Instrument
 from .utils import Strategy_DT
 from .utils import InstrumentStatus, Status_DT as Status
 
@@ -21,14 +20,13 @@ log = logging.getLogger("main.day_trading")
 
 class Helper:
     def __init__(self, user, accounts: dict, settings: dict):
-        self.settings_trading = settings["trading"]
+        self.settings = settings
 
         self.trading_done = False
         self.accounts = accounts
 
         self.strategies = Strategy_DT.load("DT")
-        self.instrument = Instrument(self.settings_trading["multiplier"])
-        self.status = Status(self.settings_trading)
+        self.status = Status(self.settings["trading"])
 
         self.last_line = {"overwrite": True, "messages": list()}
         self.log_data = {
@@ -36,7 +34,7 @@ class Helper:
             "balance_after": 0,
             "number_errors": 0,
             "number_trades": 0,
-            "budget": self.settings_trading["budget"],
+            "budget": self.settings["trading"]["budget"],
         }
 
         self.ava = Context(user, accounts, skip_lists=True)
@@ -103,14 +101,14 @@ class Helper:
         own_capital = self.ava.get_portfolio()["total_own_capital"]
         floating_budget = (own_capital // 1000 - 1) * 1000
 
-        self.settings_trading["budget"] = max(
-            floating_budget, self.settings_trading["budget"]
+        self.settings["trading"]["budget"] = max(
+            floating_budget, self.settings["trading"]["budget"]
         )
 
     def get_signal(self, strategies: dict, instrument_type: str) -> bool:
         # This needs to change to use avanza data (once I have enough volume data cached) -> deadline 2022-10-02
         history = History(
-            self.instrument.ids["MONITORING"]["YAHOO"],
+            self.settings["instruments"]["MONITORING"]["YAHOO"],
             "2d",
             "1m",
             cache="skip",
@@ -118,7 +116,7 @@ class Helper:
 
         strategy = Strategy_DT(
             history.data,
-            order_price_limits=self.settings_trading["limits_percent"],
+            order_price_limits=self.settings["trading"]["limits_percent"],
         )
 
         strategies = strategies if strategies else strategy.load("DT")
@@ -138,10 +136,10 @@ class Helper:
         return last_candle_signal_buy
 
     def update_instrument_status(self, instrument_type: str) -> InstrumentStatus:
-        instrument_id = str(self.instrument.ids["TRADING"][instrument_type])
+        instrument_id = str(self.settings["instruments"]["TRADING"][instrument_type])
 
         certificate_info = self.ava.get_certificate_info(
-            self.instrument.ids["TRADING"][instrument_type],
+            self.settings["instruments"]["TRADING"][instrument_type],
         )
 
         deals_and_orders = self.ava.ctx.get_deals_and_orders()
@@ -168,7 +166,9 @@ class Helper:
         ):
             return
 
-        if instrument_status.spread is None or instrument_status.spread > 0.6:
+        if (
+            instrument_status.spread is None or instrument_status.spread > 0.6
+        ) and self.status != "evening":
             log.error(
                 f"{instrument_type} - (place_order) HIGH SPREAD: {instrument_status.spread}"
             )
@@ -180,14 +180,14 @@ class Helper:
         self.last_line["overwrite"] = False
 
         certificate_info = self.ava.get_certificate_info(
-            self.instrument.ids["TRADING"][instrument_type],
+            self.settings["instruments"]["TRADING"][instrument_type],
         )
 
         order_data = {
             "name": instrument_type,
             "signal": signal,
             "account_id": list(self.accounts.values())[0],
-            "order_book_id": self.instrument.ids["TRADING"][instrument_type],
+            "order_book_id": self.settings["instruments"]["TRADING"][instrument_type],
             "max_return": 0,
         }
 
@@ -201,9 +201,9 @@ class Helper:
                 {
                     "price": certificate_info[signal],
                     "volume": int(
-                        self.settings_trading["budget"] // certificate_info[signal]
+                        self.settings["trading"]["budget"] // certificate_info[signal]
                     ),
-                    "budget": self.settings_trading["budget"],
+                    "budget": self.settings["trading"]["budget"],
                 }
             )
 
@@ -290,7 +290,7 @@ class Helper:
 
 class Day_Trading:
     def __init__(self, user: str, accounts: dict, settings: dict):
-        self.settings_trading = settings["trading"]
+        self.settings = settings
 
         self.helper = Helper(user, accounts, settings)
 
@@ -311,7 +311,7 @@ class Day_Trading:
             main_instrument_type
         )
         main_instrument_price_buy = self.helper.ava.get_certificate_info(
-            self.helper.instrument.ids["TRADING"][main_instrument_type]
+            self.settings["instruments"]["TRADING"][main_instrument_type]
         ).get("buy")
         main_instrument_signal_buy = self.helper.get_signal(
             strategies, main_instrument_type
@@ -328,7 +328,7 @@ class Day_Trading:
         # action for other instrument
         if other_instrument_status.has_position:
             other_instrument_price_sell = self.helper.ava.get_certificate_info(
-                self.helper.instrument.ids["TRADING"][other_instrument_type]
+                self.settings["instruments"]["TRADING"][other_instrument_type]
             ).get("sell")
 
             self.helper.update_order(
@@ -379,7 +379,7 @@ class Day_Trading:
         else:
             price_sell = None
             current_price_sell = self.helper.ava.get_certificate_info(
-                self.helper.instrument.ids["TRADING"][instrument_type]
+                self.settings["instruments"]["TRADING"][instrument_type]
             )["sell"]
 
             if any(

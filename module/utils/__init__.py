@@ -1,4 +1,3 @@
-from .instrument import Instrument
 from .settings import Settings
 from .history import History
 from .context import Context

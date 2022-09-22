@@ -3,6 +3,7 @@ This module contains all candlesticks related functions
 """
 
 
+from datetime import datetime
 import os
 import json
 import logging
@@ -11,7 +12,7 @@ import pandas as pd
 
 from copy import copy
 from typing import Tuple, Optional, Literal
-
+from dataclasses import dataclass, field
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
@@ -19,9 +20,6 @@ pd.set_option("display.max_rows", 0)
 pd.set_option("display.expand_frame_repr", False)
 
 log = logging.getLogger("main.utils.strategy_dt")
-
-SIGNAL = Literal["BUY", "SELL"]
-ORDER_TYPE = Literal["BULL", "BEAR"]
 
 
 class Strategy_DT:
@@ -35,6 +33,16 @@ class Strategy_DT:
         self.get_candlestick_patterns()
 
         self.ta_indicators = self.get_ta_indicators()
+
+    def get_candlestick_patterns(self) -> None:
+        self.data = pd.merge(
+            left=self.data,
+            right=self.data.ta.cdl_pattern(name="all"),
+            left_index=True,
+            right_index=True,
+        )
+
+        self.data.drop(columns=["CDL_LADDERBOTTOM"], inplace=True)
 
     def get_ta_indicators(self) -> dict:
         ta_indicators = dict()
@@ -186,422 +194,7 @@ class Strategy_DT:
 
         return ta_indicators
 
-    def get_candlestick_patterns(self) -> None:
-        self.data = pd.merge(
-            left=self.data,
-            right=self.data.ta.cdl_pattern(name="all"),
-            left_index=True,
-            right_index=True,
-        )
 
-        self.data.drop(columns=["CDL_LADDERBOTTOM"], inplace=True)
-
-    # Strategies testing
-    def get_successful_strategies(self, success_limit: int) -> dict:
-        def _buy_order(
-            order: dict, last_candle_signal: Optional[SIGNAL]
-        ) -> Optional[ORDER_TYPE]:
-            order_type = None
-
-            if last_candle_signal == "BUY" and order["BULL"]["status"] == "SELL":
-                order_type = "BULL"
-
-            elif last_candle_signal == "SELL" and order["BEAR"]["status"] == "SELL":
-                order_type = "BEAR"
-
-            if order_type is not None:
-                order[order_type]["price_buy"] = ((row["High"] + row["Low"]) / 2) * (
-                    1.00015 if order_type == "BULL" else 0.99985
-                )
-                order[order_type]["status"] = "BUY"
-                order[order_type]["buy_time"] = row.name
-                order[order_type]["status"] = "BUY"
-                order[order_type]["time_buy"] = index
-
-            return order_type
-
-        def _sell_order(
-            order: dict, stats_strategy: dict, orders_history: list[dict]
-        ) -> None:
-            for order_type in order.keys():
-                if order[order_type]["status"] == "BUY":
-                    order[order_type]["price_sell"] = (row["High"] + row["Low"]) / 2
-                    order[order_type]["time_sell"] = index
-
-                    verdict = None
-                    if order_type == "BULL":
-                        stop_loss = order[order_type]["price_buy"] * (
-                            1 - self.order_price_limits["stop_loss"]
-                        )
-                        take_profit = order[order_type]["price_buy"] * (
-                            1 + self.order_price_limits["take_profit"]
-                        )
-
-                        if order[order_type]["price_sell"] <= stop_loss:
-                            verdict = "bad"
-
-                        elif row["High"] >= take_profit:
-                            verdict = "good"
-
-                    elif order_type == "BEAR":
-                        take_profit = order[order_type]["price_buy"] * (
-                            1 - self.order_price_limits["take_profit"]
-                        )
-                        stop_loss = order[order_type]["price_buy"] * (
-                            1 + self.order_price_limits["stop_loss"]
-                        )
-
-                        if row["Low"] <= take_profit:
-                            verdict = "good"
-
-                        elif order[order_type]["price_sell"] >= stop_loss:
-                            verdict = "bad"
-
-                    if verdict is None:
-                        continue
-
-                    order[order_type].update(
-                        {"order_type": order_type, "status": "SELL", "verdict": verdict}
-                    )
-
-                    stats_strategy[verdict][order_type] += 1
-                    orders_history.append(copy(order[order_type]))
-
-        def _get_signal(value: int) -> Optional[SIGNAL]:
-            signal = None
-
-            if value > 0 and ta_indicator_lambda["buy"](row):
-                signal = "BUY"
-
-            elif value < 0 and ta_indicator_lambda["sell"](row):
-                signal = "SELL"
-
-            return signal
-
-        def _filter_out_strategies(
-            strategies: dict, stats_strategy: dict, ta_indicator: str, column: str
-        ) -> None:
-            for order_type in strategies:
-
-                number_transactions = (
-                    stats_strategy["good"][order_type]
-                    + stats_strategy["bad"][order_type]
-                )
-
-                efficiency_percent = (
-                    0
-                    if number_transactions == 0
-                    else round(
-                        (stats_strategy["good"][order_type] / number_transactions) * 100
-                    )
-                )
-
-                stats_strategy["keep"] = (
-                    True
-                    if (
-                        efficiency_percent >= success_limit
-                        and stats_strategy["good"][order_type]
-                        - stats_strategy["bad"][order_type]
-                        >= 2
-                    )
-                    else False
-                )
-
-                if stats_strategy["keep"]:
-                    strategies[order_type].setdefault(ta_indicator, list())
-                    strategies[order_type][ta_indicator].append(column)
-
-                    log.info(
-                        f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_strategy['good'][order_type]} Good / {stats_strategy['bad'][order_type]} Bad)"
-                    )
-
-                else:
-                    log.debug(
-                        f"{ta_indicator} + {column} - {order_type}: {efficiency_percent}% ({stats_strategy['good'][order_type]} Good / {stats_strategy['bad'][order_type]} Bad)"
-                    )
-
-        def _record_stats_per_pattern(
-            column: str, stats_patterns: dict, stats_strategy: dict
-        ) -> None:
-            stats_patterns.setdefault(
-                column,
-                {
-                    "total_good": {"BULL": 0, "BEAR": 0},
-                    "total_bad": {"BULL": 0, "BEAR": 0},
-                    "keep_good": {"BULL": 0, "BEAR": 0},
-                    "keep_bad": {"BULL": 0, "BEAR": 0},
-                },
-            )
-
-            for verdict in ["good", "bad"]:
-                for order_type in stats_strategy[verdict]:
-                    stats_patterns[column][f"total_{verdict}"][
-                        order_type
-                    ] += stats_strategy[verdict][order_type]
-
-                    if not stats_strategy["keep"]:
-                        continue
-
-                    stats_patterns[column][f"keep_{verdict}"][
-                        order_type
-                    ] += stats_strategy[verdict][order_type]
-
-        def _print_stats_per_pattern(stats_patterns: dict) -> None:
-            log.warning("Stats per pattern:")
-
-            for column, stats in stats_patterns.items():
-                message = [
-                    column,
-                    f"- Total: {sum(stats['keep_good'].values())} / {sum(stats['total_good'].values())}",
-                    f'- BULL: {stats["keep_good"]["BULL"]} / {stats["total_good"]["BULL"]}',
-                    f'- BEAR: {stats["keep_good"]["BEAR"]} / {stats["total_good"]["BEAR"]}',
-                ]
-
-                log.info(" ".join(message))
-
-        strategies = {"BULL": dict(), "BEAR": dict()}
-        stats_patterns = {}
-
-        for ta_indicator in self.ta_indicators:
-            ta_indicator_lambda = self.ta_indicators[ta_indicator]
-
-            for column in self.data.columns:
-                orders_history = list()
-
-                stats_strategy = {
-                    "good": {"BULL": 0, "BEAR": 0},
-                    "bad": {"BULL": 0, "BEAR": 0},
-                    "keep": False,
-                }
-
-                order = {
-                    i: {
-                        "status": "SELL",
-                        "price_buy": None,
-                        "price_sell": None,
-                        "time_buy": None,
-                        "time_sell": None,
-                        "verdict": None,
-                    }
-                    for i in ["BULL", "BEAR"]
-                }
-
-                self.data["signal"] = None
-
-                if not column.startswith("CDL") or (self.data[column] == 0).all():
-                    continue
-
-                last_candle_signal = None
-
-                for index, row in self.data[
-                    ["High", "Low", "Open", "Close", column]
-                    + self.ta_indicators[ta_indicator]["columns"]
-                ].iterrows():
-
-                    order_type = _buy_order(order, last_candle_signal)
-                    if order_type is not None:
-                        continue
-
-                    _sell_order(order, stats_strategy, orders_history)
-                    last_candle_signal = _get_signal(row[column])
-
-                _filter_out_strategies(
-                    strategies,
-                    stats_strategy,
-                    ta_indicator,
-                    column,
-                )
-
-                _record_stats_per_pattern(column, stats_patterns, stats_strategy)
-
-        _print_stats_per_pattern(stats_patterns)
-
-        return strategies
-
-    def backtest_strategies(self, strategies: dict) -> None:
-        def _buy_order(
-            order: dict, last_candle_signal: Optional[SIGNAL]
-        ) -> Optional[ORDER_TYPE]:
-            order_type = None
-
-            if last_candle_signal == "BUY" and order["BULL"]["status"] == "SELL":
-                order_type = "BULL"
-
-            elif last_candle_signal == "SELL" and order["BEAR"]["status"] == "SELL":
-                order_type = "BEAR"
-
-            if order_type is not None:
-                order[order_type]["price_buy"] = ((row["High"] + row["Low"]) / 2) * (
-                    1.00015 if order_type == "BULL" else 0.99985
-                )
-                order[order_type]["status"] = "BUY"
-                order[order_type]["time_buy"] = index
-
-            return order_type
-
-        def _sell_order(
-            order: dict, stats_strategy: dict, orders_history: list[dict]
-        ) -> None:
-            for order_type in order.keys():
-                if order[order_type]["status"] == "BUY":
-                    order[order_type]["price_sell"] = (row["High"] + row["Low"]) / 2
-                    order[order_type]["time_sell"] = index
-
-                    verdict = None
-                    if order_type == "BULL":
-                        stop_loss = order[order_type]["price_buy"] * (
-                            1 - self.order_price_limits["stop_loss"]
-                        )
-                        take_profit = order[order_type]["price_buy"] * (
-                            1 + self.order_price_limits["take_profit"]
-                        )
-
-                        if order[order_type]["price_sell"] <= stop_loss:
-                            verdict = "bad"
-
-                        elif row["High"] >= take_profit:
-                            verdict = "good"
-
-                    elif order_type == "BEAR":
-                        take_profit = order[order_type]["price_buy"] * (
-                            1 - self.order_price_limits["take_profit"]
-                        )
-                        stop_loss = order[order_type]["price_buy"] * (
-                            1 + self.order_price_limits["stop_loss"]
-                        )
-
-                        if row["Low"] <= take_profit:
-                            verdict = "good"
-
-                        elif order[order_type]["price_sell"] >= stop_loss:
-                            verdict = "bad"
-
-                    if verdict is None:
-                        continue
-
-                    order[order_type].update(
-                        {"order_type": order_type, "status": "SELL", "verdict": verdict}
-                    )
-
-                    stats_strategy[order_type][verdict] += 1
-                    orders_history.append(copy(order[order_type]))
-
-        def _get_ta_signal(row: pd.Series, ta_indicator: str) -> Optional[SIGNAL]:
-
-            ta_signal = None
-
-            if self.ta_indicators[ta_indicator]["buy"](row):
-                ta_signal = "BUY"
-
-            elif self.ta_indicators[ta_indicator]["sell"](row):
-                ta_signal = "SELL"
-
-            return ta_signal
-
-        def _get_cs_signal(
-            row: pd.Series, patterns: list[str]
-        ) -> Tuple[Optional[SIGNAL], Optional[str]]:
-            cs_signal, cs_pattern = None, None
-
-            for pattern in patterns:
-                if row[pattern] > 0:
-                    cs_signal = "BUY"
-                elif row[pattern] < 0:
-                    cs_signal = "SELL"
-
-                if cs_signal is not None:
-                    cs_pattern = pattern
-                    break
-
-            return cs_signal, cs_pattern
-
-        def _update_strategies(
-            stats_strategy: dict, orders_history: list[dict], strategies: dict
-        ) -> dict:
-            for order_type in stats_strategy:
-                log.info(
-                    f"{order_type}: {stats_strategy[order_type]['good']} Good / {stats_strategy[order_type]['bad']} Bad"
-                )
-
-            orders_stats = dict()
-            for order in orders_history:
-                key = f'{order["order_type"]}-{order["ta_indicator"]}-{order["cs_pattern"]}'
-                orders_stats.setdefault(key, dict()).setdefault(order["verdict"], 0)
-                orders_stats[key][order["verdict"]] += 1
-
-            for path, stats in orders_stats.items():
-                log.info(f"{path}: {stats}")
-                if "good" not in stats:
-                    path = path.split("-")
-                    strategies[path[0]][path[1]] = list(
-                        set(strategies[path[0]][path[1]]) - {path[2]}
-                    )
-
-            return strategies
-
-        orders_history = list()
-
-        stats_strategy = {
-            "BULL": {"good": 0, "bad": 0, "percent": 0.0},
-            "BEAR": {"good": 0, "bad": 0, "percent": 0.0},
-        }
-
-        order = {
-            i: {
-                "status": "SELL",
-                "price_buy": None,
-                "price_sell": None,
-                "time_buy": None,
-                "time_sell": None,
-                "verdict": None,
-                "cs_pattern": None,
-                "ta_indicator": None,
-            }
-            for i in ["BULL", "BEAR"]
-        }
-
-        self.data["signal"] = None
-
-        for i, (index, row) in enumerate(self.data.iterrows()):
-            order_type = _buy_order(order, self.data.iloc[i - 1]["signal"])
-            if order_type is not None:
-                continue
-
-            _sell_order(order, stats_strategy, orders_history)
-            if order["BULL" if order_type == "BUY" else "BEAR"]["status"] == "BUY":
-                continue
-
-            for ta_indicator in self.ta_indicators:
-                ta_signal = _get_ta_signal(row, ta_indicator)
-                if ta_signal is None:
-                    continue
-
-                cs_signal, cs_pattern = _get_cs_signal(
-                    row,
-                    strategies["BULL" if ta_signal == "BUY" else "BEAR"].get(
-                        ta_indicator, list()
-                    ),
-                )
-                if cs_signal is None:
-                    continue
-
-                order_type = "BULL" if cs_signal == "BUY" else "BEAR"
-                if cs_signal == ta_signal:
-                    self.data.at[index, "signal"] = (
-                        self.data.at[index, "signal"]
-                        if self.data.at[index, "signal"] is not None
-                        else cs_signal
-                    )
-                    order[order_type]["cs_pattern"] = cs_pattern
-                    order[order_type]["ta_indicator"] = ta_indicator
-
-                    log.warning(
-                        f"{str(index)[5:16]} / {round(row['Close'], 2)} / {order_type}-{ta_indicator}-{cs_pattern}"
-                    )
-
-        _update_strategies(stats_strategy, orders_history, strategies)
-
-    # File management
     @staticmethod
     def load(filename_suffix: str) -> dict:
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

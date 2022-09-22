@@ -22,7 +22,6 @@
             "run_day_trading": true,
             "trading": {
                 "budget": 3000,
-                "multiplier": 20, 
                 "limits_percent": {
                     "take_profit_super": 1.06,
                     "take_profit": 1.03,
@@ -32,8 +31,20 @@
                 "stop_loss_trailing_timer": 30
             },
             "calibration": {
-                "update": true,
+                "update": false,
                 "success_limit": 62
+            },
+            "instruments": {
+                "multiplier": 20,
+                "TRADING": {
+                    "BEAR": 1451032,
+                    "BULL": 1456629
+            
+                },
+                "MONITORING": {
+                    "AVA": 19002,
+                    "YAHOO": "^OMX"
+                }
             }
         }
     }

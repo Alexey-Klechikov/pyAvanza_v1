@@ -19,7 +19,7 @@ from .context import Context
 
 
 warnings.filterwarnings("ignore")
-pd.options.mode.chained_assignment = None
+pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.expand_frame_repr", False)
 
 log = logging.getLogger("main.utils.strategy_ta")

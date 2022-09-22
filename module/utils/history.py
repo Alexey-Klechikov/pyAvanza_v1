@@ -126,13 +126,6 @@ class History:
         except EOFError:
             os.remove(pickle_path)
 
-        try:
-            data.drop(
-                index="2022-09-02 17:30:00+02:00", inplace=True
-            )  # TODO: Remove this line ASAP
-        except:
-            pass
-
         return data
 
     def _dump_cache(self, pickle_path: str, data: pd.DataFrame) -> None:

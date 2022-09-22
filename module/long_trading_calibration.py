@@ -19,7 +19,7 @@ from .utils import Strategy_TA
 log = logging.getLogger("main.long_trading_calibration")
 
 
-class Watch_Lists_Analysis:
+class Calibration:
     def __init__(self, **kwargs):
         self.ava = Context(kwargs["user"], kwargs["accounts"])
         self.logs = ["LT calibration"]
@@ -132,7 +132,7 @@ def run() -> None:
                 continue
 
             try:
-                Watch_Lists_Analysis(
+                Calibration(
                     user=user,
                     accounts=setting_per_setup["accounts"],
                     log_to_telegram=setting_per_setup["log_to_telegram"],
