@@ -302,6 +302,9 @@ class Day_Trading:
                 break
 
             except (ReadTimeout, ConnectionError):
+                log.error("AVA Connection error, retrying in 5 seconds")
+                self.helper.log_data["number_errors"] += 1
+
                 self.helper.ava.ctx = self.helper.ava.get_ctx(user)
 
     def check_instrument_for_buy_action(
