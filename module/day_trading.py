@@ -5,6 +5,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 from requests import ReadTimeout
+from requests.exceptions import ConnectionError
 from typing import Tuple, Optional
 
 from .utils import History
@@ -300,7 +301,7 @@ class Day_Trading:
 
                 break
 
-            except ReadTimeout:
+            except (ReadTimeout, ConnectionError):
                 self.helper.ava.ctx = self.helper.ava.get_ctx(user)
 
     def check_instrument_for_buy_action(
