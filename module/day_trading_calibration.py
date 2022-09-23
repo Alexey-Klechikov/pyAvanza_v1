@@ -44,7 +44,6 @@ class CalibrationOrder:
         self.time_buy = index
 
     def sell(self, row, index, enforce=False):
-        self.price_sell = random.uniform(row["High"], row["Low"])
         self.time_sell = index
 
         stop_loss_normalized = self.price_buy * (
@@ -73,15 +72,23 @@ class CalibrationOrder:
                 self.price_buy if self.price_buy is not None else take_profit_normalized
             )
 
+        self.price_sell = random.uniform(row["High"], row["Low"])
+
         if (self.price_sell <= stop_loss_normalized and self.instrument == "BULL") or (
             self.price_sell >= stop_loss_normalized and self.instrument == "BEAR"
         ):
             self.verdict = "bad"
 
-        elif (
+            return
+
+        self.price_sell = row["Low"] if self.instrument == "BULL" else row["High"]
+
+        if (
             self.price_sell >= take_profit_normalized and self.instrument == "BULL"
         ) or (self.price_sell <= take_profit_normalized and self.instrument == "BEAR"):
             self.verdict = "good"
+
+            return
 
     def pop_result(self) -> dict:
         result = {
