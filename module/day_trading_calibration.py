@@ -4,7 +4,7 @@ import traceback
 import pandas as pd
 import yfinance as yf
 from dataclasses import dataclass
-from typing import Optional, Literal
+from typing import Optional, Literal, List, Tuple
 from datetime import datetime
 
 from .utils import Plot
@@ -285,17 +285,23 @@ class Helper:
             log.info(" ".join(message))
 
     # Test_strategies funnctions
-    def print_stats_instruments(self) -> None:
+    def print_stats_instruments(self) -> List[str]:
         log.info("Stats per instrument:")
+
+        telelog_message = list()
 
         for verdict, instruments_counters in self.stats_strategy.items():
             message = [
-                f'{verdict} ({instruments_counters["BULL"] + instruments_counters["BEAR"]}):',
+                f'> {verdict} ({instruments_counters["BULL"] + instruments_counters["BEAR"]}):',
                 f'BULL: {instruments_counters["BULL"]}',
                 f'/ BEAR: {instruments_counters["BEAR"]}',
             ]
 
-            log.info(" ".join(message))
+            telelog_message.append(" ".join(message))
+
+            log.info(telelog_message[-1])
+
+        return telelog_message
 
 
 class Calibration:
@@ -369,7 +375,7 @@ class Calibration:
 
         strategy.dump("DT", helper.filtered_strategies)
 
-    def test_strategies(self) -> pd.DataFrame:
+    def test_strategies(self) -> Tuple[pd.DataFrame, list]:
         log.info(f"Testing strategies")
 
         history = History(
@@ -427,9 +433,9 @@ class Calibration:
 
         strategy.data["signal"] = signals
 
-        helper.print_stats_instruments()
+        telelog_message = helper.print_stats_instruments()
 
-        return strategy.data
+        return strategy.data, telelog_message
 
     def plot_strategies(self, data: pd.DataFrame) -> None:
         if platform.system() != "Darwin":
@@ -464,10 +470,12 @@ def run() -> None:
                 if setting_per_setup["calibration"]["update"]:
                     calibration.update_strategies()
 
-                data = calibration.test_strategies()
+                data, telelog_message = calibration.test_strategies()
                 calibration.plot_strategies(data)
 
-                TeleLog(message=f"DT calibration: done.")
+                TeleLog(
+                    message=("DT calibration: done.\n" + "\n".join(telelog_message))
+                )
 
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
