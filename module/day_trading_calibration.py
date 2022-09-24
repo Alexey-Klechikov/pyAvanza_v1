@@ -35,12 +35,12 @@ class CalibrationOrder:
     verdict: Optional[str] = None
 
     def buy(self, row, index):
+        self.time_buy = index
+        
         self.on_balance = True
-        self.price_buy
-        self.price_buy = ((row["Open"] + row["Close"]) / 2) * (
+        self.price_buy = ((row["Low"] + row["High"]) / 2) * (
             1.00015 if self.instrument == "BULL" else 0.99985
         )
-        self.time_buy = index
 
     def sell(self, row, index, enforce=False):
         self.time_sell = index
@@ -71,7 +71,7 @@ class CalibrationOrder:
                 self.price_buy if self.price_buy is not None else take_profit_normalized
             )
 
-        self.price_sell = (row["Open"] + row["Close"]) / 2
+        self.price_sell = (row["Low"] + row["High"]) / 2
 
         if (self.price_sell <= stop_loss_normalized and self.instrument == "BULL") or (
             self.price_sell >= stop_loss_normalized and self.instrument == "BEAR"
