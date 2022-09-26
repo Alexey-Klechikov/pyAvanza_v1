@@ -3,16 +3,12 @@ This module contains all candlesticks related functions
 """
 
 
-from datetime import datetime
 import os
 import json
 import logging
 import warnings
 import pandas as pd
 
-from copy import copy
-from typing import Tuple, Optional, Literal
-from dataclasses import dataclass, field
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
@@ -80,12 +76,40 @@ class Strategy_DT:
             "columns": ["PSARl_0.02_0.2", "PSARs_0.02_0.2"],
         }
 
-        # CKSP (Chande Kroll Stop)
-        self.data.ta.cksp(append=True)
-        ta_indicators["CKSP"] = {
-            "buy": lambda x: x["CKSPl_10_3_20"] > x["CKSPs_10_3_20"],
-            "sell": lambda x: x["CKSPl_10_3_20"] < x["CKSPs_10_3_20"],
-            "columns": ["CKSPl_10_3_20", "CKSPs_10_3_20"],
+        """ Overlap """
+        # ALMA (Arnaud Legoux Moving Average)
+        self.data.ta.alma(length=15, append=True)
+        ta_indicators["ALMA"] = {
+            "buy": lambda x: x["Close"] > x["ALMA_15_6.0_0.85"],
+            "sell": lambda x: x["Close"] < x["ALMA_15_6.0_0.85"],
+            "columns": ["ALMA_15_6.0_0.85"],
+        }
+
+        # GHLA (Gann High-Low Activator)
+        self.data.ta.hilo(append=True)
+        ta_indicators["GHLA"] = {
+            "buy": lambda x: x["Close"] > x["HILO_13_21"],
+            "sell": lambda x: x["Close"] < x["HILO_13_21"],
+            "columns": ["HILO_13_21"],
+        }
+
+        # SUPERT (Supertrend)
+        self.data.ta.supertrend(append=True)
+        ta_indicators["SUPERT"] = {
+            "buy": lambda x: x["Close"] > x["SUPERT_7_3.0"],
+            "sell": lambda x: x["Close"] < x["SUPERT_7_3.0"],
+            "columns": ["SUPERT_7_3.0"],
+        }
+
+        # LINREG (Linear Regression)
+        self.data.ta.linreg(append=True, r=True)
+        self.data["LRr_direction"] = (
+            self.data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+        )
+        ta_indicators["LINREG"] = {
+            "buy": lambda x: x["LRr_direction"] == 1,
+            "sell": lambda x: x["LRr_direction"] == 0,
+            "columns": ["LRr_direction"],
         }
 
         """ Volatility """
@@ -122,16 +146,30 @@ class Strategy_DT:
         }
 
         """ Momentum """
+        # MACD (Moving Average Convergence Divergence)
+        self.data.ta.macd(fast=8, slow=21, signal=5, append=True)
+        ta_indicators["MACD"] = {
+            "buy": lambda x: x["MACD_8_21_5"] > x["MACDs_8_21_5"],
+            "sell": lambda x: x["MACD_8_21_5"] < x["MACDs_8_21_5"],
+            "columns": ["MACD_8_21_5", "MACDs_8_21_5"],
+        }
+
+        # CCI (Commodity Channel Index)
+        self.data.ta.cci(length=20, append=True)
+        self.data["CCI_direction"] = (
+            self.data["CCI_20_0.015"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+        )
+        ta_indicators["CCI"] = {
+            "buy": lambda x: x["CCI_20_0.015"] < -100 and x["CCI_direction"] == 1,
+            "sell": lambda x: x["CCI_20_0.015"] > 100 and x["CCI_direction"] == 0,
+            "columns": ["CCI_20_0.015", "CCI_direction"],
+        }
+
         # STC (Schaff Trend Cycle)
         self.data.ta.stc(append=True)
         ta_indicators["STC"] = {
             "buy": lambda x: x["STC_10_12_26_0.5"] < 75,
             "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
-            "columns": ["STC_10_12_26_0.5"],
-        }
-        ta_indicators["STC_R"] = {
-            "buy": lambda x: x["STC_10_12_26_0.5"] > 75,
-            "sell": lambda x: x["STC_10_12_26_0.5"] < 25,
             "columns": ["STC_10_12_26_0.5"],
         }
 
@@ -148,32 +186,12 @@ class Strategy_DT:
             "columns": ["BOP"],
         }
 
-        # CCI (Commodity Channel Index)
-        self.data.ta.cci(length=20, append=True, offset=1)
-        self.data["CCI_20_0.015_lag"] = self.data["CCI_20_0.015"]
-        self.data.ta.cci(length=20, append=True)
-        ta_indicators["CCI"] = {
-            "buy": lambda x: x["CCI_20_0.015"] < -100
-            and x["CCI_20_0.015"] > x["CCI_20_0.015_lag"],
-            "sell": lambda x: x["CCI_20_0.015"] > 100
-            and x["CCI_20_0.015"] < x["CCI_20_0.015_lag"],
-            "columns": ["CCI_20_0.015", "CCI_20_0.015_lag"],
-        }
-
         # RSI (Relative Strength Index)
         self.data.ta.rsi(length=14, append=True)
         ta_indicators["RSI"] = {
             "buy": lambda x: x["RSI_14"] > 50,
             "sell": lambda x: x["RSI_14"] < 50,
             "columns": ["RSI_14"],
-        }
-
-        # MACD (Moving Average Convergence Divergence)
-        self.data.ta.macd(fast=8, slow=21, signal=5, append=True)
-        ta_indicators["MACD"] = {
-            "buy": lambda x: x["MACD_8_21_5"] > x["MACDs_8_21_5"],
-            "sell": lambda x: x["MACD_8_21_5"] < x["MACDs_8_21_5"],
-            "columns": ["MACD_8_21_5", "MACDs_8_21_5"],
         }
 
         # STOCH (Stochastic Oscillator)

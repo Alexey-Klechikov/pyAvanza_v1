@@ -5,7 +5,6 @@ This module contains all technical indicators and strategies generation routines
 
 import os
 import json
-import pickle
 import logging
 import warnings
 import numpy as np
@@ -15,7 +14,6 @@ import pandas_ta as ta
 
 from copy import copy
 from typing import Tuple
-from .context import Context
 
 
 warnings.filterwarnings("ignore")
@@ -204,13 +202,14 @@ class Strategy_TA:
             }
 
         # LINREG (Linear Regression)
-        data.ta.linreg(append=True, r=True, offset=1)
+        data.ta.linreg(append=True, r=True)
         if _check_enough_data("LRr_14", data):
-            data["LRrLag_14"] = data["LRr_14"]
-            data.ta.linreg(append=True, r=True)
+            data["LRr_direction"] = (
+                data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+            )
             conditions["Overlap"]["LINREG"] = {
-                "buy": lambda x: x["LRr_14"] > x["LRrLag_14"],
-                "sell": lambda x: x["LRr_14"] < x["LRrLag_14"],
+                "buy": lambda x: x["LRr_direction"] == 1,
+                "sell": lambda x: x["LRr_direction"] == 0,
             }
 
         """ Momentum """
@@ -225,13 +224,12 @@ class Strategy_TA:
         # CCI (Commodity Channel Index)
         data.ta.cci(length=20, append=True, offset=1)
         if _check_enough_data("CCI_20_0.015", data):
-            data["CCILag_20_0.015"] = data["CCI_20_0.015"]
-            data.ta.cci(length=20, append=True)
-            conditions["Momentum"]["CCI"] = {
-                "sell": lambda x: x["CCI_20_0.015"] > 100
-                and x["CCI_20_0.015"] < x["CCILag_20_0.015"],
-                "buy": lambda x: x["CCI_20_0.015"] < -100
-                and x["CCI_20_0.015"] > x["CCILag_20_0.015"],
+            data["CCI_direction"] = (
+                data["CCI_20_0.015"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+            )
+            conditions["Overlap"]["LINREG"] = {
+                "sell": lambda x: x["CCI_20_0.015"] > 100 and x["CCI_direction"] == 0,
+                "buy": lambda x: x["CCI_20_0.015"] < -100 and x["CCI_direction"] == 1,
             }
 
         # RSI (Relative Strength Index)

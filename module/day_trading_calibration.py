@@ -36,7 +36,7 @@ class CalibrationOrder:
 
     def buy(self, row, index):
         self.time_buy = index
-        
+
         self.on_balance = True
         self.price_buy = ((row["Low"] + row["High"]) / 2) * (
             1.00015 if self.instrument == "BULL" else 0.99985
@@ -133,6 +133,8 @@ class Helper:
 
         self.stats_patterns: dict = dict()
 
+        self.strategies_efficiency: dict = dict()
+
         self.filtered_strategies = {"BULL": dict(), "BEAR": dict()}
 
     def buy_order(
@@ -203,7 +205,9 @@ class Helper:
                 + self.stats_strategy["bad"][instrument]
             )
 
-            efficiency_percent = (
+            strategy_name = f"{ta_indicator_name} + {column} - {instrument}"
+
+            self.strategies_efficiency[strategy_name] = (
                 0
                 if number_transactions == 0
                 else round(
@@ -215,7 +219,7 @@ class Helper:
             self.stats_strategy["keep"] = (
                 True
                 if (
-                    efficiency_percent >= self.success_limit
+                    self.strategies_efficiency[strategy_name] >= self.success_limit
                     and self.stats_strategy["good"][instrument]
                     - self.stats_strategy["bad"][instrument]
                     >= 2
@@ -225,8 +229,7 @@ class Helper:
 
             message = " ".join(
                 [
-                    f"{ta_indicator_name} + {column} - {instrument}:",
-                    f"{efficiency_percent}%",
+                    f"{strategy_name}: {self.strategies_efficiency[strategy_name]}%",
                     f"({self.stats_strategy['good'][instrument]} Good / {self.stats_strategy['bad'][instrument]} Bad)",
                 ]
             )
@@ -310,7 +313,7 @@ class Calibration:
 
         self.ava = Context(user, settings["accounts"], skip_lists=True)
 
-    def update_strategies(self) -> None:
+    def update(self) -> dict:
         log.info(
             f"Updating strategies: "
             + str(self.settings["trading"]["limits_percent"])
@@ -375,7 +378,9 @@ class Calibration:
 
         strategy.dump("DT", helper.filtered_strategies)
 
-    def test_strategies(self) -> Tuple[pd.DataFrame, list]:
+        return helper.strategies_efficiency
+
+    def test(self, strategies_efficiency: dict) -> Tuple[pd.DataFrame, list]:
         log.info(f"Testing strategies")
 
         history = History(
@@ -423,8 +428,12 @@ class Calibration:
                         if signal is not None and (
                             signal == ("BUY" if instrument == "BULL" else "SELL")
                         ):
+                            strategy_name = (
+                                f"{ta_indicator_name} + {cs_column} - {instrument}"
+                            )
+
                             log.warning(
-                                f"{str(index)[5:16]} / {round(row['Close'], 2)} / {instrument}-{ta_indicator_name}-{cs_column}"
+                                f"{str(index)[5:16]} / {round(row['Close'], 2)} / {strategy_name} ({strategies_efficiency.get(strategy_name, '?')} %)"
                             )
 
                             signal_result = signal
@@ -437,7 +446,7 @@ class Calibration:
 
         return strategy.data, telelog_message
 
-    def plot_strategies(self, data: pd.DataFrame) -> None:
+    def plot(self, data: pd.DataFrame) -> None:
         if platform.system() != "Darwin":
             return
 
@@ -467,11 +476,13 @@ def run() -> None:
             try:
                 calibration = Calibration(setting_per_setup, user)
 
-                if setting_per_setup["calibration"]["update"]:
-                    calibration.update_strategies()
+                strategies_efficiency = dict()
 
-                data, telelog_message = calibration.test_strategies()
-                calibration.plot_strategies(data)
+                if setting_per_setup["calibration"]["update"]:
+                    strategies_efficiency = calibration.update()
+
+                data, telelog_message = calibration.test(strategies_efficiency)
+                calibration.plot(data)
 
                 TeleLog(
                     message=("DT calibration: done.\n" + "\n".join(telelog_message))
