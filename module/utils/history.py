@@ -56,7 +56,7 @@ class History:
                 .fillna(0)
             )
 
-            data = data.groupby(data.index).first()
+            data = data[["Open", "High", "Low", "Close", "Volume"]].groupby(data.index).first()
 
             self._dump_cache(self.pickle_path, data)
 
@@ -126,7 +126,7 @@ class History:
         except EOFError:
             os.remove(pickle_path)
 
-        return data
+        return data[["Open", "High", "Low", "Close", "Volume"]]
 
     def _dump_cache(self, pickle_path: str, data: pd.DataFrame) -> None:
         with open(pickle_path, "wb") as pcl:

@@ -352,9 +352,13 @@ class Day_Trading:
 
         # action for main instrument
         if main_instrument_status.has_position:
+            pass
+
+            """ TODO: I currently don't test for this scenario, so let's pass on it for now
             self.helper.status.update_instrument_trading_limits(
                 main_instrument_type, main_instrument_price_buy
             )
+            """
 
         elif main_instrument_status.active_order:
             self.helper.update_order(

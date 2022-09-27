@@ -8,6 +8,8 @@ import json
 import logging
 import warnings
 import pandas as pd
+from pprint import pprint
+from typing import Tuple
 
 
 warnings.filterwarnings("ignore")
@@ -26,11 +28,13 @@ class Strategy_DT:
             for k, v in kwargs.get("order_price_limits", dict()).items()
         }
 
-        self.get_candlestick_patterns()
+        if not kwargs.get("iterate_candlestick_patterns"):
+            self.get_all_candlestick_patterns()    
+
 
         self.ta_indicators = self.get_ta_indicators()
 
-    def get_candlestick_patterns(self) -> None:
+    def get_all_candlestick_patterns(self) -> None:
         self.data = pd.merge(
             left=self.data,
             right=self.data.ta.cdl_pattern(name="all"),
@@ -39,6 +43,18 @@ class Strategy_DT:
         )
 
         self.data.drop(columns=["CDL_LADDERBOTTOM"], inplace=True)
+
+    def get_one_candlestick_pattern(self, pattern: str) -> Tuple[pd.DataFrame, str]:
+        data = pd.merge(
+            left=self.data,
+            right=self.data.ta.cdl_pattern(name=pattern),
+            left_index=True,
+            right_index=True,
+        )
+
+        column = list(data.columns)[-1]
+
+        return data, column
 
     def get_ta_indicators(self) -> dict:
         ta_indicators = dict()

@@ -3,9 +3,11 @@ import platform
 import traceback
 import pandas as pd
 import yfinance as yf
+
 from dataclasses import dataclass
 from typing import Optional, Literal, List, Tuple
 from datetime import datetime
+from pandas_ta.candles.cdl_pattern import ALL_PATTERNS
 
 from .utils import Plot
 from .utils import Context
@@ -205,7 +207,7 @@ class Helper:
                 + self.stats_strategy["bad"][instrument]
             )
 
-            strategy_name = f"{ta_indicator_name} + {column} - {instrument}"
+            strategy_name = f"{column} + {ta_indicator_name} - {instrument}"
 
             self.strategies_efficiency[strategy_name] = (
                 0
@@ -274,20 +276,7 @@ class Helper:
             "bad": {"BULL": 0, "BEAR": 0},
         }
 
-    def print_stats_patterns(self) -> None:
-        log.warning("Stats per pattern:")
-
-        for column, stats in self.stats_patterns.items():
-            message = [
-                column,
-                f"- Total: {sum(stats['keep_good'].values())} / {sum(stats['total_good'].values())}",
-                f'- BULL: {stats["keep_good"]["BULL"]} / {stats["total_good"]["BULL"]}',
-                f'- BEAR: {stats["keep_good"]["BEAR"]} / {stats["total_good"]["BEAR"]}',
-            ]
-
-            log.info(" ".join(message))
-
-    # Test_strategies funnctions
+    # Test_strategies functions
     def print_stats_instruments(self) -> List[str]:
         log.info("Stats per instrument:")
 
@@ -335,6 +324,7 @@ class Calibration:
         strategy = Strategy_DT(
             history.data,
             order_price_limits=self.settings["trading"]["limits_percent"],
+            iterate_candlestick_patterns=True
         )
 
         helper = Helper(self.settings)
@@ -346,14 +336,18 @@ class Calibration:
             + f"({len([i for i in daily_volumes if i > 0])} / {len(daily_volumes)} days with Volume)"
         )
 
-        for ta_indicator_name, ta_indicator in strategy.ta_indicators.items():
-            for column in strategy.data.columns:
-                if not column.startswith("CDL") or (strategy.data[column] == 0).all():
-                    continue
+        for i, pattern in enumerate(ALL_PATTERNS):
+            data, column = strategy.get_one_candlestick_pattern(pattern)
 
+            log.info(f'Pattern [{i+1}/{len(ALL_PATTERNS)}]: {column}')
+
+            if (data[column] == 0).all():
+                continue
+
+            for ta_indicator_name, ta_indicator in strategy.ta_indicators.items():
                 last_candle_signal = None
 
-                for index, row in strategy.data[
+                for index, row in data[
                     ["High", "Low", "Open", "Close", column] + ta_indicator["columns"]
                 ].iterrows():
 
@@ -373,8 +367,6 @@ class Calibration:
                 )
 
                 helper.save_stats_patterns(column)
-
-        helper.print_stats_patterns()
 
         strategy.dump("DT", helper.filtered_strategies)
 
@@ -429,7 +421,7 @@ class Calibration:
                             signal == ("BUY" if instrument == "BULL" else "SELL")
                         ):
                             strategy_name = (
-                                f"{ta_indicator_name} + {cs_column} - {instrument}"
+                                f"{cs_column} + {ta_indicator_name} - {instrument}"
                             )
 
                             log.warning(
