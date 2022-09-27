@@ -129,13 +129,6 @@ class Strategy_DT:
         }
 
         """ Volatility """
-        # BBANDS (Bollinger Bands)
-        self.data.ta.bbands(length=20, std=1, append=True)
-        ta_indicators["BBANDS"] = {
-            "buy": lambda x: x["Close"] > x["BBU_20_1.0"],
-            "sell": lambda x: x["Close"] < x["BBL_20_1.0"],
-            "columns": ["BBL_20_1.0", "BBU_20_1.0"],
-        }
 
         # ACCBANDS (Acceleration Bands)
         self.data.ta.accbands(append=True)
@@ -156,11 +149,11 @@ class Strategy_DT:
         # RVI (Relative Volatility Index)
         self.data.ta.rvi(append=True)
         ta_indicators["RVI"] = {
-            "buy": lambda x: x["RVI_14"] < 50,
-            "sell": lambda x: x["RVI_14"] > 50,
+            "buy": lambda x: x["RVI_14"] > 50,
+            "sell": lambda x: x["RVI_14"] < 50,
             "columns": ["RVI_14"],
         }
-
+        
         """ Momentum """
         # MACD (Moving Average Convergence Divergence)
         self.data.ta.macd(fast=8, slow=21, signal=5, append=True)

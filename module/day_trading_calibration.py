@@ -320,6 +320,8 @@ class Calibration:
             cache="append",
             extra_data=extra_data,
         )
+        
+        #history.data = history.data[history.data.index < "2022-09-21"]
 
         strategy = Strategy_DT(
             history.data,
