@@ -231,7 +231,7 @@ class Helper:
 
             message = " ".join(
                 [
-                    f"{strategy_name}: {self.strategies_efficiency[strategy_name]}%",
+                    f"> {strategy_name}: {self.strategies_efficiency[strategy_name]}%",
                     f"({self.stats_strategy['good'][instrument]} Good / {self.stats_strategy['bad'][instrument]} Bad)",
                 ]
             )
