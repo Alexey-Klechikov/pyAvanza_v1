@@ -200,7 +200,7 @@ class Helper:
 
             order_data.update(
                 {
-                    "price": certificate_info[signal] * 1.01,
+                    "price": certificate_info[signal],
                     "volume": int(
                         self.settings["trading"]["budget"] // certificate_info[signal]
                     ),
