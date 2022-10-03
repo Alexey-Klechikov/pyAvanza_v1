@@ -168,7 +168,7 @@ class Helper:
             return
 
         if (
-            instrument_status.spread is None or instrument_status.spread > 0.6
+            instrument_status.spread is None or instrument_status.spread > 0.65
         ) and self.status != "evening":
             log.error(
                 f"{instrument_type} - (place_order) HIGH SPREAD: {instrument_status.spread}"
