@@ -31,6 +31,11 @@ class Helper:
         self.status = Status(self.settings["trading"])
 
         self.last_line = {"overwrite": True, "messages": list()}
+
+        self.ava = Context(user, accounts, skip_lists=True)
+
+        self._update_budget()
+
         self.log_data = {
             "balance_before": 0,
             "balance_after": 0,
@@ -38,10 +43,6 @@ class Helper:
             "number_trades": 0,
             "budget": self.settings["trading"]["budget"],
         }
-
-        self.ava = Context(user, accounts, skip_lists=True)
-
-        self._update_budget()
 
     def _check_last_candle_buy(
         self,
