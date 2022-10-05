@@ -1,0 +1,146 @@
+{
+    "BULL": {
+        "ACCBANDS": [
+            "CDL_3INSIDE",
+            "CDL_ABANDONEDBABY",
+            "CDL_GAPSIDESIDEWHITE",
+            "CDL_SEPARATINGLINES"
+        ],
+        "KC": [
+            "CDL_3INSIDE",
+            "CDL_3LINESTRIKE",
+            "CDL_ABANDONEDBABY",
+            "CDL_TRISTAR",
+            "CDL_XSIDEGAP3METHODS"
+        ],
+        "UO": [
+            "CDL_3OUTSIDE",
+            "CDL_MORNINGSTAR",
+            "CDL_TASUKIGAP"
+        ],
+        "CMF": [
+            "CDL_ABANDONEDBABY",
+            "CDL_DOJISTAR"
+        ],
+        "EFI": [
+            "CDL_ABANDONEDBABY",
+            "CDL_MORNINGDOJISTAR",
+            "CDL_STICKSANDWICH"
+        ],
+        "PSAR": [
+            "CDL_ABANDONEDBABY",
+            "CDL_TRISTAR"
+        ],
+        "ALMA": [
+            "CDL_ABANDONEDBABY",
+            "CDL_STICKSANDWICH",
+            "CDL_TRISTAR",
+            "CDL_UNIQUE3RIVER"
+        ],
+        "GHLA": [
+            "CDL_ABANDONEDBABY",
+            "CDL_STICKSANDWICH",
+            "CDL_TRISTAR",
+            "CDL_UNIQUE3RIVER"
+        ],
+        "SUPERT": [
+            "CDL_ABANDONEDBABY",
+            "CDL_STICKSANDWICH",
+            "CDL_TRISTAR",
+            "CDL_UNIQUE3RIVER"
+        ],
+        "LINREG": [
+            "CDL_ABANDONEDBABY",
+            "CDL_STICKSANDWICH"
+        ],
+        "RVI": [
+            "CDL_ABANDONEDBABY",
+            "CDL_MORNINGDOJISTAR",
+            "CDL_STICKSANDWICH",
+            "CDL_UNIQUE3RIVER"
+        ],
+        "MACD": [
+            "CDL_ABANDONEDBABY"
+        ],
+        "STC": [
+            "CDL_ABANDONEDBABY"
+        ],
+        "BOP_R": [
+            "CDL_ABANDONEDBABY"
+        ],
+        "RSI": [
+            "CDL_ABANDONEDBABY",
+            "CDL_STICKSANDWICH",
+            "CDL_TRISTAR",
+            "CDL_UNIQUE3RIVER"
+        ],
+        "STOCH": [
+            "CDL_ABANDONEDBABY",
+            "CDL_TRISTAR",
+            "CDL_UNIQUE3RIVER"
+        ],
+        "BOP": [
+            "CDL_DOJISTAR",
+            "CDL_RICKSHAWMAN"
+        ],
+        "CMF_R": [
+            "CDL_GRAVESTONEDOJI",
+            "CDL_HARAMI",
+            "CDL_PIERCING",
+            "CDL_SEPARATINGLINES",
+            "CDL_XSIDEGAP3METHODS"
+        ]
+    },
+    "BEAR": {
+        "STC": [
+            "CDL_2CROWS",
+            "CDL_EVENINGDOJISTAR"
+        ],
+        "EFI": [
+            "CDL_3BLACKCROWS"
+        ],
+        "SUPERT": [
+            "CDL_3BLACKCROWS",
+            "CDL_EVENINGDOJISTAR"
+        ],
+        "CMF_R": [
+            "CDL_3INSIDE",
+            "CDL_DOJISTAR",
+            "CDL_EVENINGDOJISTAR"
+        ],
+        "KC": [
+            "CDL_ADVANCEBLOCK",
+            "CDL_EVENINGDOJISTAR",
+            "CDL_EVENINGSTAR",
+            "CDL_SEPARATINGLINES",
+            "CDL_STALLEDPATTERN",
+            "CDL_TASUKIGAP"
+        ],
+        "ACCBANDS": [
+            "CDL_EVENINGDOJISTAR",
+            "CDL_SEPARATINGLINES"
+        ],
+        "RVI": [
+            "CDL_EVENINGDOJISTAR",
+            "CDL_GAPSIDESIDEWHITE",
+            "CDL_SEPARATINGLINES"
+        ],
+        "CMF": [
+            "CDL_EVENINGSTAR"
+        ],
+        "ALMA": [
+            "CDL_GAPSIDESIDEWHITE",
+            "CDL_TASUKIGAP"
+        ],
+        "RSI": [
+            "CDL_GAPSIDESIDEWHITE",
+            "CDL_TASUKIGAP"
+        ],
+        "BOP_R": [
+            "CDL_HIKKAKEMOD"
+        ],
+        "GHLA": [
+            "CDL_TASUKIGAP"
+        ]
+    }
+}

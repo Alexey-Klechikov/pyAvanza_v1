@@ -321,7 +321,7 @@ class Calibration:
             extra_data=extra_data,
         )
         
-        #history.data = history.data[history.data.index < "2022-09-21"]
+        #history.data = history.data[history.data.index < "2022-10-2"]
 
         strategy = Strategy_DT(
             history.data,
@@ -377,11 +377,16 @@ class Calibration:
     def test(self, strategies_efficiency: dict) -> Tuple[pd.DataFrame, list]:
         log.info(f"Testing strategies")
 
+        extra_data = self.ava.get_today_history(
+            self.settings["instruments"]["MONITORING"]["AVA"]
+        )
+
         history = History(
             self.settings["instruments"]["MONITORING"]["YAHOO"],
-            "4d",
+            "3d",
             "1m",
-            cache="skip",
+            cache="append",
+            extra_data=extra_data,
         )
 
         strategy = Strategy_DT(

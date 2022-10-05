@@ -31,7 +31,23 @@ class Strategy_DT:
         if not kwargs.get("iterate_candlestick_patterns"):
             self.get_all_candlestick_patterns()
 
+        columns = {"before": list(self.data.columns)}
+
         self.ta_indicators = self.get_ta_indicators()
+
+        self.drop_columns(columns)
+
+    def drop_columns(self, columns: dict) -> None:
+        columns["needed"] = list()
+
+        for ta_indicator in self.ta_indicators.values():
+            columns["needed"] += ta_indicator["columns"]
+
+        columns["drop"] = list(
+            set(self.data.columns) - (set(columns["before"]) | set(columns["needed"]))
+        )
+
+        self.data.drop(columns=columns["drop"], inplace=True)
 
     def get_all_candlestick_patterns(self) -> None:
         self.data = pd.merge(
@@ -40,8 +56,6 @@ class Strategy_DT:
             left_index=True,
             right_index=True,
         )
-
-        self.data.drop(columns=["CDL_LADDERBOTTOM"], inplace=True)
 
     def get_one_candlestick_pattern(self, pattern: str) -> Tuple[pd.DataFrame, str]:
         data = pd.merge(
@@ -81,22 +95,17 @@ class Strategy_DT:
                 "sell": lambda x: x["EFI_13"] > 0,
                 "columns": ["EFI_13"],
             }
-            ta_indicators["EFI_R"] = {
-                "buy": lambda x: x["EFI_13"] > 0,
-                "sell": lambda x: x["EFI_13"] < 0,
-                "columns": ["EFI_13"],
-            }
-
+        
         else:
-            for indicator in ["CMF", "CMF_R", "EFI", "EFI_R"]:
+            for indicator in ["CMF", "CMF_R", "EFI"]:
                 ta_indicators[indicator] = {
                     "buy": lambda x: False,
                     "sell": lambda x: False,
                     "columns": [],
                 }
-
+        
         """ Trend """
-        # PSAR (Parabolic Stop and Reverse)
+        # PSAR (Parabolic Stop and Reverse) ???
         self.data.ta.psar(append=True)
         ta_indicators["PSAR"] = {
             "buy": lambda x: x["Close"] > x["PSARl_0.02_0.2"],
@@ -129,7 +138,7 @@ class Strategy_DT:
             "columns": ["SUPERT_7_3.0"],
         }
 
-        # LINREG (Linear Regression)
+        # LINREG (Linear Regression) ???
         self.data.ta.linreg(append=True, r=True)
         self.data["LRr_direction"] = (
             self.data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
@@ -175,17 +184,6 @@ class Strategy_DT:
             "buy": lambda x: x["MACD_ma_diff"] == 1,
             "sell": lambda x: x["MACD_ma_diff"] == 0,
             "columns": ["MACD_ma_diff"],
-        }
-
-        # CCI (Commodity Channel Index)
-        self.data.ta.cci(length=20, append=True)
-        self.data["CCI_direction"] = (
-            self.data["CCI_20_0.015"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
-        )
-        ta_indicators["CCI"] = {
-            "buy": lambda x: x["CCI_20_0.015"] < -100 and x["CCI_direction"] == 1,
-            "sell": lambda x: x["CCI_20_0.015"] > 100 and x["CCI_direction"] == 0,
-            "columns": ["CCI_20_0.015", "CCI_direction"],
         }
 
         # STC (Schaff Trend Cycle)
