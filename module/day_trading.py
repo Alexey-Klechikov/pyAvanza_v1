@@ -112,7 +112,7 @@ class Helper:
             self.settings["instruments"]["MONITORING"]["AVA"]
         )
 
-        if self.status.day_time == "morning_transition" or True:
+        if self.status.day_time == "morning_transition":
             history = History(
                 self.settings["instruments"]["MONITORING"]["YAHOO"],
                 "2d",
