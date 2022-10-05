@@ -26,7 +26,7 @@
                     "take_profit_super": 1.055,
                     "take_profit": 1.05,
                     "stop_loss": 0.955, 
-                    "stop_loss_trailing": 0.97               
+                    "stop_loss_trailing": 0.98               
                 },
                 "stop_loss_trailing_timer": 30
             },
@@ -39,7 +39,6 @@
                 "TRADING": {
                     "BEAR": 1451032,
                     "BULL": 1456629
-            
                 },
                 "MONITORING": {
                     "AVA": 19002,

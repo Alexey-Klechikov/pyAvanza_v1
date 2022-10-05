@@ -29,8 +29,7 @@ class Strategy_DT:
         }
 
         if not kwargs.get("iterate_candlestick_patterns"):
-            self.get_all_candlestick_patterns()    
-
+            self.get_all_candlestick_patterns()
 
         self.ta_indicators = self.get_ta_indicators()
 
@@ -60,12 +59,18 @@ class Strategy_DT:
         ta_indicators = dict()
 
         """ Volume """
-        """
+        '''
         # CMF (Chaikin Money Flow)
         self.data.ta.cmf(append=True)
+        CMF = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
         ta_indicators["CMF"] = {
-            "buy": lambda x: x["CMF_20"] < 0,
-            "sell": lambda x: x["CMF_20"] > 0,
+            "buy": lambda x: x["CMF_20"] < CMF["min"] * 0.2,
+            "sell": lambda x: x["CMF_20"] > CMF["max"] * 0.2,
+            "columns": ["CMF_20"],
+        }
+        ta_indicators["CMF_R"] = {
+            "buy": lambda x: x["CMF_20"] > CMF["max"] * 0.2,
+            "sell": lambda x: x["CMF_20"] < CMF["min"] * 0.2,
             "columns": ["CMF_20"],
         }
 
@@ -81,8 +86,8 @@ class Strategy_DT:
             "sell": lambda x: x["EFI_13"] < 0,
             "columns": ["EFI_13"],
         }
-        """
-
+        '''
+        
         """ Trend """
         # PSAR (Parabolic Stop and Reverse)
         self.data.ta.psar(append=True)
@@ -129,7 +134,6 @@ class Strategy_DT:
         }
 
         """ Volatility """
-
         # ACCBANDS (Acceleration Bands)
         self.data.ta.accbands(append=True)
         ta_indicators["ACCBANDS"] = {
@@ -153,14 +157,17 @@ class Strategy_DT:
             "sell": lambda x: x["RVI_14"] < 50,
             "columns": ["RVI_14"],
         }
-        
+
         """ Momentum """
         # MACD (Moving Average Convergence Divergence)
         self.data.ta.macd(fast=8, slow=21, signal=5, append=True)
+        self.data["MACD_ma_diff"] = (
+            self.data["MACDh_8_21_5"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+        )
         ta_indicators["MACD"] = {
-            "buy": lambda x: x["MACD_8_21_5"] > x["MACDs_8_21_5"],
-            "sell": lambda x: x["MACD_8_21_5"] < x["MACDs_8_21_5"],
-            "columns": ["MACD_8_21_5", "MACDs_8_21_5"],
+            "buy": lambda x: x["MACD_ma_diff"] == 1,
+            "sell": lambda x: x["MACD_ma_diff"] == 0,
+            "columns": ["MACD_ma_diff"],
         }
 
         # CCI (Commodity Channel Index)
