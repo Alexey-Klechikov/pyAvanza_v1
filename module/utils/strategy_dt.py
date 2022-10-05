@@ -59,35 +59,42 @@ class Strategy_DT:
         ta_indicators = dict()
 
         """ Volume """
-        '''
-        # CMF (Chaikin Money Flow)
-        self.data.ta.cmf(append=True)
-        CMF = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
-        ta_indicators["CMF"] = {
-            "buy": lambda x: x["CMF_20"] < CMF["min"] * 0.2,
-            "sell": lambda x: x["CMF_20"] > CMF["max"] * 0.2,
-            "columns": ["CMF_20"],
-        }
-        ta_indicators["CMF_R"] = {
-            "buy": lambda x: x["CMF_20"] > CMF["max"] * 0.2,
-            "sell": lambda x: x["CMF_20"] < CMF["min"] * 0.2,
-            "columns": ["CMF_20"],
-        }
+        if "Volume" in self.data.columns:
+            # CMF (Chaikin Money Flow)
+            self.data.ta.cmf(append=True)
+            CMF = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
+            ta_indicators["CMF"] = {
+                "buy": lambda x: x["CMF_20"] < CMF["min"] * 0.2,
+                "sell": lambda x: x["CMF_20"] > CMF["max"] * 0.2,
+                "columns": ["CMF_20"],
+            }
+            ta_indicators["CMF_R"] = {
+                "buy": lambda x: x["CMF_20"] > CMF["max"] * 0.2,
+                "sell": lambda x: x["CMF_20"] < CMF["min"] * 0.2,
+                "columns": ["CMF_20"],
+            }
 
-        # EFI (Elder's Force Index)
-        self.data.ta.efi(append=True)
-        ta_indicators["EFI"] = {
-            "buy": lambda x: x["EFI_13"] < 0,
-            "sell": lambda x: x["EFI_13"] > 0,
-            "columns": ["EFI_13"],
-        }
-        ta_indicators["EFI_R"] = {
-            "buy": lambda x: x["EFI_13"] > 0,
-            "sell": lambda x: x["EFI_13"] < 0,
-            "columns": ["EFI_13"],
-        }
-        '''
-        
+            # EFI (Elder's Force Index)
+            self.data.ta.efi(append=True)
+            ta_indicators["EFI"] = {
+                "buy": lambda x: x["EFI_13"] < 0,
+                "sell": lambda x: x["EFI_13"] > 0,
+                "columns": ["EFI_13"],
+            }
+            ta_indicators["EFI_R"] = {
+                "buy": lambda x: x["EFI_13"] > 0,
+                "sell": lambda x: x["EFI_13"] < 0,
+                "columns": ["EFI_13"],
+            }
+
+        else:
+            for indicator in ["CMF", "CMF_R", "EFI", "EFI_R"]:
+                ta_indicators[indicator] = {
+                    "buy": lambda x: False,
+                    "sell": lambda x: False,
+                    "columns": [],
+                }
+
         """ Trend """
         # PSAR (Parabolic Stop and Reverse)
         self.data.ta.psar(append=True)

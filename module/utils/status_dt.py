@@ -189,17 +189,38 @@ class Status_DT:
         old_day_time = self.day_time
 
         if current_time <= current_time.replace(hour=9, minute=0):
+            """
+            Trading starts at 9:00 AM
+            """
             self.day_time = "morning"
 
             time.sleep(60)
+        
+        elif current_time <= current_time.replace(hour=10, minute=0):
+            """
+            I have enough data on Volume at 10:00 AM. 
+            Data on Volume is available only from AVANZA, so I merge this data into YAHOO while this day_time
+            """
+            self.day_time = "morning_transition"
 
         else:
+            """
+            Normal trading
+            """
             self.day_time = "day"
 
         if current_time >= current_time.replace(hour=17, minute=25):
+            """
+            Swedish market is closed, however, certificates are still available for trading. 
+            This transition time has many gaps, so I stop trading for 10 minutes
+            """
             self.day_time = "evening_transition"
 
         if current_time >= current_time.replace(hour=17, minute=35):
+            """
+            Swedish market is closed, I continue trading with certificates till 18.30 or until all certificates are sold.
+            No buy orders are allowed at this time
+            """
             self.day_time = "evening"
 
             if (current_time >= current_time.replace(hour=18, minute=30)) or (
@@ -213,6 +234,9 @@ class Status_DT:
                     ]
                 )
             ):
+                """
+                Trading is completed for the day
+                """
                 self.day_time = "night"
 
         if old_day_time != self.day_time:

@@ -1,6 +1,7 @@
 import time
 import logging
 import traceback
+import numpy as np
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
@@ -107,16 +108,20 @@ class Helper:
         )
 
     def get_signal(self, strategies: dict, instrument_type: str) -> bool:
-        # This needs to change to use avanza data (once I have enough volume data cached) -> deadline 2022-10-02
-        history = History(
-            self.settings["instruments"]["MONITORING"]["YAHOO"],
-            "2d",
-            "1m",
-            cache="skip",
+        history = self.ava.get_today_history(
+            self.settings["instruments"]["MONITORING"]["AVA"]
         )
 
+        if self.status.day_time == "morning_transition" or True:
+            history = History(
+                self.settings["instruments"]["MONITORING"]["YAHOO"],
+                "2d",
+                "1m",
+                cache="skip",
+            ).data[["Open", "High", "Low", "Close"]]
+
         strategy = Strategy_DT(
-            history.data,
+            history,
             order_price_limits=self.settings["trading"]["limits_percent"],
         )
 
