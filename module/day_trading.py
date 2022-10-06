@@ -145,19 +145,9 @@ class Helper:
     def update_instrument_status(self, instrument_type: str) -> InstrumentStatus:
         instrument_id = str(self.settings["instruments"]["TRADING"][instrument_type])
 
-        certificate_info = self.ava.get_certificate_info(
-            self.settings["instruments"]["TRADING"][instrument_type],
-        )
+        certificate_info = self.ava.get_certificate_info(instrument_id)
 
-        deals_and_orders = self.ava.ctx.get_deals_and_orders()
-        active_orders = list() if not deals_and_orders else deals_and_orders["orders"]
-        active_orders = [
-            order
-            for order in active_orders
-            if (order["orderbook"]["id"] == instrument_id)
-            and (order["rawStatus"] == "ACTIVE")
-        ]
-        active_order = dict() if not active_orders else active_orders[0]
+        active_order = self.ava.get_active_order(instrument_id)
 
         instrument_status = self.status.update_instrument(
             instrument_type, certificate_info, active_order

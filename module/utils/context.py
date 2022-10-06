@@ -11,7 +11,7 @@ import pandas as pd
 from pytz import timezone
 from copy import copy
 from datetime import datetime, timedelta
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 from requests.exceptions import HTTPError
 
 from avanza import Avanza, OrderType, InstrumentType, TimePeriod, Resolution
@@ -21,12 +21,7 @@ log = logging.getLogger("main.utils.context")
 
 
 class Context:
-    def __init__(
-        self,
-        user: str,
-        accounts: dict,
-        skip_lists: bool = False
-    ):
+    def __init__(self, user: str, accounts: dict, skip_lists: bool = False):
         self.ctx = self.get_ctx(user)
         self.accounts = accounts
 
@@ -279,14 +274,38 @@ class Context:
 
             time.sleep(2)
 
-        log.error(f"Certificate {certificate_id}: failed to fetch info or spread is too high")
-
         return {
             "buy": None,
             "sell": None,
             "positions": list(),
             "spread": certificate.get("spread"),
         }
+
+    def get_active_order(self, certificate_id: Optional[str] = None) -> dict:
+        active_order = dict()
+
+        for _ in range(5):
+            try:
+                orders = self.ctx.get_deals_and_orders()
+
+            except HTTPError:
+                time.sleep(1)
+
+                continue
+
+            active_orders = (
+                list() if not orders else orders["orders"]
+            )
+            active_orders = [
+                order
+                for order in active_orders
+                if (order["orderbook"]["id"] == certificate_id)
+                and (order["rawStatus"] == "ACTIVE")
+            ]
+
+            return active_order if not active_orders else active_orders[0]
+
+        return active_order
 
     def update_todays_ochl(self, data: pd.DataFrame, stock_id: str) -> pd.DataFrame:
         stock_info = self.ctx.get_stock_info(stock_id)
