@@ -262,14 +262,14 @@ class Context:
 
             except HTTPError:
                 time.sleep(1)
-                
+
                 continue
 
             certificate = dict() if certificate is None else certificate
 
             if certificate.get(
                 "spread", 1
-            ) <= 0.6 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
+            ) <= 0.65 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
                 return {
                     "buy": certificate.get("sellPrice", None),
                     "sell": certificate.get("buyPrice", None),
@@ -278,6 +278,8 @@ class Context:
                 }
 
             time.sleep(2)
+
+        log.error(f"Certificate {certificate_id}: failed to fetch info or spread is too high")
 
         return {
             "buy": None,
