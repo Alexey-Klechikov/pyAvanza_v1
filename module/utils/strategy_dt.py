@@ -78,11 +78,6 @@ class Strategy_DT:
             self.data.ta.cmf(append=True)
             CMF = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
             ta_indicators["CMF"] = {
-                "buy": lambda x: x["CMF_20"] < CMF["min"] * 0.2,
-                "sell": lambda x: x["CMF_20"] > CMF["max"] * 0.2,
-                "columns": ["CMF_20"],
-            }
-            ta_indicators["CMF_R"] = {
                 "buy": lambda x: x["CMF_20"] > CMF["max"] * 0.2,
                 "sell": lambda x: x["CMF_20"] < CMF["min"] * 0.2,
                 "columns": ["CMF_20"],
@@ -97,13 +92,13 @@ class Strategy_DT:
             }
         
         else:
-            for indicator in ["CMF", "CMF_R", "EFI"]:
+            for indicator in ["CMF", "EFI"]:
                 ta_indicators[indicator] = {
                     "buy": lambda x: False,
                     "sell": lambda x: False,
                     "columns": [],
                 }
-        
+
         """ Trend """
         # PSAR (Parabolic Stop and Reverse) ???
         self.data.ta.psar(append=True)
