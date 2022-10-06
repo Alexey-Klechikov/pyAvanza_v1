@@ -12,6 +12,7 @@ from pytz import timezone
 from copy import copy
 from datetime import datetime, timedelta
 from typing import Tuple, Union
+from requests.exceptions import HTTPError
 
 from avanza import Avanza, OrderType, InstrumentType, TimePeriod, Resolution
 
@@ -256,7 +257,14 @@ class Context:
         certificate = dict()
 
         for _ in range(5):
-            certificate = self.ctx.get_certificate_info(certificate_id)
+            try:
+                certificate = self.ctx.get_certificate_info(certificate_id)
+
+            except HTTPError:
+                time.sleep(1)
+                
+                continue
+
             certificate = dict() if certificate is None else certificate
 
             if certificate.get(
