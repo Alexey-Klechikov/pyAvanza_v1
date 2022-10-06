@@ -307,27 +307,6 @@ class Context:
 
         return active_order
 
-    def update_todays_ochl(self, data: pd.DataFrame, stock_id: str) -> pd.DataFrame:
-        stock_info = self.ctx.get_stock_info(stock_id)
-
-        if stock_info is None:
-            raise Exception(f"Stock {stock_id} not found")
-
-        last_row_index = data.tail(1).index
-        data.loc[last_row_index, "Open"] = max(
-            min(
-                stock_info["lastPrice"] + stock_info["change"],
-                stock_info["highestPrice"],
-            ),
-            stock_info["lowestPrice"],
-        )
-        data.loc[last_row_index, "Close"] = stock_info["lastPrice"]
-        data.loc[last_row_index, "High"] = stock_info["highestPrice"]
-        data.loc[last_row_index, "Low"] = stock_info["lowestPrice"]
-        data.loc[last_row_index, "Volume"] = stock_info["totalVolumeTraded"]
-
-        return data
-
     def remove_active_orders(
         self,
         orderbook_ids: list[Union[str, int]] = list(),
@@ -381,6 +360,27 @@ class Context:
                 )
 
         return removed_orders
+
+    def update_todays_ochl(self, data: pd.DataFrame, stock_id: str) -> pd.DataFrame:
+        stock_info = self.ctx.get_stock_info(stock_id)
+
+        if stock_info is None:
+            raise Exception(f"Stock {stock_id} not found")
+
+        last_row_index = data.tail(1).index
+        data.loc[last_row_index, "Open"] = max(
+            min(
+                stock_info["lastPrice"] + stock_info["change"],
+                stock_info["highestPrice"],
+            ),
+            stock_info["lowestPrice"],
+        )
+        data.loc[last_row_index, "Close"] = stock_info["lastPrice"]
+        data.loc[last_row_index, "High"] = stock_info["highestPrice"]
+        data.loc[last_row_index, "Low"] = stock_info["lowestPrice"]
+        data.loc[last_row_index, "Volume"] = stock_info["totalVolumeTraded"]
+
+        return data
 
     def get_today_history(self, stock_id: str) -> pd.DataFrame:
         period = TimePeriod.TODAY
