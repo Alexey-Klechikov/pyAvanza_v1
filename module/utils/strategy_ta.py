@@ -3,24 +3,67 @@ This module contains all technical indicators and strategies generation routines
 """
 
 
-import os
 import json
 import logging
+import os
 import warnings
+from copy import copy
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-import yfinance as yf
 import pandas_ta as ta
-
-from copy import copy
-from typing import Tuple
-
+import yfinance as yf
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.expand_frame_repr", False)
 
 log = logging.getLogger("main.utils.strategy_ta")
+
+
+@dataclass
+class StrategyInfo:
+    transactions: list = field(default_factory=list)
+    result: float = 0
+    signal: str = ""
+    transactions_counter: int = 0
+
+
+@dataclass
+class MaxOutput:
+    strategy: str = ""
+    result: float = 0
+    signal: str = ""
+    transactions_counter: int = 0
+
+
+@dataclass
+class Summary:
+    ticker_name: str
+    signal: str = ""
+    hold_result: float = 0
+    strategies: Dict[str, StrategyInfo] = field(default_factory=dict)
+    max_output: MaxOutput = MaxOutput()
+    sorted_strategies: list = field(default_factory=list)
+
+    def sort_strategies(self) -> None:
+        self.sorted_strategies = sorted(
+            self.strategies.items(),
+            key=lambda x: x[1].result,
+            reverse=True,
+        )
+
+
+@dataclass
+class Balance:
+    deposit: float = 1000
+    market: float = np.nan
+    total: float = 1000
+    order_price: float = 0
+    buy_signal: float = np.nan
+    sell_signal: float = np.nan
 
 
 class Strategy_TA:
@@ -61,7 +104,7 @@ class Strategy_TA:
             "Volume",
             "Cycles",
         )
-        conditions = {ct: dict() for ct in condition_types_list}
+        conditions: dict = {ct: dict() for ct in condition_types_list}
 
         """ Blank """
         conditions["Blank"]["HOLD"] = {
@@ -316,13 +359,15 @@ class Strategy_TA:
 
         for strategy in strategies_names:
             # "(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH"
-            strategy_components = [i.strip().split(" ") for i in strategy.split("+")]
+            strategy_components_v1 = [i.strip().split(" ") for i in strategy.split("+")]
 
             # [['(Trend)', 'CKSP'], ['(Overlap)', 'SUPERT'], ['(Momentum)', 'STOCH']]
-            strategy_components = [(i[0][1:-1], i[1]) for i in strategy_components]
+            strategy_components_v2 = [
+                (i[0][1:-1], i[1]) for i in strategy_components_v1
+            ]
 
             # [('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')]
-            strategies_component_names += [strategy_components]
+            strategies_component_names += [strategy_components_v2]
 
         return strategies_component_names
 
@@ -349,120 +394,96 @@ class Strategy_TA:
 
         return strategies
 
-    def get_signal(self, ticker_name: str, strategies: dict) -> dict:
+    def get_signal(self, ticker_name: str, strategies: dict) -> Summary:
         log.debug("Getting signal")
 
-        summary = {
-            "ticker_name": ticker_name,
-            "strategies": dict(),
-            "max_output": dict(),
-        }
+        summary = Summary(ticker_name)
 
         for strategy in strategies:
-            summary["strategies"][strategy] = {"transactions": list(), "result": 0}
+            summary.strategies[strategy] = StrategyInfo()
 
             TRANSACTION_COMMISSION = 0.0025
 
             balance_sequence = list()
-            balance = {
-                "deposit": 1000,
-                "market": None,
-                "total": 1000,
-                "order_price": 0,
-                "buy_signal": np.nan,
-                "sell_signal": np.nan,
-            }
+            balance = Balance()
 
             for i, row in self.data.iterrows():
                 date = str(i)[:-6]
 
                 # Sell event
-                if (
-                    all(map(lambda x: x(row), strategies[strategy]["sell"]))
-                    and balance["market"] is not None
-                ):
-                    summary["strategies"][strategy]["transactions"].append(
+                if all(
+                    map(lambda x: x(row), strategies[strategy]["sell"])
+                ) and not np.isnan(balance.market):
+                    summary.strategies[strategy].transactions.append(
                         f'({date}) Sell at {row["Close"]}'
                     )
-                    price_change = (row["Close"] - balance["order_price"]) / balance[
-                        "order_price"
-                    ]
-                    balance["deposit"] = (
-                        balance["market"]
+                    price_change = (
+                        row["Close"] - balance.order_price
+                    ) / balance.order_price
+                    balance.deposit = (
+                        balance.market
                         * (1 + price_change)
                         * (1 - TRANSACTION_COMMISSION)
                     )
-                    balance["market"] = None
-                    balance["total"] = balance["deposit"]
-                    balance["sell_signal"] = balance["total"]
+                    balance.market = np.nan
+                    balance.total = balance.deposit
+                    balance.sell_signal = balance.total
 
                 # Buy event
-                elif (
-                    all(map(lambda x: x(row), strategies[strategy]["buy"]))
-                    and balance["deposit"] is not None
-                ):
-                    summary["strategies"][strategy]["transactions"].append(
+                elif all(
+                    map(lambda x: x(row), strategies[strategy]["buy"])
+                ) and not np.isnan(balance.deposit):
+                    summary.strategies[strategy].transactions.append(
                         f'({date}) Buy at {row["Close"]}'
                     )
-                    balance["buy_signal"] = balance["total"]
-                    balance["order_price"] = row["Close"]
-                    balance["market"] = balance["deposit"] * (
-                        1 - TRANSACTION_COMMISSION
-                    )
-                    balance["deposit"] = None
-                    balance["total"] = balance["market"]
+                    balance.buy_signal = balance.total
+                    balance.order_price = row["Close"]
+                    balance.market = balance.deposit * (1 - TRANSACTION_COMMISSION)
+                    balance.deposit = np.nan
+                    balance.total = balance.market
 
                 # Hold on market
                 else:
-                    if balance["deposit"] is None:
+                    if np.isnan(balance.deposit):
                         price_change = (
-                            row["Close"] - balance["order_price"]
-                        ) / balance["order_price"]
-                        balance["total"] = balance["market"] * (1 + price_change)
-                        balance["buy_signal"] = np.nan
-                        balance["sell_signal"] = np.nan
+                            row["Close"] - balance.order_price
+                        ) / balance.order_price
+                        balance.total = balance.market * (1 + price_change)
+                        balance.buy_signal = np.nan
+                        balance.sell_signal = np.nan
 
                 balance_sequence.append(copy(balance))
 
-            summary["strategies"][strategy]["result"] = round(balance["total"])
-            summary["strategies"][strategy]["signal"] = (
-                "sell" if balance["market"] is None else "buy"
+            summary.strategies[strategy].result = round(balance.total)
+            summary.strategies[strategy].signal = (
+                "sell" if np.isnan(balance.market) else "buy"
             )
-            summary["strategies"][strategy]["transactions_counter"] = len(
-                summary["strategies"][strategy]["transactions"]
+            summary.strategies[strategy].transactions_counter = len(
+                summary.strategies[strategy].transactions
             )
-            if (
-                balance["total"] > summary["max_output"].get("result", 0)
-                and strategy != "(Blank) HOLD"
-            ):
+            if balance.total > summary.max_output.result and strategy != "(Blank) HOLD":
                 for col in ["total", "buy_signal", "sell_signal"]:
-                    self.data.loc[:, col] = [i[col] for i in balance_sequence]  # type: ignore
+                    self.data.loc[:, col] = [getattr(i, col) for i in balance_sequence]  # type: ignore
 
-                summary["max_output"] = {
-                    "strategy": strategy,
-                    "result": summary["strategies"][strategy]["result"],
-                    "signal": summary["strategies"][strategy]["signal"],
-                    "transactions_counter": summary["strategies"][strategy][
-                        "transactions_counter"
-                    ],
-                }
+                summary.max_output = MaxOutput(
+                    strategy=strategy,
+                    result=summary.strategies[strategy].result,
+                    signal=summary.strategies[strategy].signal,
+                    transactions_counter=summary.strategies[
+                        strategy
+                    ].transactions_counter,
+                )
 
-        summary["hold_result"] = summary["strategies"].pop("(Blank) HOLD")["result"]
-        summary["sorted_strategies"] = sorted(
-            summary["strategies"].items(),
-            key=lambda x: int(x[1]["result"]),
-            reverse=True,
-        )
-        summary["signal"] = summary["max_output"]["signal"]
+        summary.hold_result = summary.strategies.pop("(Blank) HOLD").result
+        summary.sort_strategies()
+        summary.signal = summary.max_output.signal
 
-        sorted_signals = [i[1]["signal"] for i in summary["sorted_strategies"]]
-        if summary["max_output"]["transactions_counter"] == 1:
-            summary["signal"] = (
-                "buy" if sorted_signals[:3].count("buy") >= 2 else "sell"
-            )
+        sorted_signals = [getattr(i[1], "signal") for i in summary.sorted_strategies]
+        if summary.max_output.transactions_counter == 1:
+            summary.signal = "buy" if sorted_signals[:3].count("buy") >= 2 else "sell"
 
         log.info(
-            f'> {summary["signal"]}{". Top 3 strategies were considered" if summary["max_output"]["transactions_counter"] == 1 else ""}'
+            f'> {summary.signal}{". Top 3 strategies were considered" if summary.max_output.transactions_counter == 1 else ""}'
         )
 
         return summary

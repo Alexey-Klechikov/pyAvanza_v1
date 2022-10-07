@@ -3,14 +3,14 @@ This module contains all candlesticks related functions
 """
 
 
-import os
 import json
 import logging
+import os
 import warnings
-import pandas as pd
 from pprint import pprint
 from typing import Tuple
 
+import pandas as pd
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
@@ -23,6 +23,7 @@ log = logging.getLogger("main.utils.strategy_dt")
 class Strategy_DT:
     def __init__(self, data: pd.DataFrame, **kwargs):
         self.data = data.groupby(data.index).last()
+
         self.order_price_limits = {
             k: abs(round((1 - v) / 20, 5))
             for k, v in kwargs.get("order_price_limits", dict()).items()
@@ -76,10 +77,10 @@ class Strategy_DT:
         if "Volume" in self.data.columns:
             # CMF (Chaikin Money Flow)
             self.data.ta.cmf(append=True)
-            CMF = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
+            cmf = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
             ta_indicators["CMF"] = {
-                "buy": lambda x: x["CMF_20"] > CMF["max"] * 0.2,
-                "sell": lambda x: x["CMF_20"] < CMF["min"] * 0.2,
+                "buy": lambda x: x["CMF_20"] > cmf["max"] * 0.2,
+                "sell": lambda x: x["CMF_20"] < cmf["min"] * 0.2,
                 "columns": ["CMF_20"],
             }
 
@@ -90,7 +91,7 @@ class Strategy_DT:
                 "sell": lambda x: x["EFI_13"] > 0,
                 "columns": ["EFI_13"],
             }
-        
+
         else:
             for indicator in ["CMF", "EFI"]:
                 ta_indicators[indicator] = {

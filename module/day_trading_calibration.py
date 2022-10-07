@@ -1,21 +1,15 @@
 import logging
 import platform
 import traceback
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List, Literal, Optional, Tuple
+
 import pandas as pd
 import yfinance as yf
-
-from dataclasses import dataclass
-from typing import Optional, Literal, List, Tuple
-from datetime import datetime
 from pandas_ta.candles.cdl_pattern import ALL_PATTERNS
 
-from .utils import Plot
-from .utils import Context
-from .utils import History
-from .utils import TeleLog
-from .utils import Settings
-from .utils import Strategy_DT
-
+from .utils import Context, History, Plot, Settings, Strategy_DT, TeleLog
 
 log = logging.getLogger("main.day_trading_calibration")
 
@@ -137,7 +131,7 @@ class Helper:
 
         self.strategies_efficiency: dict = dict()
 
-        self.filtered_strategies = {"BULL": dict(), "BEAR": dict()}
+        self.filtered_strategies: dict = {"BULL": dict(), "BEAR": dict()}
 
     def buy_order(
         self,
@@ -146,7 +140,7 @@ class Helper:
         row: pd.Series,
         is_realistic: bool = False,
     ) -> Optional[ORDER_TYPE]:
-        instrument_buy = None
+        instrument_buy: Optional[ORDER_TYPE] = None
 
         if last_candle_signal == "BUY" and not self.orders["BULL"].on_balance:
             instrument_buy = "BULL"
@@ -156,7 +150,9 @@ class Helper:
 
         if instrument_buy is not None:
             if is_realistic:
-                instrument_sell = "BULL" if instrument_buy == "BEAR" else "BEAR"
+                instrument_sell: ORDER_TYPE = (
+                    "BULL" if instrument_buy == "BEAR" else "BEAR"
+                )
                 self.sell_order(index, row, enforce_sell_instrument=instrument_sell)
 
             self.orders[instrument_buy].buy(row, index)
@@ -189,7 +185,7 @@ class Helper:
     def get_signal(
         self, value: int, ta_indicator: dict, row: pd.Series
     ) -> Optional[SIGNAL]:
-        signal = None
+        signal: Optional[SIGNAL] = None
 
         if value > 0 and ta_indicator["buy"](row):
             signal = "BUY"
@@ -320,13 +316,13 @@ class Calibration:
             cache="append",
             extra_data=extra_data,
         )
-        
-        #history.data = history.data[history.data.index < "2022-10-2"]
+
+        # history.data = history.data[history.data.index < "2022-10-2"]
 
         strategy = Strategy_DT(
             history.data,
             order_price_limits=self.settings["trading"]["limits_percent"],
-            iterate_candlestick_patterns=True
+            iterate_candlestick_patterns=True,
         )
 
         helper = Helper(self.settings)
@@ -341,7 +337,7 @@ class Calibration:
         for i, pattern in enumerate(ALL_PATTERNS):
             data, column = strategy.get_one_candlestick_pattern(pattern)
 
-            log.info(f'Pattern [{i+1}/{len(ALL_PATTERNS)}]: {column}')
+            log.info(f"Pattern [{i+1}/{len(ALL_PATTERNS)}]: {column}")
 
             if (data[column] == 0).all():
                 continue
@@ -398,7 +394,7 @@ class Calibration:
 
         helper = Helper(self.settings)
 
-        signals = list()
+        signals: list = list()
 
         for index, row in strategy.data.iterrows():
             instrument_buy = helper.buy_order(None if not signals else signals[-1], index, row, is_realistic=True)  # type: ignore

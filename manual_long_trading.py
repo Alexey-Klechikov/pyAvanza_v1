@@ -3,6 +3,7 @@ This module is used for manual runs (checkups, improvements, tests)
 """
 
 
+from dataclasses import dataclass
 import logging
 import traceback
 import pandas as pd
@@ -23,7 +24,7 @@ class Portfolio_Analysis:
         self.data = pd.DataFrame()
         self.visited_tickers = list()
         self.counter_per_strategy = {
-            "-- MAX --": {"result": 0, "transactions_counter": 0}
+            "-- MAX --": {"result": 0.0, "transactions_counter": 0.0}
         }
 
         self.extra_tickers_plot = kwargs["extra_tickers_plot"]
@@ -43,11 +44,11 @@ class Portfolio_Analysis:
         )
 
     def plot_ticker(self, strategy: Strategy_TA) -> None:
-        log.info(f'Plotting {strategy.summary["ticker_name"]}')
+        log.info(f"Plotting {strategy.summary.ticker_name}")
 
         plot_obj = Plot(
             data=strategy.data,
-            title=f'{strategy.summary["ticker_name"]} # {strategy.summary["max_output"]["strategy"]}',
+            title=f"{strategy.summary.ticker_name} # {strategy.summary.max_output.strategy}",
         )
         plot_obj.create_extra_panels()
         plot_obj.add_orders_to_main_plot()
@@ -151,7 +152,7 @@ class Portfolio_Analysis:
         self.data.rename(
             columns={
                 "Close": f"Close / {ticker}",
-                "total": f'total / {ticker} / {strategy.summary["max_output"]["strategy"]}',
+                "total": f"total / {ticker} / {strategy.summary.max_output.strategy}",
             },
             inplace=True,
         )
@@ -193,14 +194,14 @@ class Portfolio_Analysis:
             return
 
         if self.show_only_tickers_to_act_on and (
-            (in_portfolio and strategy.summary["signal"] == "buy")
-            or (not in_portfolio and strategy.summary["signal"] == "sell")
+            (in_portfolio and strategy.summary.signal == "buy")
+            or (not in_portfolio and strategy.summary.signal == "sell")
         ):
             return
 
         # Print the result for all strategies AND count per strategy performance
-        top_signal = strategy.summary["max_output"].pop("signal")
-        signal = strategy.summary["signal"]
+        top_signal = strategy.summary.max_output.signal
+        signal = strategy.summary.signal
 
         if top_signal != signal:
             signal = f"{top_signal} ->> {signal}"
@@ -208,40 +209,39 @@ class Portfolio_Analysis:
 
         max_output_summary = f"signal: {signal} / " + " / ".join(
             [
-                f"{k}: {v}"
-                for k, v in strategy.summary["max_output"].items()
-                if k in ("result", "transactions_counter")
+                f"result: {strategy.summary.max_output.result}",
+                f"transactions_counter: {strategy.summary.max_output.transactions_counter}",
             ]
         )
         log.info(
-            f'--- {strategy.summary["ticker_name"]} ({max_output_summary}) (HOLD: {strategy.summary["hold_result"]}) ---'
+            f"--- {strategy.summary.ticker_name} ({max_output_summary}) (HOLD: {strategy.summary.hold_result}) ---"
         )
 
-        for parameter in ("result", "transactions_counter"):
-            self.counter_per_strategy["-- MAX --"][parameter] += strategy.summary[
-                "max_output"
-            ][parameter]
+        self.counter_per_strategy["-- MAX --"][
+            "result"
+        ] += strategy.summary.max_output.result
+        self.counter_per_strategy["-- MAX --"][
+            "transactions_counter"
+        ] += strategy.summary.max_output.transactions_counter
 
-        for i, strategy_items in enumerate(strategy.summary["sorted_strategies"]):
+        for i, strategy_items in enumerate(strategy.summary.sorted_strategies):
             strategy_name, strategy_data = strategy_items[0], strategy_items[1]
 
             self.counter_per_strategy.setdefault(
                 strategy_name, {"total_sum": 0, "transactions_counter": 0}
             )
-            self.counter_per_strategy[strategy_name]["total_sum"] += strategy_data[
-                "result"
-            ]
+            self.counter_per_strategy[strategy_name]["total_sum"] += strategy_data.result
             self.counter_per_strategy[strategy_name]["transactions_counter"] += len(
-                strategy_data["transactions"]
+                strategy_data.transactions
             )
 
             if i < 3:
                 log.info(
-                    f'Strategy: {strategy_name} -> {strategy_data["result"]} (number_transactions: {len(strategy_data["transactions"])}) (signal: {strategy_data["signal"]})'
+                    f'Strategy: {strategy_name} -> {strategy_data.result} (number_transactions: {len(strategy_data.transactions)}) (signal: {strategy_data.signal})'
                 )
                 [
                     log.info(transaction)
-                    for transaction in strategy_data["transactions"]
+                    for transaction in strategy_data.transactions
                     if self.print_transactions
                 ]
 
@@ -293,8 +293,8 @@ class Portfolio_Analysis:
                     )
         else:
             log.info("Checking portfolio")
-            if self.ava.portfolio["positions"]["df"] is not None:
-                for _, row in self.ava.portfolio["positions"]["df"].iterrows():
+            if self.ava.portfolio.positions._df is not None:
+                for _, row in self.ava.portfolio.positions._df.iterrows():
                     self.get_strategy_on_ticker(
                         row["ticker_yahoo"],
                         row["orderbookId"],

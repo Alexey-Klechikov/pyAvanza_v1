@@ -5,11 +5,12 @@ This module is used to plot tickers, indicators, and comparison graph
 
 import logging
 import warnings
+from typing import Dict
+
+import matplotlib.pyplot as plt
+import mplfinance as mpf
 import numpy as np
 import pandas as pd
-import mplfinance as mpf
-import matplotlib.pyplot as plt
-
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -21,7 +22,7 @@ class Plot:
         self.data = data
         self.title = title
 
-        self.plots = list()
+        self.plots: list = list()
 
     def add_horizontal_lines(self, level_color: list[tuple], panel_num: int) -> None:
         horizontal_lines_plots = list()
@@ -566,7 +567,7 @@ class Plot:
 
             return data_columns["KVO"]
 
-        graphs = {
+        graphs: Dict[str, dict] = {
             "main_plot": {
                 "PSAR": _psar,
                 "ALMA": _alma,

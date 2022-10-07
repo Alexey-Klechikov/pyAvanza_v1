@@ -2,13 +2,14 @@
 This module contains all tooling to communicate to Yahoo Finance API to load historical data.
 """
 
+import logging
 import os
 import pickle
-import logging
+from datetime import datetime, timedelta
+from typing import List
+
 import pandas as pd
 import yfinance as yf
-from datetime import datetime, timedelta
-
 
 log = logging.getLogger("main.utils.history")
 
@@ -35,7 +36,9 @@ class History:
         self.data = self.get_data()
 
     def get_data(self) -> pd.DataFrame:
-        data = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
+        data: pd.DataFrame = pd.DataFrame(
+            columns=["Open", "High", "Low", "Close", "Volume"]
+        )
 
         if self.cache == "reuse":
             data = self._read_cache(self.pickle_path)
@@ -56,15 +59,23 @@ class History:
                 .fillna(0)
             )
 
-            data = data[["Open", "High", "Low", "Close", "Volume"]].groupby(data.index).first()
+            data = (
+                data[["Open", "High", "Low", "Close", "Volume"]]
+                .groupby(data.index)
+                .first()
+            )
 
             self._dump_cache(self.pickle_path, data)
 
-            data = data.loc[
-                (datetime.today() - timedelta(days=int(self.period[:-1])))
-                .strftime("%Y-%m-%d") : datetime.today()
-                .strftime("%Y-%m-%d")
-            ]
+            data = data[
+                lambda x: (
+                    (datetime.today() - timedelta(days=int(self.period[:-1]))).strftime(
+                        "%Y-%m-%d"
+                    )
+                    <= x.index
+                )
+                & (datetime.today().strftime("%Y-%m-%d") >= x.index)
+            ]  # type: ignore
 
         data.sort_index(inplace=True)
 
@@ -82,7 +93,7 @@ class History:
 
             earliest_date = datetime.today() - timedelta(days=min(period_num, 29))
 
-            intervals = list()
+            intervals: List[List[str]] = list()
             end_date = datetime.today() + timedelta(days=1)
             while True:
                 start_date = max(earliest_date, end_date - timedelta(days=5))
@@ -95,9 +106,9 @@ class History:
                 end_date = start_date
 
             data = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
-            for start_date, end_date in intervals:
+            for start, end in intervals:
                 data = data.append(
-                    ticker.history(interval=interval, start=start_date, end=end_date)
+                    ticker.history(interval=interval, start=start, end=end)
                 )
             data.drop_duplicates(inplace=True)
 

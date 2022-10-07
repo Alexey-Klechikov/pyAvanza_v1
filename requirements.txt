@@ -8,3 +8,4 @@ yfinance
 telegram-send
 keyring
 ta-lib
+pre-commit

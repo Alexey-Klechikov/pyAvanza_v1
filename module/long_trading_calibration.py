@@ -8,13 +8,7 @@ It will import other modules to run the analysis on the stocks -> move it to the
 import logging
 import traceback
 
-
-from .utils import History
-from .utils import Context
-from .utils import TeleLog
-from .utils import Settings
-from .utils import Strategy_TA
-
+from .utils import Context, History, Settings, Strategy_TA, TeleLog
 
 log = logging.getLogger("main.long_trading_calibration")
 
@@ -30,7 +24,7 @@ class Calibration:
     def record_strategies(self, ticker: str, strategy: Strategy_TA) -> None:
         log.info(f"Record strategies")
 
-        for strategy_item in strategy.summary["sorted_strategies"][:20]:
+        for strategy_item in strategy.summary.sorted_strategies[:20]:
             self.top_strategies_per_ticket.setdefault(ticker, list()).append(
                 strategy_item[0]
             )
@@ -39,7 +33,7 @@ class Calibration:
         self,
         initial_watch_list_name: str,
         ticker: dict,
-        max_output: int,
+        max_output: float,
         budget_list_thresholds: dict,
     ) -> str:
         max_outputs = [int(i) for i in budget_list_thresholds if max_output > int(i)]
@@ -100,11 +94,13 @@ class Calibration:
                         strategy = Strategy_TA(data)
 
                     except Exception as e:
-                        log.error(f"Error (run_analysis): {e}")
+                        log.error(
+                            f"Error (run_analysis): {e} ({traceback.format_exc()})"
+                        )
 
                         continue
 
-                    max_output = strategy.summary["max_output"]["result"]
+                    max_output = strategy.summary.max_output.result
                     log.info(f"{watch_list_name}: Max output = {max_output}")
 
                     target_watch_list_name = self.move_ticker_to_suitable_budget_list(

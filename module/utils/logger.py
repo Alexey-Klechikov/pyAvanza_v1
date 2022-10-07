@@ -3,10 +3,10 @@ Logging events.
 (File logger + Colored Console logger)
 """
 
-import os
 import copy
-import logging
 import datetime
+import logging
+import os
 
 
 class ColoredFormatter(logging.Formatter):
@@ -25,7 +25,7 @@ class ColoredFormatter(logging.Formatter):
 
     def __init__(self, pattern: str) -> None:
         logging.Formatter.__init__(self, pattern)
-        self.ptn = pattern
+        # self.ptn = pattern # TODO: check if this is needed
 
     def format(self, record) -> str:
         colored_record = copy.copy(record)
@@ -43,7 +43,6 @@ class ColoredFormatter(logging.Formatter):
 
 class OneLineFormatter(logging.Formatter):
     def format(self, record) -> str:
-
         s = super(OneLineFormatter, self).format(record)
         s = s.replace("\n", "").replace("BULL", "🟢 BULL").replace("BEAR", "🔴 BEAR")
         if s.find("Done"):

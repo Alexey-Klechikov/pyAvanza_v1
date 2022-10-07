@@ -1,23 +1,27 @@
-import time
 import logging
+import time
 import traceback
-import numpy as np
-import yfinance as yf
-import pandas as pd
+from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Dict, Optional, Tuple, TypedDict, Union
+
+import numpy as np
+import pandas as pd
+import yfinance as yf
 from requests import ReadTimeout
 from requests.exceptions import ConnectionError
-from typing import Tuple, Optional
 
-from .utils import History
-from .utils import Context
-from .utils import TeleLog
-from .utils import Settings
-from .utils import Strategy_DT
-from .utils import InstrumentStatus, Status_DT as Status
-
+from .utils import Context, History, InstrumentStatus, Settings
+from .utils import Status_DT as Status
+from .utils import Strategy_DT, TeleLog
 
 log = logging.getLogger("main.day_trading")
+
+
+@dataclass
+class LastLine:
+    overwrite: bool = True
+    messages: list = field(default_factory=list)
 
 
 class Helper:
@@ -30,7 +34,7 @@ class Helper:
         self.strategies = Strategy_DT.load("DT")
         self.status = Status(self.settings["trading"])
 
-        self.last_line = {"overwrite": True, "messages": list()}
+        self.last_line: LastLine = LastLine()
 
         self.ava = Context(user, accounts, skip_lists=True)
 
@@ -101,7 +105,7 @@ class Helper:
         return False
 
     def _update_budget(self) -> None:
-        own_capital = self.ava.get_portfolio()["total_own_capital"]
+        own_capital = self.ava.get_portfolio().total_own_capital
         floating_budget = (own_capital // 1000 - 1) * 1000
 
         self.settings["trading"]["budget"] = max(
@@ -174,7 +178,7 @@ class Helper:
 
             return
 
-        self.last_line["overwrite"] = False
+        self.last_line.overwrite = False
 
         certificate_info = self.ava.get_certificate_info(
             self.settings["instruments"]["TRADING"][instrument_type],
@@ -251,7 +255,7 @@ class Helper:
         elif price is None:
             return
 
-        self.last_line["overwrite"] = False
+        self.last_line.overwrite = False
 
         instrument_type = instrument_status.active_order["orderbook"]["name"].split(
             " "
@@ -267,22 +271,22 @@ class Helper:
         instrument_status = self.status.get_instrument(instrument_type)
 
         if instrument_status.has_position:
-            self.last_line["messages"].append(
+            self.last_line.messages.append(
                 f"{instrument_type} - {instrument_status.price_stop_loss} < {instrument_status.price_current} < {instrument_status.price_take_profit}"
             )
 
     def update_last_stdout_line(self) -> None:
-        if self.last_line["overwrite"]:
+        if self.last_line.overwrite:
             LINE_UP = "\033[1A"
             LINE_CLEAR = "\x1b[2K"
 
             print(LINE_UP, end=LINE_CLEAR)
 
         print(
-            f'[{datetime.now().strftime("%H:%M")}] {" ||| ".join(self.last_line["messages"])}'
+            f'[{datetime.now().strftime("%H:%M")}] {" ||| ".join(self.last_line.messages)}'
         )
 
-        self.last_line["overwrite"] = True
+        self.last_line.overwrite = True
 
 
 class Day_Trading:
@@ -405,18 +409,18 @@ class Day_Trading:
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:
         self.helper.log_data["balance_before"] = sum(
-            self.helper.ava.get_portfolio()["buying_power"].values()
+            self.helper.ava.get_portfolio().buying_power.values()
         )
 
         log.info(
             f'> Running trading for account(s): {" & ".join(self.helper.accounts)} [{self.helper.log_data["balance_before"]}]'
         )
 
-        strategies = dict()
+        strategies: dict = dict()
 
         while True:
             self.helper.status.update_day_time()
-            self.helper.last_line["messages"] = list()
+            self.helper.last_line.messages = list()
 
             if self.helper.status.day_time == "morning":
                 continue
@@ -444,7 +448,7 @@ class Day_Trading:
             time.sleep(60)
 
         self.helper.log_data["balance_after"] = sum(
-            self.helper.ava.get_portfolio()["buying_power"].values()
+            self.helper.ava.get_portfolio().buying_power.values()
         )
 
         log.info(f'> End of the day. [{self.helper.log_data["balance_after"]}]')

@@ -7,12 +7,7 @@ import logging
 import traceback
 from typing import Tuple
 
-from .utils import Settings
-from .utils import History
-from .utils import Strategy_TA
-from .utils import Context
-from .utils import TeleLog
-
+from .utils import Context, History, Settings, Strategy_TA, TeleLog
 
 log = logging.getLogger("main.long_trading")
 
@@ -46,8 +41,8 @@ class Portfolio_Analysis:
                 return dict()
 
             self.signals[ticker_yahoo] = {
-                "signal": strategy_obj.summary["signal"],
-                "return": strategy_obj.summary["max_output"]["result"],
+                "signal": strategy_obj.summary.signal,
+                "return": strategy_obj.summary.max_output.result,
             }
 
         return self.signals[ticker_yahoo]
@@ -56,10 +51,10 @@ class Portfolio_Analysis:
         log.info(f"Walk through portfolio (sell)")
 
         orders, portfolio_tickers = list(), dict()
-        if self.ava.portfolio["positions"]["df"] is not None:
-            for i, row in self.ava.portfolio["positions"]["df"].iterrows():
+        if self.ava.portfolio.positions._df.shape[0] != 0:
+            for i, row in self.ava.portfolio.positions._df.iterrows():
                 log.info(
-                    f'Portfolio ({int(i) + 1}/{self.ava.portfolio["positions"]["df"].shape[0]}): {row["ticker_yahoo"]}'
+                    f'Portfolio ({int(i) + 1}/{self.ava.portfolio.positions._df.shape[0]}): {row["ticker_yahoo"]}'  # type: ignore
                 )
 
                 portfolio_tickers[row["ticker_yahoo"]] = {"row": row}
@@ -156,7 +151,9 @@ class Portfolio_Analysis:
             ticker_budget = ticker.get("budget")
 
             if ticker_budget is None:
-                log.error(f'> Ticker "{ticker["row"]["ticker_yahoo"]}" has no budget')
+                log.warning(
+                    f'> Ticker "{ticker["row"]["ticker_yahoo"]}" has no budget -> skip'
+                )
 
                 continue
 
@@ -216,7 +213,7 @@ class Portfolio_Analysis:
 
 def run() -> None:
     settings: dict = Settings().load()
-    signals = dict()
+    signals: dict = dict()
 
     for user, settings_per_user in settings.items():
         for setting_per_setup in settings_per_user.values():

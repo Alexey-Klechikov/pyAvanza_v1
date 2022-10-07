@@ -3,8 +3,10 @@ This module is used to process and dump execution logs to Telegram
 """
 
 import logging
+
 import telegram_send
 
+from module.utils.context import Portfolio
 
 log = logging.getLogger("main.utils.telelog")
 
@@ -57,16 +59,16 @@ class TeleLog:
 
         self.message += "\n".join(messages)
 
-    def parse_portfolio(self, portfolio: dict) -> None:
+    def parse_portfolio(self, portfolio: Portfolio) -> None:
         log.debug("Parse portfolio")
 
         free_funds = "\n".join(
             [
                 f"> {account}: {funds}"
-                for account, funds in portfolio["buying_power"].items()
+                for account, funds in portfolio.buying_power.items()
             ]
         )
-        self.message += f'LT: Total value: {round(portfolio["total_own_capital"])}\n\nTotal free funds:\n{free_funds}\n\n'
+        self.message += f"LT: Total value: {round(portfolio.total_own_capital)}\n\nTotal free funds:\n{free_funds}\n\n"
 
     def parse_watch_lists_analysis_log(
         self, watch_lists_analysis_log: list[str]

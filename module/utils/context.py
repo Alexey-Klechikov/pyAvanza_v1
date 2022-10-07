@@ -3,21 +3,36 @@ This module contains all tooling to communicate to Avanza
 """
 
 
-import time
-import keyring
 import logging
-import pandas as pd
-
-from pytz import timezone
+import time
 from copy import copy
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Tuple, Union, Optional
+from typing import Optional, Tuple, Union
+
+import keyring
+import pandas as pd
+from avanza import Avanza, InstrumentType, OrderType, Resolution, TimePeriod
+from pytz import timezone
 from requests.exceptions import HTTPError
 
-from avanza import Avanza, OrderType, InstrumentType, TimePeriod, Resolution
-
-
 log = logging.getLogger("main.utils.context")
+
+
+@dataclass
+class Positions:
+    _dict: Optional[list] = None
+    _df: pd.DataFrame = pd.DataFrame(columns=["orderbookId"])
+
+    def __post_init__(self):
+        self._df = pd.DataFrame(self._dict)
+
+
+@dataclass
+class Portfolio:
+    buying_power: dict = field(default_factory=dict)
+    total_own_capital: float = 0
+    positions: Positions = Positions()
 
 
 class Context:
@@ -47,22 +62,20 @@ class Context:
             except Exception as e:
                 log.error(e)
                 i += 1
+
                 time.sleep(i * 2)
 
         return ctx
 
-    def get_portfolio(self) -> dict:
-        portfolio = {
-            "buying_power": dict(),
-            "total_own_capital": 0,
-            "positions": {"dict": None, "df": None},
-        }
+    def get_portfolio(self) -> Portfolio:
+        portfolio = Portfolio()
 
         for k, v in self.accounts.items():
             account_overview = self.ctx.get_account_overview(v)
+
             if account_overview:
-                portfolio["buying_power"][k] = account_overview["buyingPower"]
-                portfolio["total_own_capital"] += account_overview["ownCapital"]
+                portfolio.buying_power[k] = account_overview["buyingPower"]
+                portfolio.total_own_capital += account_overview["ownCapital"]
 
         positions = list()
         all_positions = self.ctx.get_positions()
@@ -78,13 +91,10 @@ class Context:
                 positions.append(position)
 
         if positions:
-            portfolio["positions"] = {
-                "dict": positions,
-                "df": pd.DataFrame(positions),
-            }
+            portfolio.positions = Positions(positions)
 
             tickers_yahoo = list()
-            for orderbook_id in portfolio["positions"]["df"]["orderbookId"].tolist():
+            for orderbook_id in portfolio.positions._df["orderbookId"].tolist():
                 stock_info = self.ctx.get_stock_info(orderbook_id)
                 if not stock_info:
                     stock_info = dict()
@@ -93,7 +103,7 @@ class Context:
                     f"{stock_info.get('tickerSymbol', '').replace(' ', '-')}.ST"
                 )
 
-            portfolio["positions"]["df"]["ticker_yahoo"] = tickers_yahoo
+            portfolio.positions._df["ticker_yahoo"] = tickers_yahoo
 
         return portfolio
 
@@ -173,7 +183,7 @@ class Context:
                     # Check accounts one by one if enough funds for the order
                     for account_name, account_id in self.accounts.items():
                         if (
-                            self.portfolio["buying_power"][account_name]
+                            self.portfolio.buying_power[account_name]
                             - reserved_budget[account_name]
                             > buy_order["budget"]
                         ):
@@ -212,15 +222,15 @@ class Context:
         order_attr = {
             "account_id": old_order["account"]["id"],
             "order_book_id": old_order["orderbook"]["id"],
-            "order_type": OrderType.SELL
-            if old_order["type"] == "SELL"
-            else OrderType.BUY,
+            "order_type": OrderType["SELL" if old_order["type"] == "SELL" else "BUY"],
             "price": price,
             "valid_until": (datetime.today() + timedelta(days=1)).date(),
             "volume": old_order["volume"],
-            "instrument_type": InstrumentType.CERTIFICATE
-            if old_order["orderbook"]["type"] == "CERTIFICATE"
-            else InstrumentType.STOCK,
+            "instrument_type": InstrumentType[
+                "CERTIFICATE"
+                if old_order["orderbook"]["type"] == "CERTIFICATE"
+                else "STOCK"
+            ],
             "order_id": old_order["orderId"],
         }
 
@@ -282,7 +292,7 @@ class Context:
         }
 
     def get_active_order(self, certificate_id: Optional[str] = None) -> dict:
-        active_order = dict()
+        active_order: dict = dict()
 
         for _ in range(5):
             try:
@@ -293,9 +303,7 @@ class Context:
 
                 continue
 
-            active_orders = (
-                list() if not orders else orders["orders"]
-            )
+            active_orders = list() if not orders else orders["orders"]
             active_orders = [
                 order
                 for order in active_orders
@@ -313,7 +321,7 @@ class Context:
         account_ids: list[Union[str, int]] = list(),
     ) -> dict:
         active_orders = list()
-        removed_orders = {"buy": list(), "sell": list()}
+        removed_orders: dict = {"buy": list(), "sell": list()}
 
         deals_and_orders = self.ctx.get_deals_and_orders()
         if deals_and_orders:

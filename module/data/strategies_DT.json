@@ -11,6 +11,7 @@
             "CDL_3LINESTRIKE",
             "CDL_ABANDONEDBABY",
             "CDL_GAPSIDESIDEWHITE",
+            "CDL_HARAMI",
             "CDL_STICKSANDWICH",
             "CDL_TRISTAR",
             "CDL_XSIDEGAP3METHODS"
@@ -26,7 +27,6 @@
         ],
         "EFI": [
             "CDL_ABANDONEDBABY",
-            "CDL_MORNINGDOJISTAR",
             "CDL_STICKSANDWICH"
         ],
         "PSAR": [
@@ -82,6 +82,7 @@
             "CDL_UNIQUE3RIVER"
         ],
         "CMF": [
+            "CDL_DOJISTAR",
             "CDL_GRAVESTONEDOJI",
             "CDL_PIERCING",
             "CDL_SEPARATINGLINES",
@@ -94,22 +95,20 @@
             "CDL_EVENINGDOJISTAR"
         ],
         "EFI": [
-            "CDL_3BLACKCROWS",
-            "CDL_TASUKIGAP"
+            "CDL_3BLACKCROWS"
         ],
         "CMF": [
             "CDL_3INSIDE",
             "CDL_DOJISTAR",
-            "CDL_EVENINGDOJISTAR",
-            "CDL_ONNECK",
-            "CDL_THRUSTING"
+            "CDL_EVENINGDOJISTAR"
         ],
         "PSAR": [
             "CDL_ABANDONEDBABY"
         ],
         "SUPERT": [
             "CDL_ABANDONEDBABY",
-            "CDL_EVENINGDOJISTAR"
+            "CDL_EVENINGDOJISTAR",
+            "CDL_RISEFALL3METHODS"
         ],
         "RVI": [
             "CDL_ABANDONEDBABY",
@@ -118,38 +117,41 @@
             "CDL_SEPARATINGLINES"
         ],
         "MACD": [
-            "CDL_ABANDONEDBABY"
+            "CDL_ABANDONEDBABY",
+            "CDL_RISEFALL3METHODS"
         ],
         "BOP_R": [
             "CDL_ABANDONEDBABY",
-            "CDL_HIKKAKEMOD"
+            "CDL_HIKKAKEMOD",
+            "CDL_RISEFALL3METHODS"
         ],
         "RSI": [
             "CDL_ABANDONEDBABY",
-            "CDL_GAPSIDESIDEWHITE",
-            "CDL_TASUKIGAP"
+            "CDL_EVENINGDOJISTAR",
+            "CDL_RISEFALL3METHODS"
         ],
         "KC": [
             "CDL_ADVANCEBLOCK",
             "CDL_DARKCLOUDCOVER",
             "CDL_EVENINGDOJISTAR",
             "CDL_EVENINGSTAR",
-            "CDL_SEPARATINGLINES",
-            "CDL_STALLEDPATTERN",
-            "CDL_TASUKIGAP"
+            "CDL_STALLEDPATTERN"
         ],
         "ALMA": [
             "CDL_EVENINGDOJISTAR",
             "CDL_GAPSIDESIDEWHITE",
-            "CDL_TASUKIGAP"
+            "CDL_RISEFALL3METHODS"
+        ],
+        "GHLA": [
+            "CDL_EVENINGDOJISTAR",
+            "CDL_RISEFALL3METHODS"
         ],
         "ACCBANDS": [
             "CDL_EVENINGDOJISTAR",
             "CDL_SEPARATINGLINES"
         ],
-        "GHLA": [
-            "CDL_SEPARATINGLINES",
-            "CDL_TASUKIGAP"
+        "STOCH": [
+            "CDL_RISEFALL3METHODS"
         ]
     }
 }
