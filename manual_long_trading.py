@@ -230,14 +230,16 @@ class Portfolio_Analysis:
             self.counter_per_strategy.setdefault(
                 strategy_name, {"total_sum": 0, "transactions_counter": 0}
             )
-            self.counter_per_strategy[strategy_name]["total_sum"] += strategy_data.result
+            self.counter_per_strategy[strategy_name][
+                "total_sum"
+            ] += strategy_data.result
             self.counter_per_strategy[strategy_name]["transactions_counter"] += len(
                 strategy_data.transactions
             )
 
             if i < 3:
                 log.info(
-                    f'Strategy: {strategy_name} -> {strategy_data.result} (number_transactions: {len(strategy_data.transactions)}) (signal: {strategy_data.signal})'
+                    f"Strategy: {strategy_name} -> {strategy_data.result} (number_transactions: {len(strategy_data.transactions)}) (signal: {strategy_data.signal})"
                 )
                 [
                     log.info(transaction)

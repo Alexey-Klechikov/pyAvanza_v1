@@ -84,15 +84,11 @@ class Strategy_TA:
     def prepare_conditions(
         self, data: pd.DataFrame, skip_points: int
     ) -> Tuple[pd.DataFrame, dict]:
-        def _check_enough_data(column: str, data: pd.DataFrame) -> bool:
-            if column in data.columns:
-                return True
-
-            else:
-                log.warning(f'Not enough data for "{column}"-related strategy')
-                return False
-
         log.debug("Preparing conditions")
+
+        _check_enough_data = (
+            lambda column, data: True if column in data.columns else False
+        )
 
         condition_types_list = (
             "Blank",
@@ -134,9 +130,18 @@ class Strategy_TA:
         # CMF (Chaikin Money Flow)
         data.ta.cmf(append=True)
         if _check_enough_data("CMF_20", data):
+            cmf = {"max": data["CMF_20"].max(), "min": data["CMF_20"].min()}
             conditions["Volume"]["CMF"] = {
-                "buy": lambda x: x["CMF_20"] > 0,
-                "sell": lambda x: x["CMF_20"] < 0,
+                "buy": lambda x: x["CMF_20"] > cmf["max"] * 0.2,
+                "sell": lambda x: x["CMF_20"] < cmf["min"] * 0.2,
+            }
+
+        # EFI (Elder's Force Index)
+        data.ta.cmf(append=True)
+        if _check_enough_data("EFI_13", data):
+            conditions["Volume"]["EFI"] = {
+                "buy": lambda x: x["EFI_13"] < 0,
+                "sell": lambda x: x["EFI_13"] > 0,
             }
 
         # KVO (Klinger Volume Oscillator)
@@ -173,6 +178,14 @@ class Strategy_TA:
             conditions["Volatility"]["BBANDS"] = {
                 "buy": lambda x: x["Close"] > x["BBL_20_2.0"],
                 "sell": lambda x: x["Close"] < x["BBU_20_2.0"],
+            }
+
+        # ACCBANDS (Acceleration Bands)
+        data.ta.accbands(append=True)
+        if _check_enough_data("ACCBU_20", data):
+            conditions["Volatility"]["ACCBANDS"] = {
+                "buy": lambda x: x["Close"] > x["ACCBU_20"],
+                "sell": lambda x: x["Close"] < x["ACCBU_20"],
             }
 
         """ Candle """
@@ -260,8 +273,8 @@ class Strategy_TA:
         data.ta.stc(append=True)
         if _check_enough_data("STC_10_12_26_0.5", data):
             conditions["Momentum"]["STC"] = {
-                "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
                 "buy": lambda x: x["STC_10_12_26_0.5"] < 75,
+                "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
             }
 
         # CCI (Commodity Channel Index)
@@ -271,8 +284,8 @@ class Strategy_TA:
                 data["CCI_20_0.015"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
             )
             conditions["Overlap"]["LINREG"] = {
-                "sell": lambda x: x["CCI_20_0.015"] > 100 and x["CCI_direction"] == 0,
                 "buy": lambda x: x["CCI_20_0.015"] < -100 and x["CCI_direction"] == 1,
+                "sell": lambda x: x["CCI_20_0.015"] > 100 and x["CCI_direction"] == 0,
             }
 
         # RSI (Relative Strength Index)
@@ -294,9 +307,12 @@ class Strategy_TA:
         # MACD (Moving Average Convergence Divergence)
         data.ta.macd(fast=8, slow=21, signal=5, append=True)
         if _check_enough_data("MACD_8_21_5", data):
+            data["MACD_ma_diff"] = (
+                data["MACDh_8_21_5"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+            )
             conditions["Momentum"]["MACD"] = {
-                "buy": lambda x: x["MACD_8_21_5"] > x["MACDs_8_21_5"],
-                "sell": lambda x: x["MACD_8_21_5"] < x["MACDs_8_21_5"],
+                "buy": lambda x: x["MACD_ma_diff"] == 1,
+                "sell": lambda x: x["MACD_ma_diff"] == 0,
             }
 
         # STOCH (Stochastic Oscillator)

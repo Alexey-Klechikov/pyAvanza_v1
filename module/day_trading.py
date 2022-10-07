@@ -268,7 +268,7 @@ class Helper:
         self.ava.update_order(instrument_status.active_order, price)
 
     def combine_stdout_line(self, instrument_type: str) -> None:
-        instrument_status = self.status.get_instrument(instrument_type)
+        instrument_status = getattr(self.status, instrument_type)
 
         if instrument_status.has_position:
             self.last_line.messages.append(

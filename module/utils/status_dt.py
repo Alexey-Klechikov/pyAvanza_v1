@@ -2,12 +2,11 @@
 This module contains a Status class for Day trading. Status of each instrument and time_of_day with their methods
 """
 
-import time
 import logging
-from datetime import datetime
+import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional, Union
-
 
 log = logging.getLogger("main.utils.status_dt")
 
@@ -195,10 +194,10 @@ class Status_DT:
             self.day_time = "morning"
 
             time.sleep(60)
-        
+
         elif current_time <= current_time.replace(hour=10, minute=0):
             """
-            I have enough data on Volume at 10:00 AM. 
+            I have enough data on Volume at 10:00 AM.
             Data on Volume is available only from AVANZA, so I merge this data into YAHOO while this day_time
             """
             self.day_time = "morning_transition"
@@ -211,7 +210,7 @@ class Status_DT:
 
         if current_time >= current_time.replace(hour=17, minute=25):
             """
-            Swedish market is closed, however, certificates are still available for trading. 
+            Swedish market is closed, however, certificates are still available for trading.
             This transition time has many gaps, so I stop trading for 10 minutes
             """
             self.day_time = "evening_transition"
@@ -227,8 +226,8 @@ class Status_DT:
                 not any(
                     [
                         (
-                            self.get_instrument(instrument_type).has_position
-                            or self.get_instrument(instrument_type).active_order
+                            getattr(self, instrument_type).has_position
+                            or getattr(self, instrument_type).active_order
                         )
                         for instrument_type in ["BULL", "BEAR"]
                     ]
@@ -242,13 +241,10 @@ class Status_DT:
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")
 
-    def get_instrument(self, instrument_type: str) -> InstrumentStatus:
-        return self.BULL if instrument_type == "BULL" else self.BEAR
-
     def update_instrument(
         self, instrument_type: str, certificate_info: dict, active_order: dict
     ) -> InstrumentStatus:
-        instrument_status = self.get_instrument(instrument_type)
+        instrument_status: InstrumentStatus = getattr(self, instrument_type)
 
         instrument_status.active_order = active_order
         instrument_status.spread = certificate_info.get("spread")
@@ -270,7 +266,7 @@ class Status_DT:
         if instrument_status.check_trade_is_completed():
             setattr(self, instrument_type, InstrumentStatus(instrument_type))
 
-            instrument_status = self.get_instrument(instrument_type)
+            instrument_status = getattr(self, instrument_type)
 
         return instrument_status
 
@@ -280,7 +276,7 @@ class Status_DT:
         if new_relative_price is None:
             return
 
-        instrument_status = self.get_instrument(instrument_type)
+        instrument_status = getattr(self, instrument_type)
 
         instrument_status.update_on_new_signal(
             self.settings["limits_percent"], new_relative_price
