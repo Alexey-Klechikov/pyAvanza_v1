@@ -74,6 +74,7 @@ class Strategy_DT:
         ta_indicators = dict()
 
         """ Volume """
+        """
         if "Volume" in self.data.columns:
             # CMF (Chaikin Money Flow)
             self.data.ta.cmf(append=True)
@@ -99,9 +100,10 @@ class Strategy_DT:
                     "sell": lambda x: False,
                     "columns": [],
                 }
+        """
 
         """ Trend """
-        # PSAR (Parabolic Stop and Reverse) ???
+        # PSAR (Parabolic Stop and Reverse)
         self.data.ta.psar(append=True)
         ta_indicators["PSAR"] = {
             "buy": lambda x: x["Close"] > x["PSARl_0.02_0.2"],
@@ -126,15 +128,16 @@ class Strategy_DT:
             "columns": ["HILO_13_21"],
         }
 
-        # SUPERT (Supertrend)
-        self.data.ta.supertrend(append=True)
+        # SUPERT (Supertrend) (mod 2022.10.09)
+        self.data.ta.supertrend(length=7, multiplier=3, append=True)
+        self.data.ta.supertrend(length=5, multiplier=3, append=True)
         ta_indicators["SUPERT"] = {
-            "buy": lambda x: x["Close"] > x["SUPERT_7_3.0"],
+            "buy": lambda x: x["Close"] > x["SUPERT_5_3.0"],
             "sell": lambda x: x["Close"] < x["SUPERT_7_3.0"],
-            "columns": ["SUPERT_7_3.0"],
+            "columns": ["SUPERT_7_3.0", "SUPERT_5_3.0"],
         }
 
-        # LINREG (Linear Regression) ???
+        # LINREG (Linear Regression)
         self.data.ta.linreg(append=True, r=True)
         self.data["LRr_direction"] = (
             self.data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
@@ -154,12 +157,12 @@ class Strategy_DT:
             "columns": ["ACCBU_20", "ACCBL_20"],
         }
 
-        # KC (Keltner Channel)
-        self.data.ta.kc(append=True)
+        # KC (Keltner Channel) (mod 2022.10.09)
+        self.data.ta.kc(length=15, scalar=2, append=True)
         ta_indicators["KC"] = {
-            "buy": lambda x: x["Close"] > x["KCUe_20_2"],
-            "sell": lambda x: x["Close"] < x["KCLe_20_2"],
-            "columns": ["KCLe_20_2", "KCUe_20_2"],
+            "buy": lambda x: x["Close"] > x["KCUe_15_2.0"],
+            "sell": lambda x: x["Close"] < x["KCLe_15_2.0"],
+            "columns": ["KCLe_15_2.0", "KCUe_15_2.0"],
         }
 
         # RVI (Relative Volatility Index)
@@ -219,12 +222,13 @@ class Strategy_DT:
             "columns": ["STOCHd_5_3_3", "STOCHk_5_3_3"],
         }
 
-        # UO (Ultimate Oscillator)
-        self.data.ta.uo(append=True)
+        # UO (Ultimate Oscillator) (mod 2022.10.09)
+        self.data.ta.uo(fast=7, medium=14, slow=28, append=True)
+        self.data.ta.uo(fast=9, medium=18, slow=36, append=True)
         ta_indicators["UO"] = {
             "buy": lambda x: x["UO_7_14_28"] < 30,
-            "sell": lambda x: x["UO_7_14_28"] > 70,
-            "columns": ["UO_7_14_28"],
+            "sell": lambda x: x["UO_9_18_36"] > 70,
+            "columns": ["UO_7_14_28", "UO_9_18_36"],
         }
 
         return ta_indicators
