@@ -6,9 +6,22 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Optional, Union
 
 log = logging.getLogger("main.utils.status_dt")
+
+
+class DayTime(Enum):
+    MORNING = "morning"  # No trading
+    MORNING_TRANSITION = "morning_transition"  # Trading starts (use YAHOO data)
+    DAY = "day"  # Use AVA data
+    EVENING_TRANSITION = "evening_transition"  # Market is closing, but certificates are still tradable. Pause trading while high spread and gaps.
+    EVENING = "evening"  #  Market is closing. No buy orders, only sell.
+    NIGHT = "night"  # No trading
+
+    def __str__(self):
+        return self.value
 
 
 @dataclass
@@ -178,9 +191,9 @@ class InstrumentStatus:
 
 class Status_DT:
     def __init__(self, settings: dict):
-        self.BULL = InstrumentStatus("BULL")
-        self.BEAR = InstrumentStatus("BEAR")
-        self.day_time = "morning"
+        self.BULL: InstrumentStatus = InstrumentStatus("BULL")
+        self.BEAR: InstrumentStatus = InstrumentStatus("BEAR")
+        self.day_time: DayTime = DayTime.MORNING
         self.settings = settings
 
     def update_day_time(self) -> None:
@@ -188,39 +201,21 @@ class Status_DT:
         old_day_time = self.day_time
 
         if current_time <= current_time.replace(hour=9, minute=0):
-            """
-            Trading starts at 9:00 AM
-            """
-            self.day_time = "morning"
+            self.day_time = DayTime.MORNING
 
             time.sleep(60)
 
         elif current_time <= current_time.replace(hour=10, minute=0):
-            """
-            I have enough data on Volume at 10:00 AM.
-            Data on Volume is available only from AVANZA, so I merge this data into YAHOO while this day_time
-            """
-            self.day_time = "morning_transition"
+            self.day_time = DayTime.MORNING_TRANSITION
 
         else:
-            """
-            Normal trading
-            """
-            self.day_time = "day"
+            self.day_time = DayTime.DAY
 
         if current_time >= current_time.replace(hour=17, minute=25):
-            """
-            Swedish market is closed, however, certificates are still available for trading.
-            This transition time has many gaps, so I stop trading for 10 minutes
-            """
-            self.day_time = "evening_transition"
+            self.day_time = DayTime.EVENING_TRANSITION
 
         if current_time >= current_time.replace(hour=17, minute=35):
-            """
-            Swedish market is closed, I continue trading with certificates till 18.30 or until all certificates are sold.
-            No buy orders are allowed at this time
-            """
-            self.day_time = "evening"
+            self.day_time = DayTime.EVENING
 
             if (current_time >= current_time.replace(hour=18, minute=30)) or (
                 not any(
@@ -233,10 +228,7 @@ class Status_DT:
                     ]
                 )
             ):
-                """
-                Trading is completed for the day
-                """
-                self.day_time = "night"
+                self.day_time = DayTime.NIGHT
 
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")

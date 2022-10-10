@@ -9,7 +9,7 @@ import os
 import warnings
 from copy import copy
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -69,7 +69,11 @@ class Balance:
 class Strategy_TA:
     def __init__(self, data: pd.DataFrame, **kwargs):
         skip_points = kwargs.get("skip_points", 100)
-        self.data, self.conditions = self.prepare_conditions(data, skip_points)
+        self.data, self.conditions, columns_needed = self.prepare_conditions(
+            data, skip_points
+        )
+
+        self.drop_columns(columns_needed)
 
         if kwargs.get("strategies", list()) != list():
             strategies_component_names = self.parse_strategies_names(
@@ -83,7 +87,7 @@ class Strategy_TA:
 
     def prepare_conditions(
         self, data: pd.DataFrame, skip_points: int
-    ) -> Tuple[pd.DataFrame, dict]:
+    ) -> Tuple[pd.DataFrame, dict, List[str]]:
         log.debug("Preparing conditions")
 
         _check_enough_data = (
@@ -107,6 +111,7 @@ class Strategy_TA:
             "buy": lambda x: True,
             "sell": lambda x: False,
         }
+        columns_needed = ["Open", "High", "Low", "Close", "Volume"]
 
         """ Cycles """
         # EBSW (Even Better Sinewave)
@@ -116,6 +121,7 @@ class Strategy_TA:
                 "buy": lambda x: x["EBSW_40_10"] > 0.5,
                 "sell": lambda x: x["EBSW_40_10"] < -0.5,
             }
+            columns_needed += ["EBSW_40_10"]
 
         """ Volume """
         # PVT (Price Volume Trend)
@@ -126,6 +132,7 @@ class Strategy_TA:
                 "buy": lambda x: x["SMA_9"] < x["PVT"],
                 "sell": lambda x: x["SMA_9"] > x["PVT"],
             }
+            columns_needed += ["SMA_9", "PVT"]
 
         # CMF (Chaikin Money Flow)
         data.ta.cmf(append=True)
@@ -135,6 +142,7 @@ class Strategy_TA:
                 "buy": lambda x: x["CMF_20"] > cmf["max"] * 0.2,
                 "sell": lambda x: x["CMF_20"] < cmf["min"] * 0.2,
             }
+            columns_needed += ["CMF_20"]
 
         # EFI (Elder's Force Index)
         data.ta.cmf(append=True)
@@ -143,6 +151,7 @@ class Strategy_TA:
                 "buy": lambda x: x["EFI_13"] < 0,
                 "sell": lambda x: x["EFI_13"] > 0,
             }
+            columns_needed += ["EFI_13"]
 
         # KVO (Klinger Volume Oscillator)
         try:
@@ -152,6 +161,7 @@ class Strategy_TA:
                     "buy": lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
                     "sell": lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
                 }
+                columns_needed += ["KVO_34_55_13", "KVOs_34_55_13"]
         except:
             log.warning("KVO not available")
 
@@ -163,6 +173,7 @@ class Strategy_TA:
                 "buy": lambda x: 26 < x["MASSI_9_25"] < 27,
                 "sell": lambda x: 26 < x["MASSI_9_25"] < 27,
             }
+            columns_needed += ["MASSI_9_25"]
 
         # HWC (Holt-Winter Channel)
         data.ta.hwc(append=True)
@@ -171,6 +182,7 @@ class Strategy_TA:
                 "buy": lambda x: x["Close"] > x["HWM"],
                 "sell": lambda x: x["Close"] < x["HWM"],
             }
+            columns_needed += ["HWM"]
 
         # BBANDS (Bollinger Bands)
         data.ta.bbands(length=20, std=2, append=True)
@@ -179,6 +191,7 @@ class Strategy_TA:
                 "buy": lambda x: x["Close"] > x["BBL_20_2.0"],
                 "sell": lambda x: x["Close"] < x["BBU_20_2.0"],
             }
+            columns_needed += ["BBL_20_2.0", "BBU_20_2.0"]
 
         # ACCBANDS (Acceleration Bands)
         data.ta.accbands(append=True)
@@ -187,6 +200,7 @@ class Strategy_TA:
                 "buy": lambda x: x["Close"] > x["ACCBU_20"],
                 "sell": lambda x: x["Close"] < x["ACCBU_20"],
             }
+            columns_needed += ["ACCBU_20"]
 
         """ Candle """
         # HA (Heikin-Ashi)
@@ -198,6 +212,7 @@ class Strategy_TA:
                 "sell": lambda x: (x["HA_open"] > x["HA_close"])
                 and (x["HA_high"] == x["HA_open"]),
             }
+            columns_needed += ["HA_open", "HA_close", "HA_low", "HA_high"]
 
         """ Trend """
         # PSAR (Parabolic Stop and Reverse)
@@ -207,6 +222,7 @@ class Strategy_TA:
                 "buy": lambda x: x["Close"] > x["PSARl_0.02_0.2"],
                 "sell": lambda x: x["Close"] < x["PSARs_0.02_0.2"],
             }
+            columns_needed += ["PSARl_0.02_0.2", "PSARs_0.02_0.2"]
 
         # CHOP (Choppiness Index)
         data.ta.chop(append=True)
@@ -215,6 +231,7 @@ class Strategy_TA:
                 "buy": lambda x: x["CHOP_14_1_100"] < 61.8,
                 "sell": lambda x: x["CHOP_14_1_100"] > 61.8,
             }
+            columns_needed += ["CHOP_14_1_100"]
 
         # CKSP (Chande Kroll Stop)
         data.ta.cksp(append=True)
@@ -223,6 +240,7 @@ class Strategy_TA:
                 "buy": lambda x: x["CKSPl_10_3_20"] > x["CKSPs_10_3_20"],
                 "sell": lambda x: x["CKSPl_10_3_20"] < x["CKSPs_10_3_20"],
             }
+            columns_needed += ["CKSPl_10_3_20", "CKSPs_10_3_20"]
 
         # ADX (Average Directional Movement Index)
         data.ta.adx(append=True)
@@ -231,6 +249,7 @@ class Strategy_TA:
                 "buy": lambda x: x["DMP_14"] > x["DMN_14"],
                 "sell": lambda x: x["DMP_14"] < x["DMN_14"],
             }
+            columns_needed += ["DMP_14", "DMN_14"]
 
         """ Overlap """
         # ALMA (Arnaud Legoux Moving Average)
@@ -240,6 +259,7 @@ class Strategy_TA:
                 "buy": lambda x: x["Close"] > x["ALMA_15_6.0_0.85"],
                 "sell": lambda x: x["Close"] < x["ALMA_15_6.0_0.85"],
             }
+            columns_needed += ["ALMA_15_6.0_0.85"]
 
         # GHLA (Gann High-Low Activator)
         data.ta.hilo(append=True)
@@ -248,6 +268,7 @@ class Strategy_TA:
                 "buy": lambda x: x["Close"] > x["HILO_13_21"],
                 "sell": lambda x: x["Close"] < x["HILO_13_21"],
             }
+            columns_needed += ["HILO_13_21"]
 
         # SUPERT (Supertrend)
         data.ta.supertrend(append=True)
@@ -256,6 +277,7 @@ class Strategy_TA:
                 "buy": lambda x: x["Close"] > x["SUPERT_7_3.0"],
                 "sell": lambda x: x["Close"] < x["SUPERT_7_3.0"],
             }
+            columns_needed += ["SUPERT_7_3.0"]
 
         # LINREG (Linear Regression)
         data.ta.linreg(append=True, r=True)
@@ -267,6 +289,7 @@ class Strategy_TA:
                 "buy": lambda x: x["LRr_direction"] == 1,
                 "sell": lambda x: x["LRr_direction"] == 0,
             }
+            columns_needed += ["LRr_direction"]
 
         """ Momentum """
         # STC (Schaff Trend Cycle)
@@ -276,6 +299,7 @@ class Strategy_TA:
                 "buy": lambda x: x["STC_10_12_26_0.5"] < 75,
                 "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
             }
+            columns_needed += ["STC_10_12_26_0.5"]
 
         # CCI (Commodity Channel Index)
         data.ta.cci(length=20, append=True, offset=1)
@@ -287,6 +311,7 @@ class Strategy_TA:
                 "buy": lambda x: x["CCI_20_0.015"] < -100 and x["CCI_direction"] == 1,
                 "sell": lambda x: x["CCI_20_0.015"] > 100 and x["CCI_direction"] == 0,
             }
+            columns_needed += ["CCI_20_0.015", "CCI_direction"]
 
         # RSI (Relative Strength Index)
         data.ta.rsi(length=14, append=True)
@@ -295,6 +320,7 @@ class Strategy_TA:
                 "buy": lambda x: x["RSI_14"] > 50,
                 "sell": lambda x: x["RSI_14"] < 50,
             }
+            columns_needed += ["RSI_14"]
 
         # RVGI (Relative Vigor Index)
         data.ta.rvgi(append=True)
@@ -303,6 +329,7 @@ class Strategy_TA:
                 "buy": lambda x: x["RVGI_14_4"] > x["RVGIs_14_4"],
                 "sell": lambda x: x["RVGI_14_4"] < x["RVGIs_14_4"],
             }
+            columns_needed += ["RVGI_14_4", "RVGIs_14_4"]
 
         # MACD (Moving Average Convergence Divergence)
         data.ta.macd(fast=8, slow=21, signal=5, append=True)
@@ -314,6 +341,7 @@ class Strategy_TA:
                 "buy": lambda x: x["MACD_ma_diff"] == 1,
                 "sell": lambda x: x["MACD_ma_diff"] == 0,
             }
+            columns_needed += ["MACD_ma_diff"]
 
         # STOCH (Stochastic Oscillator)
         data.ta.stoch(k=14, d=3, append=True)
@@ -322,6 +350,7 @@ class Strategy_TA:
                 "buy": lambda x: x["STOCHd_14_3_3"] < 80 and x["STOCHk_14_3_3"] < 80,
                 "sell": lambda x: x["STOCHd_14_3_3"] > 20 and x["STOCHk_14_3_3"] > 20,
             }
+            columns_needed += ["STOCHd_14_3_3", "STOCHk_14_3_3"]
 
         # UO (Ultimate Oscillator)
         data.ta.uo(append=True)
@@ -330,8 +359,14 @@ class Strategy_TA:
                 "buy": lambda x: x["UO_7_14_28"] < 30,
                 "sell": lambda x: x["UO_7_14_28"] > 70,
             }
+            columns_needed += ["UO_7_14_28"]
 
-        return data.iloc[skip_points:], conditions
+        return data.iloc[skip_points:], conditions, columns_needed
+
+    def drop_columns(self, columns_needed: list) -> None:
+        columns_drop = list(set(self.data.columns) - (set(columns_needed)))
+
+        self.data.drop(columns=columns_drop, inplace=True)
 
     def generate_strategies_names(self) -> list:
         # + Triple indicator strategies (try every combination of different types)

@@ -11,7 +11,7 @@ import yfinance as yf
 from requests import ReadTimeout
 from requests.exceptions import ConnectionError
 
-from .utils import Context, History, InstrumentStatus, Settings
+from .utils import Context, DayTime, History, InstrumentStatus, Settings
 from .utils import Status_DT as Status
 from .utils import Strategy_DT, TeleLog
 
@@ -117,7 +117,7 @@ class Helper:
             self.settings["instruments"]["MONITORING"]["AVA"]
         )
 
-        if self.status.day_time == "morning_transition":
+        if self.status.day_time == DayTime.MORNING_TRANSITION:
             history = History(
                 self.settings["instruments"]["MONITORING"]["YAHOO"],
                 "2d",
@@ -422,21 +422,21 @@ class Day_Trading:
             self.helper.status.update_day_time()
             self.helper.last_line.messages = list()
 
-            if self.helper.status.day_time == "morning":
+            if self.helper.status.day_time == DayTime.MORNING:
                 continue
 
-            elif self.helper.status.day_time == "evening_transition":
+            elif self.helper.status.day_time == DayTime.EVENING_TRANSITION:
                 time.sleep(60)
 
                 continue
 
-            elif self.helper.status.day_time == "night":
+            elif self.helper.status.day_time == DayTime.NIGHT:
                 break
 
             # Walk through instruments
             for instrument_type in ["BULL", "BEAR"]:
 
-                if self.helper.status.day_time != "evening":
+                if self.helper.status.day_time != DayTime.EVENING:
                     self.check_instrument_for_buy_action(strategies, instrument_type)
 
                 self.check_instrument_for_sell_action(instrument_type)
