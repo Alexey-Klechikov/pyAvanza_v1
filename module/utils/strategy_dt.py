@@ -103,29 +103,30 @@ class Strategy_DT:
         """
 
         """ Trend """
-        # PSAR (Parabolic Stop and Reverse)
-        self.data.ta.psar(append=True)
+        # PSAR (Parabolic Stop and Reverse) (mod 2022.10.10)
+        self.data.ta.psar(af=0.015, max_af=0.12, append=True)
         ta_indicators["PSAR"] = {
-            "buy": lambda x: x["Close"] > x["PSARl_0.02_0.2"],
-            "sell": lambda x: x["Close"] < x["PSARs_0.02_0.2"],
-            "columns": ["PSARl_0.02_0.2", "PSARs_0.02_0.2"],
+            "buy": lambda x: x["Close"] > x["PSARl_0.015_0.12"],
+            "sell": lambda x: x["Close"] < x["PSARs_0.015_0.12"],
+            "columns": ["PSARl_0.015_0.12", "PSARs_0.015_0.12"],
         }
 
         """ Overlap """
-        # ALMA (Arnaud Legoux Moving Average)
-        self.data.ta.alma(length=15, append=True)
+        # ALMA (Arnaud Legoux Moving Average) (mod 2022.10.10)
+        self.data.ta.alma(length=15, sigma=6.0, distribution_offset=0.85, append=True)
         ta_indicators["ALMA"] = {
             "buy": lambda x: x["Close"] > x["ALMA_15_6.0_0.85"],
             "sell": lambda x: x["Close"] < x["ALMA_15_6.0_0.85"],
             "columns": ["ALMA_15_6.0_0.85"],
         }
 
-        # GHLA (Gann High-Low Activator)
-        self.data.ta.hilo(append=True)
+        # GHLA (Gann High-Low Activator) (mod 2022.10.10)
+        self.data.ta.hilo(high_length=11, low_length=20, append=True)
+        self.data.ta.hilo(high_length=11, low_length=18, append=True)
         ta_indicators["GHLA"] = {
-            "buy": lambda x: x["Close"] > x["HILO_13_21"],
-            "sell": lambda x: x["Close"] < x["HILO_13_21"],
-            "columns": ["HILO_13_21"],
+            "buy": lambda x: x["Close"] > x["HILO_11_20"],
+            "sell": lambda x: x["Close"] < x["HILO_11_18"],
+            "columns": ["HILO_11_20", "HILO_11_18"],
         }
 
         # SUPERT (Supertrend) (mod 2022.10.09)
