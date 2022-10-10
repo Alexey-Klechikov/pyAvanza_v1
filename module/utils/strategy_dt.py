@@ -138,7 +138,7 @@ class Strategy_DT:
             "columns": ["SUPERT_7_3.0", "SUPERT_5_3.0"],
         }
 
-        # LINREG (Linear Regression)
+        # LINREG (Linear Regression) (mod 2022.10.10)
         self.data.ta.linreg(append=True, r=True)
         self.data["LRr_direction"] = (
             self.data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
@@ -166,16 +166,17 @@ class Strategy_DT:
             "columns": ["KCLe_15_2.0", "KCUe_15_2.0"],
         }
 
-        # RVI (Relative Volatility Index)
-        self.data.ta.rvi(append=True)
+        # RVI (Relative Volatility Index) (mod 2022.10.10)
+        self.data.ta.rvi(length=14, append=True)
+        self.data.ta.rvi(length=17, append=True)
         ta_indicators["RVI"] = {
-            "buy": lambda x: x["RVI_14"] > 50,
-            "sell": lambda x: x["RVI_14"] < 50,
-            "columns": ["RVI_14"],
+            "buy": lambda x: x["RVI_17"] > 50,
+            "sell": lambda x: x["RVI_14"] < 45,
+            "columns": ["RVI_14", "RVI_17"],
         }
 
         """ Momentum """
-        # MACD (Moving Average Convergence Divergence)
+        # MACD (Moving Average Convergence Divergence) (mod 2022.10.10)
         self.data.ta.macd(fast=8, slow=21, signal=5, append=True)
         self.data["MACD_ma_diff"] = (
             self.data["MACDh_8_21_5"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
@@ -186,12 +187,12 @@ class Strategy_DT:
             "columns": ["MACD_ma_diff"],
         }
 
-        # STC (Schaff Trend Cycle)
-        self.data.ta.stc(append=True)
+        # STC (Schaff Trend Cycle) (mod 2022.10.10)
+        self.data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
         ta_indicators["STC"] = {
-            "buy": lambda x: x["STC_10_12_26_0.5"] < 75,
-            "sell": lambda x: x["STC_10_12_26_0.5"] > 25,
-            "columns": ["STC_10_12_26_0.5"],
+            "buy": lambda x: x["STC_12_14_28_0.6"] < 75,
+            "sell": lambda x: x["STC_12_14_28_0.6"] > 25,
+            "columns": ["STC_12_14_28_0.6"],
         }
 
         # BOP (Balance Of Power)
@@ -207,20 +208,20 @@ class Strategy_DT:
             "columns": ["BOP"],
         }
 
-        # RSI (Relative Strength Index)
-        self.data.ta.rsi(length=14, append=True)
+        # RSI (Relative Strength Index) (mod 2022.10.10)
+        self.data.ta.rsi(length=15, append=True)
         ta_indicators["RSI"] = {
-            "buy": lambda x: x["RSI_14"] > 50,
-            "sell": lambda x: x["RSI_14"] < 50,
-            "columns": ["RSI_14"],
+            "buy": lambda x: x["RSI_15"] > 50,
+            "sell": lambda x: x["RSI_15"] < 40,
+            "columns": ["RSI_15"],
         }
 
-        # STOCH (Stochastic Oscillator)
-        self.data.ta.stoch(k=5, d=3, append=True)
+        # STOCH (Stochastic Oscillator) (mod 2022.10.10)
+        self.data.ta.stoch(k=6, d=4, smooth_k=3, append=True)
         ta_indicators["STOCH"] = {
-            "buy": lambda x: x["STOCHd_5_3_3"] > 20 and x["STOCHk_5_3_3"] > 20,
-            "sell": lambda x: x["STOCHd_5_3_3"] < 80 and x["STOCHk_5_3_3"] < 80,
-            "columns": ["STOCHd_5_3_3", "STOCHk_5_3_3"],
+            "buy": lambda x: x["STOCHd_6_4_3"] > 20 and x["STOCHk_6_4_3"] > 20,
+            "sell": lambda x: x["STOCHd_6_4_3"] < 80 and x["STOCHk_6_4_3"] < 80,
+            "columns": ["STOCHd_6_4_3", "STOCHk_6_4_3"],
         }
 
         # UO (Ultimate Oscillator) (mod 2022.10.09)
