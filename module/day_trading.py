@@ -17,9 +17,22 @@ log = logging.getLogger("main.day_trading")
 
 
 @dataclass
-class LastLine:
-    overwrite: bool = True
+class StdOutput:
+    last_log_index: Optional[int] = None
     messages: list = field(default_factory=list)
+
+    def update_in_console(self) -> None:
+        new_last_log_index = log.parent.handlers[0].formatter.messages_counter  # type: ignore
+
+        if self.last_log_index == new_last_log_index:
+            LINE_UP = "\033[1A"
+            LINE_CLEAR = "\x1b[2K"
+
+            print(LINE_UP, end=LINE_CLEAR)
+
+        print(f'[{datetime.now().strftime("%H:%M")}] {" ||| ".join(self.messages)}')
+
+        self.last_log_index = new_last_log_index
 
 
 class Helper:
@@ -32,7 +45,7 @@ class Helper:
         self.strategies = StrategyDT.load("DT")
         self.status = Status(self.settings["trading"])
 
-        self.last_line: LastLine = LastLine()
+        self.std_output: StdOutput = StdOutput()
 
         self.ava = Context(user, accounts, skip_lists=True)
 
@@ -179,8 +192,6 @@ class Helper:
 
             return
 
-        self.last_line.overwrite = False
-
         certificate_info = self.ava.get_certificate_info(
             self.settings["instruments"]["TRADING"][instrument_type],
         )
@@ -256,8 +267,6 @@ class Helper:
         elif price is None:
             return
 
-        self.last_line.overwrite = False
-
         instrument_type = instrument_status.active_order["orderbook"]["name"].split(
             " "
         )[0]
@@ -268,26 +277,13 @@ class Helper:
 
         self.ava.update_order(instrument_status.active_order, price)
 
-    def combine_stdout_line(self, instrument_type: str) -> None:
+    def add_std_output_message(self, instrument_type: str) -> None:
         instrument_status = getattr(self.status, instrument_type)
 
         if instrument_status.has_position:
-            self.last_line.messages.append(
+            self.std_output.messages.append(
                 f"{instrument_type} - {instrument_status.price_stop_loss} < {instrument_status.price_current} < {instrument_status.price_take_profit}"
             )
-
-    def update_last_stdout_line(self) -> None:
-        if self.last_line.overwrite:
-            LINE_UP = "\033[1A"
-            LINE_CLEAR = "\x1b[2K"
-
-            print(LINE_UP, end=LINE_CLEAR)
-
-        print(
-            f'[{datetime.now().strftime("%H:%M")}] {" ||| ".join(self.last_line.messages)}'
-        )
-
-        self.last_line.overwrite = True
 
 
 class Day_Trading:
@@ -425,7 +421,7 @@ class Day_Trading:
 
         while True:
             self.helper.status.update_day_time()
-            self.helper.last_line.messages = []
+            self.helper.std_output.messages = []
 
             if self.helper.status.day_time == DayTime.MORNING:
                 continue
@@ -446,9 +442,9 @@ class Day_Trading:
 
                 self.check_instrument_for_sell_action(instrument_type)
 
-                self.helper.combine_stdout_line(instrument_type)
+                self.helper.add_std_output_message(instrument_type)
 
-            self.helper.update_last_stdout_line()
+            self.helper.std_output.update_in_console()
 
             time.sleep(60)
 

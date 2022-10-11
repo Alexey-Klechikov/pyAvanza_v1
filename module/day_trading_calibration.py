@@ -3,13 +3,13 @@ import platform
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import pandas as pd
 from avanza import OrderType as Signal
 from pandas_ta.candles.cdl_pattern import ALL_PATTERNS
 
-from .utils import Context, History, Instrument, Plot, Settings, StrategyDT, TeleLog
+from .utils import Context, History, Instrument, Settings, StrategyDT, TeleLog
 
 log = logging.getLogger("main.day_trading_calibration")
 

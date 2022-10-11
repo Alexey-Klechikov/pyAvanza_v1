@@ -26,6 +26,8 @@ class ColoredFormatter(logging.Formatter):
     def __init__(self, pattern: str) -> None:
         logging.Formatter.__init__(self, pattern)
 
+        self.messages_counter = 0
+
     def format(self, record) -> str:
         colored_record = copy.copy(record)
         levelname = colored_record.levelname
@@ -36,6 +38,8 @@ class ColoredFormatter(logging.Formatter):
 
         s = logging.Formatter.format(self, colored_record)
         s = s.replace("BULL", "🟢 BULL").replace("BEAR", "🔴 BEAR")
+
+        self.messages_counter += 1
 
         return s
 
