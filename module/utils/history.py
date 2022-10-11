@@ -74,7 +74,6 @@ class History:
                     )
                     <= x.index
                 )
-                & (datetime.today().strftime("%Y-%m-%d") >= x.index)
             ]  # type: ignore
 
         data.sort_index(inplace=True)
@@ -93,7 +92,7 @@ class History:
 
             earliest_date = datetime.today() - timedelta(days=min(period_num, 29))
 
-            intervals: List[List[str]] = list()
+            intervals: List[List[str]] = []
             end_date = datetime.today() + timedelta(days=1)
             while True:
                 start_date = max(earliest_date, end_date - timedelta(days=5))

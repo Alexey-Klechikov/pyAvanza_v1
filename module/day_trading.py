@@ -3,17 +3,15 @@ import time
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Optional, Tuple, TypedDict, Union
+from typing import Optional, Tuple
 
-import numpy as np
 import pandas as pd
-import yfinance as yf
+from avanza import OrderType as Signal
 from requests import ReadTimeout
-from requests.exceptions import ConnectionError
 
-from .utils import Context, DayTime, History, InstrumentStatus, Settings
-from .utils import Status_DT as Status
-from .utils import Strategy_DT, TeleLog
+from .utils import Context, DayTime, History, Instrument, InstrumentStatus, Settings
+from .utils import StatusDT as Status
+from .utils import StrategyDT, TeleLog
 
 log = logging.getLogger("main.day_trading")
 
@@ -31,7 +29,7 @@ class Helper:
         self.trading_done = False
         self.accounts = accounts
 
-        self.strategies = Strategy_DT.load("DT")
+        self.strategies = StrategyDT.load("DT")
         self.status = Status(self.settings["trading"])
 
         self.last_line: LastLine = LastLine()
@@ -50,32 +48,32 @@ class Helper:
 
     def _check_last_candle_buy(
         self,
-        strategy: Strategy_DT,
+        strategy: StrategyDT,
         row: pd.Series,
         strategies: dict,
-        instrument_type: str,
+        instrument_type: Instrument,
     ) -> bool:
-        def _get_ta_signal(row: pd.Series, ta_indicator: str) -> Optional[str]:
+        def _get_ta_signal(row: pd.Series, ta_indicator: str) -> Optional[Instrument]:
             ta_signal = None
 
-            if strategy.ta_indicators[ta_indicator]["buy"](row):
-                ta_signal = "BULL"
+            if strategy.ta_indicators[ta_indicator][Signal.BUY](row):
+                ta_signal = Instrument.BULL
 
-            elif strategy.ta_indicators[ta_indicator]["sell"](row):
-                ta_signal = "BEAR"
+            elif strategy.ta_indicators[ta_indicator][Signal.SELL](row):
+                ta_signal = Instrument.BEAR
 
             return ta_signal
 
         def _get_cs_signal(
             row: pd.Series, patterns: list
-        ) -> Tuple[Optional[str], Optional[str]]:
+        ) -> Tuple[Optional[Instrument], Optional[str]]:
             cs_signal, cs_pattern = None, None
 
             for pattern in patterns:
                 if row[pattern] > 0:
-                    cs_signal = "BULL"
+                    cs_signal = Instrument.BULL
                 elif row[pattern] < 0:
-                    cs_signal = "BEAR"
+                    cs_signal = Instrument.BEAR
 
                 if cs_signal is not None:
                     cs_pattern = pattern
@@ -91,7 +89,7 @@ class Helper:
 
             cs_signal, cs_pattern = _get_cs_signal(
                 row,
-                strategies.get(ta_indicator, list()),
+                strategies.get(ta_indicator, []),
             )
             if cs_signal is None:
                 continue
@@ -112,7 +110,7 @@ class Helper:
             floating_budget, self.settings["trading"]["budget"]
         )
 
-    def get_signal(self, strategies: dict, instrument_type: str) -> bool:
+    def get_signal(self, strategies: dict, instrument_type: Instrument) -> bool:
         history = self.ava.get_today_history(
             self.settings["instruments"]["MONITORING"]["AVA"]
         )
@@ -125,7 +123,7 @@ class Helper:
                 cache="skip",
             ).data[["Open", "High", "Low", "Close"]]
 
-        strategy = Strategy_DT(
+        strategy = StrategyDT(
             history,
             order_price_limits=self.settings["trading"]["limits_percent"],
         )
@@ -146,7 +144,7 @@ class Helper:
 
         return last_candle_signal_buy
 
-    def update_instrument_status(self, instrument_type: str) -> InstrumentStatus:
+    def update_instrument_status(self, instrument_type: Instrument) -> InstrumentStatus:
         instrument_id = str(self.settings["instruments"]["TRADING"][instrument_type])
 
         certificate_info = self.ava.get_certificate_info(instrument_id)
@@ -160,10 +158,13 @@ class Helper:
         return instrument_status
 
     def place_order(
-        self, signal: str, instrument_type: str, instrument_status: InstrumentStatus
+        self,
+        signal: Signal,
+        instrument_type: Instrument,
+        instrument_status: InstrumentStatus,
     ) -> None:
-        if (signal == "buy" and instrument_status.has_position) or (
-            signal == "sell" and not instrument_status.has_position
+        if (signal == Signal.BUY and instrument_status.has_position) or (
+            signal == Signal.SELL and not instrument_status.has_position
         ):
             return
 
@@ -195,7 +196,7 @@ class Helper:
         if certificate_info[signal] is None:
             return
 
-        if signal == "buy":
+        if signal == Signal.BUY:
             self.log_data["number_trades"] += 1
 
             order_data.update(
@@ -208,7 +209,7 @@ class Helper:
                 }
             )
 
-        elif signal == "sell":
+        elif signal == Signal.SELL:
             price = (
                 certificate_info[signal]
                 if certificate_info[signal] < instrument_status.price_stop_loss
@@ -232,13 +233,13 @@ class Helper:
         )
 
         log.info(
-            f'{instrument_type} - (SET {signal.upper()} order): {order_data["price"]}'
+            f'{instrument_type} - (SET {signal.name.upper()} order): {order_data["price"]}'
         )
 
     def update_order(
         self,
-        signal: str,
-        instrument_type: str,
+        signal: Signal,
+        instrument_type: Instrument,
         instrument_status: InstrumentStatus,
         price: Optional[float],
     ) -> None:
@@ -262,7 +263,7 @@ class Helper:
         )[0]
 
         log.info(
-            f'{instrument_type} - (UPD {signal.upper()} order): {instrument_status.active_order["price"]} -> {price}'
+            f'{instrument_type} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price}'
         )
 
         self.ava.update_order(instrument_status.active_order, price)
@@ -308,7 +309,7 @@ class Day_Trading:
                 self.helper.ava.ctx = self.helper.ava.get_ctx(user)
 
     def check_instrument_for_buy_action(
-        self, strategies: dict, instrument_type: str
+        self, strategies: dict, instrument_type: Instrument
     ) -> None:
         main_instrument_type = instrument_type
         main_instrument_status = self.helper.update_instrument_status(
@@ -316,7 +317,7 @@ class Day_Trading:
         )
         main_instrument_price_buy = self.helper.ava.get_certificate_info(
             self.settings["instruments"]["TRADING"][main_instrument_type]
-        ).get("buy")
+        ).get(Signal.BUY)
         main_instrument_signal_buy = self.helper.get_signal(
             strategies, main_instrument_type
         )
@@ -324,7 +325,11 @@ class Day_Trading:
         if not main_instrument_signal_buy:
             return
 
-        other_instrument_type = "BEAR" if main_instrument_type == "BULL" else "BULL"
+        other_instrument_type: Instrument = (
+            Instrument.BEAR
+            if main_instrument_type == Instrument.BULL
+            else Instrument.BULL
+        )
         other_instrument_status = self.helper.update_instrument_status(
             other_instrument_type
         )
@@ -333,10 +338,10 @@ class Day_Trading:
         if other_instrument_status.has_position:
             other_instrument_price_sell = self.helper.ava.get_certificate_info(
                 self.settings["instruments"]["TRADING"][other_instrument_type]
-            ).get("sell")
+            ).get(Signal.SELL)
 
             self.helper.update_order(
-                "sell",
+                Signal.SELL,
                 other_instrument_type,
                 other_instrument_status,
                 other_instrument_price_sell,
@@ -352,9 +357,7 @@ class Day_Trading:
 
         # action for main instrument
         if main_instrument_status.has_position:
-            pass
-
-            """ TODO: I currently don't test for this scenario, so let's pass on it for now
+            """HERE: I currently don't test for this scenario, so let's pass on it for now
             self.helper.status.update_instrument_trading_limits(
                 main_instrument_type, main_instrument_price_buy
             )
@@ -362,17 +365,19 @@ class Day_Trading:
 
         elif main_instrument_status.active_order:
             self.helper.update_order(
-                "buy",
+                Signal.BUY,
                 main_instrument_type,
                 main_instrument_status,
                 main_instrument_price_buy,
             )
 
         else:
-            self.helper.place_order("buy", main_instrument_type, main_instrument_status)
+            self.helper.place_order(
+                Signal.BUY, main_instrument_type, main_instrument_status
+            )
 
     def check_instrument_for_sell_action(
-        self, instrument_type: str, enforce_sell_bool: bool = False
+        self, instrument_type: Instrument, enforce_sell_bool: bool = False
     ) -> None:
         instrument_status = self.helper.update_instrument_status(instrument_type)
 
@@ -381,14 +386,14 @@ class Day_Trading:
 
         # Create sell orders (take_profit)
         if not instrument_status.active_order:
-            self.helper.place_order("sell", instrument_type, instrument_status)
+            self.helper.place_order(Signal.SELL, instrument_type, instrument_status)
 
         # Update sell order (if hit stop_loss / enforced / trailing_stop_loss initiated, so price_take_profit has changed)
         else:
             price_sell = None
             current_price_sell = self.helper.ava.get_certificate_info(
                 self.settings["instruments"]["TRADING"][instrument_type]
-            )["sell"]
+            )[Signal.SELL]
 
             if any(
                 [
@@ -400,7 +405,7 @@ class Day_Trading:
                 price_sell = current_price_sell
 
             self.helper.update_order(
-                "sell",
+                Signal.SELL,
                 instrument_type,
                 instrument_status,
                 price_sell,
@@ -416,11 +421,11 @@ class Day_Trading:
             f'> Running trading for account(s): {" & ".join(self.helper.accounts)} [{self.helper.log_data["balance_before"]}]'
         )
 
-        strategies: dict = dict()
+        strategies: dict = {}
 
         while True:
             self.helper.status.update_day_time()
-            self.helper.last_line.messages = list()
+            self.helper.last_line.messages = []
 
             if self.helper.status.day_time == DayTime.MORNING:
                 continue
@@ -434,7 +439,7 @@ class Day_Trading:
                 break
 
             # Walk through instruments
-            for instrument_type in ["BULL", "BEAR"]:
+            for instrument_type in Instrument:
 
                 if self.helper.status.day_time != DayTime.EVENING:
                     self.check_instrument_for_buy_action(strategies, instrument_type)

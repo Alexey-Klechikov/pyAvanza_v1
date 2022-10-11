@@ -3,10 +3,9 @@ This module is operating 'settings.json' file, that is responsible for the scrip
 """
 
 
-import os
 import json
 import logging
-
+import os
 
 log = logging.getLogger("main.utils.settings")
 
@@ -30,11 +29,11 @@ class Settings:
             json.dump(settings, f, indent=4)
 
     def read(self, account: str) -> str:
-        log.info(f"Read settings.json")
+        log.info("Read settings.json")
 
         settings = self.load()[account]
 
-        messages = list()
+        messages = []
 
         def _traverse_dict(value, level):
             if isinstance(value, dict):

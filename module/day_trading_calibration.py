@@ -3,24 +3,20 @@ import platform
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Literal, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
-import yfinance as yf
+from avanza import OrderType as Signal
 from pandas_ta.candles.cdl_pattern import ALL_PATTERNS
 
-from .utils import Context, History, Plot, Settings, Strategy_DT, TeleLog
+from .utils import Context, History, Instrument, Plot, Settings, StrategyDT, TeleLog
 
 log = logging.getLogger("main.day_trading_calibration")
 
 
-SIGNAL = Literal["BUY", "SELL"]
-ORDER_TYPE = Literal["BULL", "BEAR"]
-
-
 @dataclass
 class CalibrationOrder:
-    instrument: str
+    instrument: Instrument
     settings: dict
 
     on_balance: bool = False
@@ -35,7 +31,7 @@ class CalibrationOrder:
 
         self.on_balance = True
         self.price_buy = ((row["Low"] + row["High"]) / 2) * (
-            1.00015 if self.instrument == "BULL" else 0.99985
+            1.00015 if self.instrument == Instrument.BULL else 0.99985
         )
 
     def sell(self, row, index, enforce=False):
@@ -43,7 +39,7 @@ class CalibrationOrder:
 
         stop_loss_normalized = self.price_buy * (
             1
-            - (1 if self.instrument == "BULL" else -1)
+            - (1 if self.instrument == Instrument.BULL else -1)
             * (
                 abs(1 - self.settings["trading"]["limits_percent"]["stop_loss"])
                 / self.settings["instruments"]["multiplier"]
@@ -52,7 +48,7 @@ class CalibrationOrder:
 
         take_profit_normalized = self.price_buy * (
             1
-            + (1 if self.instrument == "BULL" else -1)
+            + (1 if self.instrument == Instrument.BULL else -1)
             * (
                 abs(1 - self.settings["trading"]["limits_percent"]["take_profit"])
                 / self.settings["instruments"]["multiplier"]
@@ -69,18 +65,28 @@ class CalibrationOrder:
 
         self.price_sell = (row["Low"] + row["High"]) / 2
 
-        if (self.price_sell <= stop_loss_normalized and self.instrument == "BULL") or (
-            self.price_sell >= stop_loss_normalized and self.instrument == "BEAR"
+        if (
+            self.price_sell <= stop_loss_normalized
+            and self.instrument == Instrument.BULL
+        ) or (
+            self.price_sell >= stop_loss_normalized
+            and self.instrument == Instrument.BEAR
         ):
             self.verdict = "bad"
 
             return
 
-        self.price_sell = row["Low"] if self.instrument == "BULL" else row["High"]
+        self.price_sell = (
+            row["Low"] if self.instrument == Instrument.BULL else row["High"]
+        )
 
         if (
-            self.price_sell >= take_profit_normalized and self.instrument == "BULL"
-        ) or (self.price_sell <= take_profit_normalized and self.instrument == "BEAR"):
+            self.price_sell >= take_profit_normalized
+            and self.instrument == Instrument.BULL
+        ) or (
+            self.price_sell <= take_profit_normalized
+            and self.instrument == Instrument.BEAR
+        ):
             self.verdict = "good"
 
             return
@@ -107,51 +113,54 @@ class CalibrationOrder:
 
 class Helper:
     def __init__(self, settings: dict) -> None:
-        self.strategies: dict = {
-            "BULL": dict(),
-            "BEAR": dict(),
+        self.strategies: Dict[Instrument, dict] = {i: {} for i in Instrument}
+
+        self.orders: Dict[Instrument, CalibrationOrder] = {
+            i: CalibrationOrder(i, settings) for i in Instrument
         }
 
-        self.orders: dict = {
-            "BULL": CalibrationOrder("BULL", settings),
-            "BEAR": CalibrationOrder("BEAR", settings),
-        }
-
-        self.orders_history: list[dict] = list()
+        self.orders_history: List[dict] = []
 
         self.stats_strategy: dict = {
-            "good": {"BULL": 0, "BEAR": 0},
-            "bad": {"BULL": 0, "BEAR": 0},
+            v: Instrument.generate_empty_counters() for v in ["good", "bad"]
         }
 
         # Update_strategies variables
         self.success_limit = settings["calibration"]["success_limit"]
 
-        self.stats_patterns: dict = dict()
+        self.stats_patterns: dict = {}
 
-        self.strategies_efficiency: dict = dict()
+        self.strategies_efficiency: dict = {}
 
-        self.filtered_strategies: dict = {"BULL": dict(), "BEAR": dict()}
+        self.filtered_strategies: Dict[Instrument, dict] = {i: {} for i in Instrument}
 
     def buy_order(
         self,
-        last_candle_signal: Optional[SIGNAL],
+        last_candle_signal: Optional[Signal],
         index: datetime,
         row: pd.Series,
         is_realistic: bool = False,
-    ) -> Optional[ORDER_TYPE]:
-        instrument_buy: Optional[ORDER_TYPE] = None
+    ) -> Optional[Instrument]:
+        instrument_buy: Optional[Instrument] = None
 
-        if last_candle_signal == "BUY" and not self.orders["BULL"].on_balance:
-            instrument_buy = "BULL"
+        if (
+            last_candle_signal == Signal.BUY
+            and not self.orders[Instrument.BULL].on_balance
+        ):
+            instrument_buy = Instrument.BULL
 
-        elif last_candle_signal == "SELL" and not self.orders["BEAR"].on_balance:
-            instrument_buy = "BEAR"
+        elif (
+            last_candle_signal == Signal.SELL
+            and not self.orders[Instrument.BEAR].on_balance
+        ):
+            instrument_buy = Instrument.BEAR
 
         if instrument_buy is not None:
             if is_realistic:
-                instrument_sell: ORDER_TYPE = (
-                    "BULL" if instrument_buy == "BEAR" else "BEAR"
+                instrument_sell: Instrument = (
+                    Instrument.BULL
+                    if instrument_buy == Instrument.BEAR
+                    else Instrument.BEAR
                 )
                 self.sell_order(index, row, enforce_sell_instrument=instrument_sell)
 
@@ -163,7 +172,7 @@ class Helper:
         self,
         index: datetime,
         row: pd.Series,
-        enforce_sell_instrument: Optional[ORDER_TYPE] = None,
+        enforce_sell_instrument: Optional[Instrument] = None,
     ) -> None:
         for instrument, instrument_order in self.orders.items():
             if not instrument_order.on_balance:
@@ -184,14 +193,14 @@ class Helper:
 
     def get_signal(
         self, value: int, ta_indicator: dict, row: pd.Series
-    ) -> Optional[SIGNAL]:
-        signal: Optional[SIGNAL] = None
+    ) -> Optional[Signal]:
+        signal: Optional[Signal] = None
 
-        if value > 0 and ta_indicator["buy"](row):
-            signal = "BUY"
+        if value > 0 and ta_indicator[Signal.BUY](row):
+            signal = Signal.BUY
 
-        elif value < 0 and ta_indicator["sell"](row):
-            signal = "SELL"
+        elif value < 0 and ta_indicator[Signal.SELL](row):
+            signal = Signal.SELL
 
         return signal
 
@@ -233,9 +242,7 @@ class Helper:
             )
 
             if self.stats_strategy["keep"]:
-                self.filtered_strategies[instrument].setdefault(
-                    ta_indicator_name, list()
-                )
+                self.filtered_strategies[instrument].setdefault(ta_indicator_name, [])
                 self.filtered_strategies[instrument][ta_indicator_name].append(column)
 
                 log.info(message)
@@ -247,15 +254,13 @@ class Helper:
         self.stats_patterns.setdefault(
             column,
             {
-                "total_good": {"BULL": 0, "BEAR": 0},
-                "total_bad": {"BULL": 0, "BEAR": 0},
-                "keep_good": {"BULL": 0, "BEAR": 0},
-                "keep_bad": {"BULL": 0, "BEAR": 0},
+                i: Instrument.generate_empty_counters()
+                for i in ["total_good", "total_bad", "keep_good", "keep_bad"]
             },
         )
 
         for verdict in ["good", "bad"]:
-            for instrument in ["BULL", "BEAR"]:
+            for instrument in Instrument:
                 self.stats_patterns[column][f"total_{verdict}"][
                     instrument
                 ] += self.stats_strategy[verdict][instrument]
@@ -268,24 +273,24 @@ class Helper:
                 ] += self.stats_strategy[verdict][instrument]
 
         self.stats_strategy = {
-            "good": {"BULL": 0, "BEAR": 0},
-            "bad": {"BULL": 0, "BEAR": 0},
+            i: Instrument.generate_empty_counters() for i in ["good", "bad"]
         }
 
     # Test_strategies functions
     def print_stats_instruments(self) -> List[str]:
         log.info("Stats per instrument:")
 
-        telelog_message = list()
+        telelog_message = []
 
         for verdict, instruments_counters in self.stats_strategy.items():
-            message = [
-                f'> {verdict} ({instruments_counters["BULL"] + instruments_counters["BEAR"]}):',
-                f'BULL: {instruments_counters["BULL"]}',
-                f'/ BEAR: {instruments_counters["BEAR"]}',
-            ]
+            message = (
+                f"> {verdict} ({sum([instruments_counters[i] for i in Instrument])}):"
+                + " / ".join(
+                    [f"{i.name}: {instruments_counters[i]}" for i in Instrument]
+                )
+            )
 
-            telelog_message.append(" ".join(message))
+            telelog_message.append(message)
 
             log.info(telelog_message[-1])
 
@@ -300,7 +305,7 @@ class Calibration:
 
     def update(self) -> dict:
         log.info(
-            f"Updating strategies: "
+            "Updating strategies: "
             + str(self.settings["trading"]["limits_percent"])
             + f' success_limit: {self.settings["calibration"]["success_limit"]}'
         )
@@ -319,7 +324,7 @@ class Calibration:
 
         # history.data = history.data[history.data.index < "2022-10-2"]
 
-        strategy = Strategy_DT(
+        strategy = StrategyDT(
             history.data,
             order_price_limits=self.settings["trading"]["limits_percent"],
             iterate_candlestick_patterns=True,
@@ -370,8 +375,8 @@ class Calibration:
 
         return helper.strategies_efficiency
 
-    def test(self, strategies_efficiency: dict) -> Tuple[pd.DataFrame, list]:
-        log.info(f"Testing strategies")
+    def test(self, strategies_efficiency: dict) -> list:
+        log.info("Testing strategies")
 
         extra_data = self.ava.get_today_history(
             self.settings["instruments"]["MONITORING"]["AVA"]
@@ -385,7 +390,7 @@ class Calibration:
             extra_data=extra_data,
         )
 
-        strategy = Strategy_DT(
+        strategy = StrategyDT(
             history.data,
             order_price_limits=self.settings["trading"]["limits_percent"],
         )
@@ -394,7 +399,7 @@ class Calibration:
 
         helper = Helper(self.settings)
 
-        signals: list = list()
+        signals: list = []
 
         for index, row in strategy.data.iterrows():
             instrument_buy = helper.buy_order(None if not signals else signals[-1], index, row, is_realistic=True)  # type: ignore
@@ -411,9 +416,9 @@ class Calibration:
 
             signal_result = None
 
-            for instrument in ["BULL", "BEAR"]:
+            for instrument in Instrument:
                 for ta_indicator_name, ta_indicator in strategy.ta_indicators.items():
-                    cs_columns = strategies[instrument].get(ta_indicator_name, list())
+                    cs_columns = strategies[instrument].get(ta_indicator_name, [])
 
                     for cs_column in cs_columns:
                         signal = helper.get_signal(
@@ -421,7 +426,12 @@ class Calibration:
                         )
 
                         if signal is not None and (
-                            signal == ("BUY" if instrument == "BULL" else "SELL")
+                            signal
+                            == (
+                                Signal.BUY
+                                if instrument == Instrument.BULL
+                                else Signal.SELL
+                            )
                         ):
                             strategy_name = (
                                 f"{cs_column} + {ta_indicator_name} - {instrument}"
@@ -439,25 +449,7 @@ class Calibration:
 
         telelog_message = helper.print_stats_instruments()
 
-        return strategy.data, telelog_message
-
-    def plot(self, data: pd.DataFrame) -> None:
-        if platform.system() != "Darwin":
-            return
-
-        data["buy_signal"] = data.apply(
-            lambda x: x["High"] if x["signal"] == "BUY" else None, axis=1
-        )
-        data["sell_signal"] = data.apply(
-            lambda x: x["Low"] if x["signal"] == "SELL" else None, axis=1
-        )
-
-        plot = Plot(
-            data=data,
-            title=f"Signals",
-        )
-        plot.add_orders_to_main_plot()
-        plot.show_single_ticker()
+        return telelog_message
 
 
 def run() -> None:
@@ -471,21 +463,20 @@ def run() -> None:
             try:
                 calibration = Calibration(setting_per_setup, user)
 
-                strategies_efficiency = dict()
+                strategies_efficiency = {}
 
                 if setting_per_setup["calibration"]["update"]:
                     strategies_efficiency = calibration.update()
 
-                data, telelog_message = calibration.test(strategies_efficiency)
-                calibration.plot(data)
+                telelog_message = calibration.test(strategies_efficiency)
 
                 TeleLog(
                     message=("DT calibration: done.\n" + "\n".join(telelog_message))
                 )
 
-            except Exception as e:
-                log.error(f">>> {e}: {traceback.format_exc()}")
+            except Exception as exc:
+                log.error(f">>> {exc}: {traceback.format_exc()}")
 
-                TeleLog(crash_report=f"DT calibration: script has crashed: {e}")
+                TeleLog(crash_report=f"DT calibration: script has crashed: {exc}")
 
             return

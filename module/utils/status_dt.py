@@ -9,10 +9,12 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, Union
 
+from avanza import OrderType
+
 log = logging.getLogger("main.utils.status_dt")
 
 
-class DayTime(Enum):
+class DayTime(str, Enum):
     MORNING = "morning"  # No trading
     MORNING_TRANSITION = "morning_transition"  # Trading starts (use YAHOO data)
     DAY = "day"  # Use AVA data
@@ -20,8 +22,14 @@ class DayTime(Enum):
     EVENING = "evening"  #  Market is closing. No buy orders, only sell.
     NIGHT = "night"  # No trading
 
-    def __str__(self):
-        return self.value
+
+class Instrument(str, Enum):
+    BULL = "BULL"
+    BEAR = "BEAR"
+
+    @classmethod
+    def generate_empty_counters(cls) -> dict:
+        return {i: 0 for i in cls}
 
 
 @dataclass
@@ -118,7 +126,7 @@ class InstrumentStatus:
         self,
         settings_limits_percent: dict,
     ) -> None:
-        if self.active_order.get("type") != "BUY":
+        if self.active_order.get("type") != OrderType.BUY:
             return
 
         self.price_stop_loss = round(
@@ -189,10 +197,10 @@ class InstrumentStatus:
         return False
 
 
-class Status_DT:
+class StatusDT:
     def __init__(self, settings: dict):
-        self.BULL: InstrumentStatus = InstrumentStatus("BULL")
-        self.BEAR: InstrumentStatus = InstrumentStatus("BEAR")
+        self.BULL: InstrumentStatus = InstrumentStatus(Instrument.BULL.name)
+        self.BEAR: InstrumentStatus = InstrumentStatus(Instrument.BEAR.name)
         self.day_time: DayTime = DayTime.MORNING
         self.settings = settings
 
@@ -221,10 +229,10 @@ class Status_DT:
                 not any(
                     [
                         (
-                            getattr(self, instrument_type).has_position
-                            or getattr(self, instrument_type).active_order
+                            getattr(self, instrument_type.name).has_position
+                            or getattr(self, instrument_type.name).active_order
                         )
-                        for instrument_type in ["BULL", "BEAR"]
+                        for instrument_type in Instrument
                     ]
                 )
             ):
@@ -234,13 +242,13 @@ class Status_DT:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")
 
     def update_instrument(
-        self, instrument_type: str, certificate_info: dict, active_order: dict
+        self, instrument_type: Instrument, certificate_info: dict, active_order: dict
     ) -> InstrumentStatus:
-        instrument_status: InstrumentStatus = getattr(self, instrument_type)
+        instrument_status: InstrumentStatus = getattr(self, instrument_type.name)
 
         instrument_status.active_order = active_order
         instrument_status.spread = certificate_info.get("spread")
-        instrument_status.price_current = certificate_info.get("sell")
+        instrument_status.price_current = certificate_info.get(OrderType.SELL)
 
         instrument_status.update_prices_on_position(
             certificate_info["positions"],
@@ -256,9 +264,9 @@ class Status_DT:
         )
 
         if instrument_status.check_trade_is_completed():
-            setattr(self, instrument_type, InstrumentStatus(instrument_type))
+            setattr(self, instrument_type.name, InstrumentStatus(instrument_type.name))
 
-            instrument_status = getattr(self, instrument_type)
+            instrument_status = getattr(self, instrument_type.name)
 
         return instrument_status
 

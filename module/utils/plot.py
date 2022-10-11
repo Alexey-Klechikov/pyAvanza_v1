@@ -5,7 +5,7 @@ This module is used to plot tickers, indicators, and comparison graph
 
 import logging
 import warnings
-from typing import Dict
+from typing import Dict, Optional
 
 import matplotlib.pyplot as plt
 import mplfinance as mpf
@@ -22,10 +22,10 @@ class Plot:
         self.data = data
         self.title = title
 
-        self.plots: list = list()
+        self.plots: list = []
 
     def add_horizontal_lines(self, level_color: list[tuple], panel_num: int) -> None:
-        horizontal_lines_plots = list()
+        horizontal_lines_plots = []
 
         for level, color in level_color:
             if level is None:
@@ -611,7 +611,7 @@ class Plot:
                 if strategy_name not in strategy_components:
                     continue
 
-                target_data_column = plotting_functions(panel_num)
+                target_data_column: Optional[str] = plotting_functions(panel_num)
 
                 if target_data_column is not None:
                     self.add_buy_signals(panel_num, target_data_column)
@@ -626,7 +626,7 @@ class Plot:
                     color="black",
                     ylim=(1000 * 0.9, self.data["total"].max() * 1.1),
                     panel=0,
-                    secondary_y=True,
+                    secondary_y=False,
                 )
             )
 

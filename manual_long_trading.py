@@ -3,26 +3,21 @@ This module is used for manual runs (checkups, improvements, tests)
 """
 
 
-from dataclasses import dataclass
 import logging
 import traceback
 import pandas as pd
+from avanza import OrderType as Signal
 
-from module.utils import Plot
-from module.utils import Logger
-from module.utils import History
-from module.utils import Context
-from module.utils import Settings
-from module.utils import Strategy_TA
+from module.utils import Plot, Logger, History, Context, Settings, StrategyTA
 
 
 log = logging.getLogger("main")
 
 
-class Portfolio_Analysis:
+class PortfolioAnalysis:
     def __init__(self, **kwargs):
         self.data = pd.DataFrame()
-        self.visited_tickers = list()
+        self.visited_tickers = []
         self.counter_per_strategy = {
             "-- MAX --": {"result": 0.0, "transactions_counter": 0.0}
         }
@@ -43,7 +38,7 @@ class Portfolio_Analysis:
             kwargs["plot_total_algo_performance_vs_hold"]
         )
 
-    def plot_ticker(self, strategy: Strategy_TA) -> None:
+    def plot_ticker(self, strategy: StrategyTA) -> None:
         log.info(f"Plotting {strategy.summary.ticker_name}")
 
         plot_obj = Plot(
@@ -60,27 +55,27 @@ class Portfolio_Analysis:
         if not plot_total_algo_performance_vs_hold:
             return
 
-        log.info(f"Plotting total algo performance vs hold")
+        log.info("Plotting total algo performance vs hold")
 
-        columns = {"Close": list(), "total": list()}
+        columns = {"Close": [], "total": []}
 
         if not isinstance(self.data, pd.DataFrame) or self.data.empty:
             log.error("No data found")
             return
 
         for col in self.data.columns:
-            for column_to_merge in columns:
-                if col.startswith(column_to_merge):
-                    columns[column_to_merge].append(col)
+            for column_category, columns_merge in columns.items():
+                if col.startswith(column_category):
+                    columns_merge.append(col)
 
         for result_column, columns_to_merge in columns.items():
             self.data[result_column] = self.data[columns_to_merge].sum(axis=1)
 
-        plot_obj = Plot(data=self.data, title=f"Total HOLD (red) vs Total algo (black)")
+        plot_obj = Plot(data=self.data, title="Total HOLD (red) vs Total algo (black)")
         plot_obj.show_entire_portfolio()
 
     def print_performance_per_strategy(self) -> None:
-        log.info(f"Performance per strategy")
+        log.info("Performance per strategy")
 
         result = self.counter_per_strategy.pop("-- MAX --")
         result_message = [f"-- MAX -- : {str(result)}"]
@@ -101,9 +96,9 @@ class Portfolio_Analysis:
         )
 
     def print_performance_per_indicator(self) -> None:
-        log.info(f"Performance per indicator")
+        log.info("Performance per indicator")
 
-        performance_per_indicator = dict()
+        performance_per_indicator = {}
 
         for strategy, statistics in self.counter_per_strategy.items():
             counter = 0
@@ -130,7 +125,7 @@ class Portfolio_Analysis:
             )
         )
 
-    def record_ticker_performance(self, strategy: Strategy_TA, ticker: str) -> None:
+    def record_ticker_performance(self, strategy: StrategyTA, ticker: str) -> None:
         log.info(f"Recording performance for {ticker}")
 
         self.data = (
@@ -168,7 +163,6 @@ class Portfolio_Analysis:
     def get_strategy_on_ticker(
         self,
         ticker_yahoo: str,
-        ticker_ava: str,
         comment: str,
         in_portfolio: bool,
         cache: str,
@@ -185,17 +179,18 @@ class Portfolio_Analysis:
                 ticker_yahoo, "18mo", "1d", cache="reuse" if cache else "skip"
             ).data
 
-            strategy = Strategy_TA(data, ticker_name=comment)
+            strategy = StrategyTA(data, ticker_name=comment)
 
-        except Exception as e:
+        except Exception as exc:
             log.error(
-                f'There was a problem with the ticker "{ticker_yahoo}": {e} ({traceback.format_exc()})'
+                f'There was a problem with the ticker "{ticker_yahoo}": {exc} ({traceback.format_exc()})'
             )
+
             return
 
         if self.show_only_tickers_to_act_on and (
-            (in_portfolio and strategy.summary.signal == "buy")
-            or (not in_portfolio and strategy.summary.signal == "sell")
+            (in_portfolio and strategy.summary.signal == Signal.BUY)
+            or (not in_portfolio and strategy.summary.signal == Signal.SELL)
         ):
             return
 
@@ -204,15 +199,17 @@ class Portfolio_Analysis:
         signal = strategy.summary.signal
 
         if top_signal != signal:
-            signal = f"{top_signal} ->> {signal}"
-            log.warning(f"Signal override: {signal}")
+            log.warning(f"Signal override: {top_signal} ->> {signal}")
 
-        max_output_summary = f"signal: {signal} / " + " / ".join(
+        max_output_summary = " / ".join(
             [
-                f"result: {strategy.summary.max_output.result}",
-                f"transactions_counter: {strategy.summary.max_output.transactions_counter}",
+                "signal: " + str(signal.name),
+                "result: " + str(strategy.summary.max_output.result),
+                "transactions_counter: "
+                + str(strategy.summary.max_output.transactions_counter),
             ]
         )
+
         log.info(
             f"--- {strategy.summary.ticker_name} ({max_output_summary}) (HOLD: {strategy.summary.hold_result}) ---"
         )
@@ -239,7 +236,7 @@ class Portfolio_Analysis:
 
             if i < 3:
                 log.info(
-                    f"Strategy: {strategy_name} -> {strategy_data.result} (number_transactions: {len(strategy_data.transactions)}) (signal: {strategy_data.signal})"
+                    f"Strategy: {strategy_name} -> {strategy_data.result} (number_transactions: {len(strategy_data.transactions)}) (signal: {strategy_data.signal.name})"
                 )
                 [
                     log.info(transaction)
@@ -248,10 +245,10 @@ class Portfolio_Analysis:
                 ]
 
                 win_counter = self.counter_per_strategy[strategy_name].get(
-                    "win_counter", dict()
+                    "win_counter", {}
                 )
                 if not isinstance(win_counter, dict):
-                    win_counter = dict()
+                    win_counter = {}
 
                 win_counter[f"{i+1}"] = win_counter.get(f"{i+1}", 0) + 1
                 self.counter_per_strategy[strategy_name]["win_counter"] = win_counter  # type: ignore
@@ -260,8 +257,8 @@ class Portfolio_Analysis:
         plot_conditions = [
             ticker_yahoo in self.extra_tickers_plot,
             in_portfolio and self.plot_portfolio_tickers,
-            (in_portfolio and signal == "sell") and self.plot_tickers_to_act_on,
-            (not in_portfolio and signal == "buy") and self.plot_tickers_to_act_on,
+            (in_portfolio and signal == Signal.SELL) and self.plot_tickers_to_act_on,
+            (not in_portfolio and signal == Signal.BUY) and self.plot_tickers_to_act_on,
         ]
         if any(plot_conditions):
             self.plot_ticker(strategy)
@@ -288,18 +285,16 @@ class Portfolio_Analysis:
                 for ticker in tickers:
                     self.get_strategy_on_ticker(
                         ticker["ticker_yahoo"],
-                        ticker["order_book_id"],
                         f"Watchlist ({watch_list_name}): {ticker['ticker_yahoo']}",
                         in_portfolio=False,
                         cache=cache,
                     )
         else:
             log.info("Checking portfolio")
-            if self.ava.portfolio.positions._df is not None:
-                for _, row in self.ava.portfolio.positions._df.iterrows():
+            if self.ava.portfolio.positions.df is not None:
+                for _, row in self.ava.portfolio.positions.df.iterrows():
                     self.get_strategy_on_ticker(
                         row["ticker_yahoo"],
-                        row["orderbookId"],
                         f"Stock: {row['name']} - {row['ticker_yahoo']}",
                         in_portfolio=True,
                         cache=cache,
@@ -310,7 +305,6 @@ class Portfolio_Analysis:
                 for ticker in watch_list_dict["tickers"]:
                     self.get_strategy_on_ticker(
                         ticker["ticker_yahoo"],
-                        ticker["order_book_id"],
                         f"Budget ({budget_rule_name}K): {ticker['ticker_yahoo']}",
                         in_portfolio=False,
                         cache=cache,
@@ -320,11 +314,11 @@ class Portfolio_Analysis:
 if __name__ == "__main__":
     Logger(logger_name="main", file_prefix="manual_long_trading")
 
-    Portfolio_Analysis(
+    PortfolioAnalysis(
         check_only_watch_list=False,
         show_only_tickers_to_act_on=False,
         print_transactions=False,
-        extra_tickers_plot=list(),
+        extra_tickers_plot=[],
         plot_portfolio_tickers=False,
         plot_total_algo_performance_vs_hold=True,
         plot_tickers_to_act_on=True,

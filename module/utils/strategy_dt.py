@@ -7,10 +7,11 @@ import json
 import logging
 import os
 import warnings
-from pprint import pprint
+from json import JSONDecodeError
 from typing import Tuple
 
 import pandas as pd
+from avanza import OrderType as Signal
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
@@ -20,13 +21,13 @@ pd.set_option("display.expand_frame_repr", False)
 log = logging.getLogger("main.utils.strategy_dt")
 
 
-class Strategy_DT:
+class StrategyDT:
     def __init__(self, data: pd.DataFrame, **kwargs):
         self.data = data.groupby(data.index).last()
 
         self.order_price_limits = {
             k: abs(round((1 - v) / 20, 5))
-            for k, v in kwargs.get("order_price_limits", dict()).items()
+            for k, v in kwargs.get("order_price_limits", {}).items()
         }
 
         if not kwargs.get("iterate_candlestick_patterns"):
@@ -39,7 +40,7 @@ class Strategy_DT:
         self.drop_columns(columns)
 
     def drop_columns(self, columns: dict) -> None:
-        columns["needed"] = list()
+        columns["needed"] = []
 
         for ta_indicator in self.ta_indicators.values():
             columns["needed"] += ta_indicator["columns"]
@@ -71,43 +72,41 @@ class Strategy_DT:
         return data, column
 
     def get_ta_indicators(self) -> dict:
-        ta_indicators = dict()
+        ta_indicators = {}
 
         """ Volume """
-        """
-        if "Volume" in self.data.columns:
+        if "Volume" in self.data.columns and False:
             # CMF (Chaikin Money Flow)
             self.data.ta.cmf(append=True)
             cmf = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
             ta_indicators["CMF"] = {
-                "buy": lambda x: x["CMF_20"] > cmf["max"] * 0.2,
-                "sell": lambda x: x["CMF_20"] < cmf["min"] * 0.2,
+                Signal.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.2,
+                Signal.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.2,
                 "columns": ["CMF_20"],
             }
 
             # EFI (Elder's Force Index)
             self.data.ta.efi(append=True)
             ta_indicators["EFI"] = {
-                "buy": lambda x: x["EFI_13"] < 0,
-                "sell": lambda x: x["EFI_13"] > 0,
+                Signal.BUY: lambda x: x["EFI_13"] < 0,
+                Signal.SELL: lambda x: x["EFI_13"] > 0,
                 "columns": ["EFI_13"],
             }
 
         else:
             for indicator in ["CMF", "EFI"]:
                 ta_indicators[indicator] = {
-                    "buy": lambda x: False,
-                    "sell": lambda x: False,
+                    Signal.BUY: lambda x: False,
+                    Signal.SELL: lambda x: False,
                     "columns": [],
                 }
-        """
 
         """ Trend """
         # PSAR (Parabolic Stop and Reverse) (mod 2022.10.10)
         self.data.ta.psar(af=0.015, max_af=0.12, append=True)
         ta_indicators["PSAR"] = {
-            "buy": lambda x: x["Close"] > x["PSARl_0.015_0.12"],
-            "sell": lambda x: x["Close"] < x["PSARs_0.015_0.12"],
+            Signal.BUY: lambda x: x["Close"] > x["PSARl_0.015_0.12"],
+            Signal.SELL: lambda x: x["Close"] < x["PSARs_0.015_0.12"],
             "columns": ["PSARl_0.015_0.12", "PSARs_0.015_0.12"],
         }
 
@@ -115,8 +114,8 @@ class Strategy_DT:
         # ALMA (Arnaud Legoux Moving Average) (mod 2022.10.10)
         self.data.ta.alma(length=15, sigma=6.0, distribution_offset=0.85, append=True)
         ta_indicators["ALMA"] = {
-            "buy": lambda x: x["Close"] > x["ALMA_15_6.0_0.85"],
-            "sell": lambda x: x["Close"] < x["ALMA_15_6.0_0.85"],
+            Signal.BUY: lambda x: x["Close"] > x["ALMA_15_6.0_0.85"],
+            Signal.SELL: lambda x: x["Close"] < x["ALMA_15_6.0_0.85"],
             "columns": ["ALMA_15_6.0_0.85"],
         }
 
@@ -124,8 +123,8 @@ class Strategy_DT:
         self.data.ta.hilo(high_length=11, low_length=20, append=True)
         self.data.ta.hilo(high_length=11, low_length=18, append=True)
         ta_indicators["GHLA"] = {
-            "buy": lambda x: x["Close"] > x["HILO_11_20"],
-            "sell": lambda x: x["Close"] < x["HILO_11_18"],
+            Signal.BUY: lambda x: x["Close"] > x["HILO_11_20"],
+            Signal.SELL: lambda x: x["Close"] < x["HILO_11_18"],
             "columns": ["HILO_11_20", "HILO_11_18"],
         }
 
@@ -133,8 +132,8 @@ class Strategy_DT:
         self.data.ta.supertrend(length=7, multiplier=3, append=True)
         self.data.ta.supertrend(length=5, multiplier=3, append=True)
         ta_indicators["SUPERT"] = {
-            "buy": lambda x: x["Close"] > x["SUPERT_5_3.0"],
-            "sell": lambda x: x["Close"] < x["SUPERT_7_3.0"],
+            Signal.BUY: lambda x: x["Close"] > x["SUPERT_5_3.0"],
+            Signal.SELL: lambda x: x["Close"] < x["SUPERT_7_3.0"],
             "columns": ["SUPERT_7_3.0", "SUPERT_5_3.0"],
         }
 
@@ -144,34 +143,35 @@ class Strategy_DT:
             self.data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
         )
         ta_indicators["LINREG"] = {
-            "buy": lambda x: x["LRr_direction"] == 1,
-            "sell": lambda x: x["LRr_direction"] == 0,
+            Signal.BUY: lambda x: x["LRr_direction"] == 1,
+            Signal.SELL: lambda x: x["LRr_direction"] == 0,
             "columns": ["LRr_direction"],
         }
 
         """ Volatility """
-        # ACCBANDS (Acceleration Bands)
-        self.data.ta.accbands(append=True)
+        # ACCBANDS (Acceleration Bands) (mod 2022.10.11)
+        self.data.ta.accbands(length=10, append=True)
+        self.data.ta.accbands(length=12, append=True)
         ta_indicators["ACCBANDS"] = {
-            "buy": lambda x: x["Close"] > x["ACCBU_20"],
-            "sell": lambda x: x["Close"] < x["ACCBL_20"],
-            "columns": ["ACCBU_20", "ACCBL_20"],
+            Signal.BUY: lambda x: x["Close"] > x["ACCBU_12"],
+            Signal.SELL: lambda x: x["Close"] < x["ACCBL_10"],
+            "columns": ["ACCBU_12", "ACCBL_10"],
         }
 
-        # KC (Keltner Channel) (mod 2022.10.09)
-        self.data.ta.kc(length=15, scalar=2, append=True)
+        # KC (Keltner Channel) (mod 2022.10.11)
+        self.data.ta.kc(length=14, scalar=2.3, append=True)
         ta_indicators["KC"] = {
-            "buy": lambda x: x["Close"] > x["KCUe_15_2.0"],
-            "sell": lambda x: x["Close"] < x["KCLe_15_2.0"],
-            "columns": ["KCLe_15_2.0", "KCUe_15_2.0"],
+            Signal.BUY: lambda x: x["Close"] > x["KCUe_14_2.3"],
+            Signal.SELL: lambda x: x["Close"] < x["KCLe_14_2.3"],
+            "columns": ["KCLe_14_2.3", "KCUe_14_2.3"],
         }
 
         # RVI (Relative Volatility Index) (mod 2022.10.10)
         self.data.ta.rvi(length=14, append=True)
         self.data.ta.rvi(length=17, append=True)
         ta_indicators["RVI"] = {
-            "buy": lambda x: x["RVI_17"] > 50,
-            "sell": lambda x: x["RVI_14"] < 45,
+            Signal.BUY: lambda x: x["RVI_17"] > 50,
+            Signal.SELL: lambda x: x["RVI_14"] < 45,
             "columns": ["RVI_14", "RVI_17"],
         }
 
@@ -182,45 +182,45 @@ class Strategy_DT:
             self.data["MACDh_8_21_5"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
         )
         ta_indicators["MACD"] = {
-            "buy": lambda x: x["MACD_ma_diff"] == 1,
-            "sell": lambda x: x["MACD_ma_diff"] == 0,
+            Signal.BUY: lambda x: x["MACD_ma_diff"] == 1,
+            Signal.SELL: lambda x: x["MACD_ma_diff"] == 0,
             "columns": ["MACD_ma_diff"],
         }
 
         # STC (Schaff Trend Cycle) (mod 2022.10.10)
         self.data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
         ta_indicators["STC"] = {
-            "buy": lambda x: x["STC_12_14_28_0.6"] < 75,
-            "sell": lambda x: x["STC_12_14_28_0.6"] > 25,
+            Signal.BUY: lambda x: x["STC_12_14_28_0.6"] < 75,
+            Signal.SELL: lambda x: x["STC_12_14_28_0.6"] > 25,
             "columns": ["STC_12_14_28_0.6"],
         }
 
         # BOP (Balance Of Power)
         self.data.ta.bop(append=True)
         ta_indicators["BOP"] = {
-            "buy": lambda x: x["BOP"] < -0.25,
-            "sell": lambda x: x["BOP"] > 0.3,
+            Signal.BUY: lambda x: x["BOP"] < -0.25,
+            Signal.SELL: lambda x: x["BOP"] > 0.3,
             "columns": ["BOP"],
         }
         ta_indicators["BOP_R"] = {
-            "buy": lambda x: x["BOP"] > 0,
-            "sell": lambda x: x["BOP"] < 0,
+            Signal.BUY: lambda x: x["BOP"] > 0,
+            Signal.SELL: lambda x: x["BOP"] < 0,
             "columns": ["BOP"],
         }
 
         # RSI (Relative Strength Index) (mod 2022.10.10)
         self.data.ta.rsi(length=15, append=True)
         ta_indicators["RSI"] = {
-            "buy": lambda x: x["RSI_15"] > 50,
-            "sell": lambda x: x["RSI_15"] < 40,
+            Signal.BUY: lambda x: x["RSI_15"] > 50,
+            Signal.SELL: lambda x: x["RSI_15"] < 40,
             "columns": ["RSI_15"],
         }
 
         # STOCH (Stochastic Oscillator) (mod 2022.10.10)
         self.data.ta.stoch(k=6, d=4, smooth_k=3, append=True)
         ta_indicators["STOCH"] = {
-            "buy": lambda x: x["STOCHd_6_4_3"] > 20 and x["STOCHk_6_4_3"] > 20,
-            "sell": lambda x: x["STOCHd_6_4_3"] < 80 and x["STOCHk_6_4_3"] < 80,
+            Signal.BUY: lambda x: x["STOCHd_6_4_3"] > 20 and x["STOCHk_6_4_3"] > 20,
+            Signal.SELL: lambda x: x["STOCHd_6_4_3"] < 80 and x["STOCHk_6_4_3"] < 80,
             "columns": ["STOCHd_6_4_3", "STOCHk_6_4_3"],
         }
 
@@ -228,8 +228,8 @@ class Strategy_DT:
         self.data.ta.uo(fast=7, medium=14, slow=28, append=True)
         self.data.ta.uo(fast=9, medium=18, slow=36, append=True)
         ta_indicators["UO"] = {
-            "buy": lambda x: x["UO_7_14_28"] < 30,
-            "sell": lambda x: x["UO_9_18_36"] > 70,
+            Signal.BUY: lambda x: x["UO_7_14_28"] < 30,
+            Signal.SELL: lambda x: x["UO_9_18_36"] > 70,
             "columns": ["UO_7_14_28", "UO_9_18_36"],
         }
 
@@ -244,8 +244,8 @@ class Strategy_DT:
                 f"{current_dir}/data/strategies_{filename_suffix}.json", "r"
             ) as f:
                 strategies = json.load(f)
-        except:
-            strategies = dict()
+        except (JSONDecodeError, TypeError):
+            strategies = {}
 
         return strategies
 

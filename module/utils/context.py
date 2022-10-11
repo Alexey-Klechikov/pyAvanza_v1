@@ -21,11 +21,11 @@ log = logging.getLogger("main.utils.context")
 
 @dataclass
 class Positions:
-    _dict: Optional[list] = None
-    _df: pd.DataFrame = pd.DataFrame(columns=["orderbookId"])
+    lst: Optional[list] = None
+    df: pd.DataFrame = pd.DataFrame(columns=["orderbookId"])
 
     def __post_init__(self):
-        self._df = pd.DataFrame(self._dict)
+        self.df = pd.DataFrame(self.lst)
 
 
 @dataclass
@@ -59,8 +59,8 @@ class Context:
                 )
                 break
 
-            except Exception as e:
-                log.error(e)
+            except HTTPError as exc:
+                log.error(exc)
                 i += 1
 
                 time.sleep(i * 2)
@@ -70,14 +70,14 @@ class Context:
     def get_portfolio(self) -> Portfolio:
         portfolio = Portfolio()
 
-        for k, v in self.accounts.items():
-            account_overview = self.ctx.get_account_overview(v)
+        for account_name, account_id in self.accounts.items():
+            account_overview = self.ctx.get_account_overview(account_id)
 
             if account_overview:
-                portfolio.buying_power[k] = account_overview["buyingPower"]
+                portfolio.buying_power[account_name] = account_overview["buyingPower"]
                 portfolio.total_own_capital += account_overview["ownCapital"]
 
-        positions = list()
+        positions = []
         all_positions = self.ctx.get_positions()
         if all_positions:
             for position in all_positions["instrumentPositions"][0]["positions"]:
@@ -93,29 +93,29 @@ class Context:
         if positions:
             portfolio.positions = Positions(positions)
 
-            tickers_yahoo = list()
-            for orderbook_id in portfolio.positions._df["orderbookId"].tolist():
+            tickers_yahoo = []
+            for orderbook_id in portfolio.positions.df["orderbookId"].tolist():
                 stock_info = self.ctx.get_stock_info(orderbook_id)
                 if not stock_info:
-                    stock_info = dict()
+                    stock_info = {}
 
                 tickers_yahoo.append(
                     f"{stock_info.get('tickerSymbol', '').replace(' ', '-')}.ST"
                 )
 
-            portfolio.positions._df["ticker_yahoo"] = tickers_yahoo
+            portfolio.positions.df["ticker_yahoo"] = tickers_yahoo
 
         return portfolio
 
     def process_watch_lists(self) -> Tuple[dict, dict]:
         log.debug("Process watch_lists")
 
-        watch_lists, budget_rules = dict(), dict()
+        watch_lists, budget_rules = {}, {}
 
         all_watch_lists = self.ctx.get_watchlists()
         if all_watch_lists:
             for watch_list in all_watch_lists:
-                tickers = list()
+                tickers = []
 
                 for order_book_id in watch_list["orderbooks"]:
                     stock_info = self.ctx.get_stock_info(order_book_id)
@@ -138,25 +138,30 @@ class Context:
                 try:
                     int(watch_list["name"])
                     budget_rules[watch_list["name"]] = copy(temp_watch_list)
-                except:
+                except ValueError:
                     watch_lists[watch_list["name"]] = copy(temp_watch_list)
 
         return budget_rules, watch_lists
 
-    def create_orders(self, orders: list[dict], order_type: str) -> list[dict]:
+    def create_orders(self, orders: list[dict], order_type: OrderType) -> list[dict]:
         log.debug(f"Creating {order_type} order(s)")
 
-        created_orders = list()
+        created_orders = []
 
-        if order_type in ["sell", "take_profit"]:
+        if order_type == OrderType.SELL:
             for sell_order in orders:
+                if sell_order["volume"] == 0:
+                    continue
+
                 order_attr = {
                     "account_id": str(sell_order["account_id"]),
                     "order_book_id": str(sell_order["order_book_id"]),
-                    "order_type": OrderType.SELL,
+                    "order_type": order_type,
                     "price": sell_order.get(
                         "price",
-                        self.get_stock_price(sell_order["order_book_id"])["sell"],
+                        self.get_stock_price(sell_order["order_book_id"])[
+                            OrderType.SELL
+                        ],
                     ),
                     "valid_until": (datetime.today() + timedelta(days=1)).date(),
                     "volume": sell_order["volume"],
@@ -165,12 +170,12 @@ class Context:
                 try:
                     self.ctx.place_order(**order_attr)
 
-                except Exception as e:
-                    log.error(f"Exception: {e} - {order_attr}")
+                except HTTPError as exc:
+                    log.error(f"Exception: {exc} - {order_attr}")
 
-                # TODO: check why I dont append orders here
+                # HERE: check why I dont append orders here
 
-        elif order_type == "buy":
+        elif order_type == OrderType.BUY:
             self.portfolio = self.get_portfolio()
 
             if len(orders) > 0:
@@ -186,15 +191,16 @@ class Context:
                             self.portfolio.buying_power[account_name]
                             - reserved_budget[account_name]
                             > buy_order["budget"]
+                            and buy_order["volume"] > 0
                         ):
                             order_attr = {
                                 "account_id": str(account_id),
                                 "order_book_id": str(buy_order["order_book_id"]),
-                                "order_type": OrderType.BUY,
+                                "order_type": order_type,
                                 "price": buy_order.get(
                                     "price",
                                     self.get_stock_price(buy_order["order_book_id"])[
-                                        "buy"
+                                        order_type
                                     ],
                                 ),
                                 "valid_until": (
@@ -206,8 +212,8 @@ class Context:
                             try:
                                 self.ctx.place_order(**order_attr)
 
-                            except Exception as e:
-                                log.error(f"Exception: {e} - {order_attr}")
+                            except HTTPError as exc:
+                                log.error(f"Exception: {exc} - {order_attr}")
 
                             reserved_budget[account_name] += buy_order["budget"]
                             created_orders.append(buy_order)
@@ -217,7 +223,7 @@ class Context:
         return created_orders
 
     def update_order(self, old_order: dict, price: float) -> None:
-        log.debug(f"Updating order")
+        log.debug("Updating order")
 
         order_attr = {
             "account_id": old_order["account"]["id"],
@@ -237,8 +243,8 @@ class Context:
         try:
             self.ctx.edit_order(**order_attr)
 
-        except Exception as e:
-            log.error(f"Exception: {e} - {order_attr}")
+        except Exception as exc:
+            log.error(f"Exception: {exc} - {order_attr}")
 
     def get_stock_price(self, stock_id: str) -> dict:
         stock_info = self.ctx.get_stock_info(stock_id)
@@ -247,19 +253,23 @@ class Context:
             raise Exception(f"Stock {stock_id} not found")
 
         stock_price = {
-            "buy": stock_info["lastPrice"],
-            "sell": stock_info["lastPrice"],
+            OrderType.BUY: stock_info["lastPrice"],
+            OrderType.SELL: stock_info["lastPrice"],
         }
 
         order_depth = pd.DataFrame(stock_info["orderDepthLevels"])
         if not order_depth.empty:
-            stock_price["sell"] = max(order_depth["buy"].apply(lambda x: x["price"]))
-            stock_price["buy"] = min(order_depth["sell"].apply(lambda x: x["price"]))
+            stock_price[OrderType.SELL] = max(
+                order_depth["buy"].apply(lambda x: x["price"])
+            )
+            stock_price[OrderType.BUY] = min(
+                order_depth["sell"].apply(lambda x: x["price"])
+            )
 
         return stock_price
 
     def get_certificate_info(self, certificate_id: str) -> dict:
-        certificate = dict()
+        certificate = {}
 
         for _ in range(5):
             try:
@@ -270,29 +280,29 @@ class Context:
 
                 continue
 
-            certificate = dict() if certificate is None else certificate
+            certificate = {} if certificate is None else certificate
 
             if certificate.get(
                 "spread", 1
             ) <= 0.65 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
                 return {
-                    "buy": certificate.get("sellPrice", None),
-                    "sell": certificate.get("buyPrice", None),
-                    "positions": certificate.get("positions", list()),
+                    OrderType.BUY: certificate.get("sellPrice", None),
+                    OrderType.SELL: certificate.get("buyPrice", None),
+                    "positions": certificate.get("positions", []),
                     "spread": certificate.get("spread"),
                 }
 
             time.sleep(2)
 
         return {
-            "buy": None,
-            "sell": None,
-            "positions": list(),
+            OrderType.BUY: None,
+            OrderType.SELL: None,
+            "positions": [],
             "spread": certificate.get("spread"),
         }
 
     def get_active_order(self, certificate_id: Optional[str] = None) -> dict:
-        active_order: dict = dict()
+        active_order: dict = {}
 
         for _ in range(5):
             try:
@@ -303,7 +313,7 @@ class Context:
 
                 continue
 
-            active_orders = list() if not orders else orders["orders"]
+            active_orders = [] if not orders else orders["orders"]
             active_orders = [
                 order
                 for order in active_orders
@@ -315,13 +325,8 @@ class Context:
 
         return active_order
 
-    def remove_active_orders(
-        self,
-        orderbook_ids: list[Union[str, int]] = list(),
-        account_ids: list[Union[str, int]] = list(),
-    ) -> dict:
-        active_orders = list()
-        removed_orders: dict = {"buy": list(), "sell": list()}
+    def remove_active_orders(self, account_ids: list[Union[str, int]]) -> None:
+        active_orders = []
 
         deals_and_orders = self.ctx.get_deals_and_orders()
         if deals_and_orders:
@@ -335,12 +340,6 @@ class Context:
                     continue
 
                 if (
-                    len(orderbook_ids) > 0
-                    and int(order["orderbook"]["id"]) not in orderbook_ids
-                ):
-                    continue
-
-                if (
                     len(account_ids) > 0
                     and int(order["account"]["id"]) not in account_ids
                 ):
@@ -350,24 +349,6 @@ class Context:
                 self.ctx.delete_order(
                     account_id=order["account"]["id"], order_id=order["orderId"]
                 )
-
-                stock_info = self.ctx.get_stock_info(order["orderbook"]["id"])
-                if not stock_info:
-                    continue
-
-                ticker_yahoo = f"{stock_info['tickerSymbol'].replace(' ', '-')}.ST"
-                removed_orders[order["type"].lower()].append(
-                    {
-                        "account_id": order["account"]["id"],
-                        "order_book_id": order["orderbook"]["id"],
-                        "name": order["orderbook"]["name"],
-                        "price": order["price"],
-                        "volume": order["volume"],
-                        "ticker_yahoo": ticker_yahoo,
-                    }
-                )
-
-        return removed_orders
 
     def update_todays_ochl(self, data: pd.DataFrame, stock_id: str) -> pd.DataFrame:
         stock_info = self.ctx.get_stock_info(stock_id)

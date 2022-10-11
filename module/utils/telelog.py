@@ -5,6 +5,7 @@ This module is used to process and dump execution logs to Telegram
 import logging
 
 import telegram_send
+from avanza import OrderType
 
 from module.utils.context import Portfolio
 
@@ -84,25 +85,18 @@ class TeleLog:
             if len(orders_by_type) == 0:
                 continue
 
-            self.message += f"{order_type.upper()} orders:\n\n"
+            self.message += f"{order_type.name} orders:\n\n"
 
             for order in orders_by_type:
-                order_messages = list()
+                order_messages = []
 
-                if order_type == "buy":
+                if order_type == OrderType.BUY:
                     order_messages = [
                         f"> Ticker: {order['name']} ({order['ticker_yahoo']})",
                         f">> Budget: {order['budget']} SEK",
                     ]
 
-                elif order_type == "sell":
-                    order_messages = [
-                        f"> Ticker: {order['name']} ({order['ticker_yahoo']})",
-                        f">> Value: {round(float(order['price']) * int(order['volume']))} SEK",
-                        f">> Profit: {order['profit']} %",
-                    ]
-
-                elif order_type == "take_profit":
+                elif order_type == OrderType.SELL:
                     order_messages = [
                         f"> Ticker: {order['name']} ({order['ticker_yahoo']})",
                         f">> Value: {round(float(order['price']) * int(order['volume']))} SEK",

@@ -1,0 +1,12 @@
+{
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "cSpell.words": [
+        "ACCBANDS",
+        "ACCBL",
+        "ACCBU",
+        "Bostad",
+        "Keltner",
+        "tclength"
+    ]
+}

@@ -1,5 +1,5 @@
 """
-This module is the "frontend" meant for every week use. It will: 
+This module is the "frontend" meant for every week use. It will:
 - analyze every stock to pick the best performing once and place them in one of budget lists.
 - record top 20 performing strategies for every stock and record it to the file "TA_strategies.json"
 It will import other modules to run the analysis on the stocks -> move it to the watch_list -> dump log in Telegram.py
@@ -8,7 +8,7 @@ It will import other modules to run the analysis on the stocks -> move it to the
 import logging
 import traceback
 
-from .utils import Context, History, Settings, Strategy_TA, TeleLog
+from .utils import Context, History, Settings, StrategyTA, TeleLog
 
 log = logging.getLogger("main.long_trading_calibration")
 
@@ -17,15 +17,15 @@ class Calibration:
     def __init__(self, **kwargs):
         self.ava = Context(kwargs["user"], kwargs["accounts"])
         self.logs = ["LT calibration"]
-        self.top_strategies_per_ticket = dict()
+        self.top_strategies_per_ticket = {}
 
         self.run_analysis(kwargs["log_to_telegram"], kwargs["budget_list_thresholds"])
 
-    def record_strategies(self, ticker: str, strategy: Strategy_TA) -> None:
-        log.info(f"Record strategies")
+    def record_strategies(self, ticker: str, strategy: StrategyTA) -> None:
+        log.info("Record strategies")
 
         for strategy_item in strategy.summary.sorted_strategies[:20]:
-            self.top_strategies_per_ticket.setdefault(ticker, list()).append(
+            self.top_strategies_per_ticket.setdefault(ticker, []).append(
                 strategy_item[0]
             )
 
@@ -50,7 +50,7 @@ class Calibration:
             return self.ava.budget_rules[watch_list_name]["watch_list_id"]
 
         if target_watch_list_name != initial_watch_list_name:
-            log.info(f"Move ticker to suitable budget list")
+            log.info("Move ticker to suitable budget list")
 
             self.ava.ctx.add_to_watchlist(
                 ticker["order_book_id"], _get_watch_list_id(target_watch_list_name)
@@ -91,7 +91,7 @@ class Calibration:
                         if str(data.iloc[-1]["Close"]) == "nan":
                             self.ava.update_todays_ochl(data, ticker["order_book_id"])
 
-                        strategy = Strategy_TA(data)
+                        strategy = StrategyTA(data)
 
                     except Exception as e:
                         log.error(
@@ -113,7 +113,7 @@ class Calibration:
                     if target_watch_list_name != "skip":
                         self.record_strategies(ticker["ticker_yahoo"], strategy)
 
-        Strategy_TA.dump("TA", self.top_strategies_per_ticket)
+        StrategyTA.dump("TA", self.top_strategies_per_ticket)
 
         if log_to_telegram:
             TeleLog(watch_lists_analysis_log=self.logs)
