@@ -1,5 +1,4 @@
 import logging
-import platform
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
@@ -9,7 +8,8 @@ import pandas as pd
 from avanza import OrderType as Signal
 from pandas_ta.candles.cdl_pattern import ALL_PATTERNS
 
-from .utils import Context, History, Instrument, Settings, StrategyDT, TeleLog
+from module.day_trading import Instrument, StrategyDT
+from module.utils import Context, History, Settings, TeleLog
 
 log = logging.getLogger("main.day_trading_calibration")
 
@@ -318,7 +318,7 @@ class Calibration:
             self.settings["instruments"]["MONITORING"]["YAHOO"],
             "90d",
             "1m",
-            cache="append",
+            cache="reuse",
             extra_data=extra_data,
         )
 
@@ -342,9 +342,13 @@ class Calibration:
         for i, pattern in enumerate(ALL_PATTERNS):
             data, column = strategy.get_one_candlestick_pattern(pattern)
 
-            log.info(f"Pattern [{i+1}/{len(ALL_PATTERNS)}]: {column}")
+            signal_count = data[column][data[column] != 0].shape[0]
 
-            if (data[column] == 0).all():
+            log.info(f"Pattern [{i+1}/{len(ALL_PATTERNS)}]: {column} ({signal_count})")
+
+            if signal_count <= 1 or signal_count / history.data.shape[0] > 0.1:
+                log.info("> SKIP")
+
                 continue
 
             for ta_indicator_name, ta_indicator in strategy.ta_indicators.items():

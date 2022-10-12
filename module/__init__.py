@@ -1,4 +1,4 @@
-from .day_trading import run as run_day_trading
-from .day_trading_calibration import run as run_day_trading_calibration
-from .long_trading import run as run_long_trading
-from .long_trading_calibration import run as run_long_trading_calibration
+from module.day_trading.main import run as run_day_trading
+from module.day_trading.main_calibration import run as run_day_trading_calibration
+from module.long_trading.main import run as run_long_trading
+from module.long_trading.main_calibration import run as run_long_trading_calibration

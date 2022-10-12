@@ -9,9 +9,10 @@ import pandas as pd
 from avanza import OrderType as Signal
 from requests import ReadTimeout
 
-from .utils import Context, DayTime, History, Instrument, InstrumentStatus, Settings
-from .utils import StatusDT as Status
-from .utils import StrategyDT, TeleLog
+from module.day_trading import DayTime, Instrument, InstrumentStatus
+from module.day_trading import StatusDT as Status
+from module.day_trading import StrategyDT
+from module.utils import Context, History, Settings, TeleLog
 
 log = logging.getLogger("main.day_trading")
 

@@ -8,7 +8,8 @@ It will import other modules to run the analysis on the stocks -> move it to the
 import logging
 import traceback
 
-from .utils import Context, History, Settings, StrategyTA, TeleLog
+from module.long_trading import StrategyTA
+from module.utils import Context, History, Settings, TeleLog
 
 log = logging.getLogger("main.long_trading_calibration")
 
