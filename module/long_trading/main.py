@@ -208,7 +208,7 @@ class PortfolioAnalysis:
         created_orders[Signal.BUY], portfolio_tickers = self.create_buy_orders(
             portfolio_tickers
         )
-        created_orders["take_profit"] = self.create_take_profit_orders(
+        created_orders[Signal.SELL] += self.create_take_profit_orders(
             portfolio_tickers, created_orders[Signal.SELL]
         )
 
