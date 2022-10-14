@@ -284,7 +284,7 @@ class Helper:
 
         for verdict, instruments_counters in self.stats_strategy.items():
             message = (
-                f"> {verdict} ({sum([instruments_counters[i] for i in Instrument])}):"
+                f"> {verdict} ({sum([instruments_counters[i] for i in Instrument])}): "
                 + " / ".join(
                     [f"{i.name}: {instruments_counters[i]}" for i in Instrument]
                 )

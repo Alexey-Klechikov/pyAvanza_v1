@@ -282,8 +282,8 @@ class PortfolioAnalysis:
 
         if check_only_watch_list:
             log.info("Checking watch_list")
-            for watch_list_name, tickers in self.ava.watch_lists.items():
-                for ticker in tickers:
+            for watch_list_name, watch_list in self.ava.watch_lists.items():
+                for ticker in watch_list["tickers"]:
                     self.get_strategy_on_ticker(
                         ticker["ticker_yahoo"],
                         f"Watchlist ({watch_list_name}): {ticker['ticker_yahoo']}",
@@ -302,8 +302,8 @@ class PortfolioAnalysis:
                     )
 
             log.info("Checking budget_lists")
-            for budget_rule_name, watch_list_dict in self.ava.budget_rules.items():
-                for ticker in watch_list_dict["tickers"]:
+            for budget_rule_name, watch_list in self.ava.budget_rules.items():
+                for ticker in watch_list["tickers"]:
                     self.get_strategy_on_ticker(
                         ticker["ticker_yahoo"],
                         f"Budget ({budget_rule_name}K): {ticker['ticker_yahoo']}",
@@ -321,7 +321,7 @@ if __name__ == "__main__":
         print_transactions=False,
         extra_tickers_plot=[],
         plot_portfolio_tickers=False,
-        plot_total_algo_performance_vs_hold=True,
-        plot_tickers_to_act_on=True,
-        cache=True,
+        plot_total_algo_performance_vs_hold=False,
+        plot_tickers_to_act_on=False,
+        cache=False,
     )

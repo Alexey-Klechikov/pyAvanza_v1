@@ -23,12 +23,12 @@
             "trading": {
                 "budget": 3000,
                 "limits_percent": {
-                    "take_profit_super": 1.055,
-                    "take_profit": 1.05,
-                    "stop_loss": 0.955, 
+                    "take_profit_super": 1.065,
+                    "take_profit": 1.06,
+                    "stop_loss": 0.945, 
                     "stop_loss_trailing": 0.98               
                 },
-                "stop_loss_trailing_timer": 30
+                "stop_loss_trailing_timer": 45
             },
             "calibration": {
                 "update": true,

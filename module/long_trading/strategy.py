@@ -243,25 +243,7 @@ class StrategyTA:
             }
             columns_needed += ["CKSPl_10_3_20", "CKSPs_10_3_20"]
 
-        # ADX (Average Directional Movement Index)
-        data.ta.adx(append=True)
-        if _check_enough_data("DMP_14", data):
-            conditions["Trend"]["ADX"] = {
-                Signal.BUY: lambda x: x["DMP_14"] > x["DMN_14"],
-                Signal.SELL: lambda x: x["DMP_14"] < x["DMN_14"],
-            }
-            columns_needed += ["DMP_14", "DMN_14"]
-
         """ Overlap """
-        # ALMA (Arnaud Legoux Moving Average)
-        data.ta.alma(length=15, append=True)
-        if _check_enough_data("ALMA_15_6.0_0.85", data):
-            conditions["Overlap"]["ALMA"] = {
-                Signal.BUY: lambda x: x["Close"] > x["ALMA_15_6.0_0.85"],
-                Signal.SELL: lambda x: x["Close"] < x["ALMA_15_6.0_0.85"],
-            }
-            columns_needed += ["ALMA_15_6.0_0.85"]
-
         # GHLA (Gann High-Low Activator)
         data.ta.hilo(append=True)
         if _check_enough_data("HILO_13_21", data):
@@ -316,15 +298,6 @@ class StrategyTA:
             }
             columns_needed += ["CCI_20_0.015", "CCI_direction"]
 
-        # RSI (Relative Strength Index)
-        data.ta.rsi(length=14, append=True)
-        if _check_enough_data("RSI_14", data):
-            conditions["Momentum"]["RSI"] = {
-                Signal.BUY: lambda x: x["RSI_14"] > 50,
-                Signal.SELL: lambda x: x["RSI_14"] < 50,
-            }
-            columns_needed += ["RSI_14"]
-
         # RVGI (Relative Vigor Index)
         data.ta.rvgi(append=True)
         if _check_enough_data("RVGI_14_4", data):
@@ -356,15 +329,6 @@ class StrategyTA:
                 and x["STOCHk_14_3_3"] > 20,
             }
             columns_needed += ["STOCHd_14_3_3", "STOCHk_14_3_3"]
-
-        # UO (Ultimate Oscillator)
-        data.ta.uo(append=True)
-        if _check_enough_data("UO_7_14_28", data):
-            conditions["Momentum"]["UO"] = {
-                Signal.BUY: lambda x: x["UO_7_14_28"] < 30,
-                Signal.SELL: lambda x: x["UO_7_14_28"] > 70,
-            }
-            columns_needed += ["UO_7_14_28"]
 
         return data.iloc[skip_points:], conditions, columns_needed
 
