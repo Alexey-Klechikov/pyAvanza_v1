@@ -179,11 +179,10 @@ class StrategyDT:
 
         # RVI (Relative Volatility Index) (mod 2022.10.10)
         self.data.ta.rvi(length=14, append=True)
-        self.data.ta.rvi(length=17, append=True)
         ta_indicators["RVI_EMA"] = {
-            Signal.BUY: lambda x: x["RVI_17"] > 50 and x["EMA_diff"] == 1,
+            Signal.BUY: lambda x: x["RVI_14"] > 50 and x["EMA_diff"] == 1,
             Signal.SELL: lambda x: x["RVI_14"] < 45 and x["EMA_diff"] == 0,
-            "columns": ["RVI_14", "RVI_17", "EMA_diff"],
+            "columns": ["RVI_14", "EMA_diff"],
         }
 
         """ Momentum """
