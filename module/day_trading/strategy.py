@@ -101,40 +101,51 @@ class StrategyDT:
                     "columns": [],
                 }
 
+        self.data.ta.ema(length=21, append=True)
+        self.data.ta.ema(length=50, append=True)
+        self.data["EMA_diff"] = self.data.apply(
+            lambda x: 1 if x["EMA_21"] - x["EMA_50"] >= 0 else 0, axis=1
+        )
+
         """ Trend """
         # PSAR (Parabolic Stop and Reverse) (mod 2022.10.10)
         self.data.ta.psar(af=0.015, max_af=0.12, append=True)
-        ta_indicators["PSAR"] = {
-            Signal.BUY: lambda x: x["Close"] > x["PSARl_0.015_0.12"],
-            Signal.SELL: lambda x: x["Close"] < x["PSARs_0.015_0.12"],
-            "columns": ["PSARl_0.015_0.12", "PSARs_0.015_0.12"],
+        ta_indicators["PSAR_EMA"] = {
+            Signal.BUY: lambda x: x["Close"] > x["PSARl_0.015_0.12"]
+            and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["Close"] < x["PSARs_0.015_0.12"]
+            and x["EMA_diff"] == 0,
+            "columns": ["PSARl_0.015_0.12", "PSARs_0.015_0.12", "EMA_diff"],
         }
 
         """ Overlap """
         # ALMA (Arnaud Legoux Moving Average) (mod 2022.10.10)
         self.data.ta.alma(length=15, sigma=6.0, distribution_offset=0.85, append=True)
-        ta_indicators["ALMA"] = {
-            Signal.BUY: lambda x: x["Close"] > x["ALMA_15_6.0_0.85"],
-            Signal.SELL: lambda x: x["Close"] < x["ALMA_15_6.0_0.85"],
-            "columns": ["ALMA_15_6.0_0.85"],
+        ta_indicators["ALMA_EMA"] = {
+            Signal.BUY: lambda x: x["Close"] > x["ALMA_15_6.0_0.85"]
+            and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["Close"] < x["ALMA_15_6.0_0.85"]
+            and x["EMA_diff"] == 0,
+            "columns": ["ALMA_15_6.0_0.85", "EMA_diff"],
         }
 
         # GHLA (Gann High-Low Activator) (mod 2022.10.10)
         self.data.ta.hilo(high_length=11, low_length=20, append=True)
         self.data.ta.hilo(high_length=11, low_length=18, append=True)
-        ta_indicators["GHLA"] = {
-            Signal.BUY: lambda x: x["Close"] > x["HILO_11_20"],
-            Signal.SELL: lambda x: x["Close"] < x["HILO_11_18"],
-            "columns": ["HILO_11_20", "HILO_11_18"],
+        ta_indicators["GHLA_EMA"] = {
+            Signal.BUY: lambda x: x["Close"] > x["HILO_11_20"] and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["Close"] < x["HILO_11_18"] and x["EMA_diff"] == 0,
+            "columns": ["HILO_11_20", "HILO_11_18", "EMA_diff"],
         }
 
         # SUPERT (Supertrend) (mod 2022.10.09)
         self.data.ta.supertrend(length=7, multiplier=3, append=True)
         self.data.ta.supertrend(length=5, multiplier=3, append=True)
-        ta_indicators["SUPERT"] = {
-            Signal.BUY: lambda x: x["Close"] > x["SUPERT_5_3.0"],
-            Signal.SELL: lambda x: x["Close"] < x["SUPERT_7_3.0"],
-            "columns": ["SUPERT_7_3.0", "SUPERT_5_3.0"],
+        ta_indicators["SUPERT_EMA"] = {
+            Signal.BUY: lambda x: x["Close"] > x["SUPERT_5_3.0"] and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["Close"] < x["SUPERT_7_3.0"]
+            and x["EMA_diff"] == 0,
+            "columns": ["SUPERT_7_3.0", "SUPERT_5_3.0", "EMA_diff"],
         }
 
         # LINREG (Linear Regression) (mod 2022.10.10)
@@ -142,37 +153,37 @@ class StrategyDT:
         self.data["LRr_direction"] = (
             self.data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
         )
-        ta_indicators["LINREG"] = {
-            Signal.BUY: lambda x: x["LRr_direction"] == 1,
-            Signal.SELL: lambda x: x["LRr_direction"] == 0,
-            "columns": ["LRr_direction"],
+        ta_indicators["LINREG_EMA"] = {
+            Signal.BUY: lambda x: x["LRr_direction"] == 1 and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["LRr_direction"] == 0 and x["EMA_diff"] == 0,
+            "columns": ["LRr_direction", "EMA_diff"],
         }
 
         """ Volatility """
         # ACCBANDS (Acceleration Bands) (mod 2022.10.11)
         self.data.ta.accbands(length=10, append=True)
         self.data.ta.accbands(length=12, append=True)
-        ta_indicators["ACCBANDS"] = {
-            Signal.BUY: lambda x: x["Close"] > x["ACCBU_12"],
-            Signal.SELL: lambda x: x["Close"] < x["ACCBL_10"],
-            "columns": ["ACCBU_12", "ACCBL_10"],
+        ta_indicators["ACCBANDS_EMA"] = {
+            Signal.BUY: lambda x: x["Close"] > x["ACCBU_12"] and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["Close"] < x["ACCBL_10"] and x["EMA_diff"] == 0,
+            "columns": ["ACCBU_12", "ACCBL_10", "EMA_diff"],
         }
 
         # KC (Keltner Channel) (mod 2022.10.11)
         self.data.ta.kc(length=14, scalar=2.3, append=True)
-        ta_indicators["KC"] = {
-            Signal.BUY: lambda x: x["Close"] > x["KCUe_14_2.3"],
-            Signal.SELL: lambda x: x["Close"] < x["KCLe_14_2.3"],
-            "columns": ["KCLe_14_2.3", "KCUe_14_2.3"],
+        ta_indicators["KC_EMA"] = {
+            Signal.BUY: lambda x: x["Close"] > x["KCUe_14_2.3"] and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["Close"] < x["KCLe_14_2.3"] and x["EMA_diff"] == 0,
+            "columns": ["KCLe_14_2.3", "KCUe_14_2.3", "EMA_diff"],
         }
 
         # RVI (Relative Volatility Index) (mod 2022.10.10)
         self.data.ta.rvi(length=14, append=True)
         self.data.ta.rvi(length=17, append=True)
-        ta_indicators["RVI"] = {
-            Signal.BUY: lambda x: x["RVI_17"] > 50,
-            Signal.SELL: lambda x: x["RVI_14"] < 45,
-            "columns": ["RVI_14", "RVI_17"],
+        ta_indicators["RVI_EMA"] = {
+            Signal.BUY: lambda x: x["RVI_17"] > 50 and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["RVI_14"] < 45 and x["EMA_diff"] == 0,
+            "columns": ["RVI_14", "RVI_17", "EMA_diff"],
         }
 
         """ Momentum """
@@ -181,18 +192,18 @@ class StrategyDT:
         self.data["MACD_ma_diff"] = (
             self.data["MACDh_8_21_5"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
         )
-        ta_indicators["MACD"] = {
-            Signal.BUY: lambda x: x["MACD_ma_diff"] == 1,
-            Signal.SELL: lambda x: x["MACD_ma_diff"] == 0,
-            "columns": ["MACD_ma_diff"],
+        ta_indicators["MACD_EMA"] = {
+            Signal.BUY: lambda x: x["MACD_ma_diff"] == 1 and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["MACD_ma_diff"] == 0 and x["EMA_diff"] == 0,
+            "columns": ["MACD_ma_diff", "EMA_diff"],
         }
 
         # STC (Schaff Trend Cycle) (mod 2022.10.10)
         self.data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
-        ta_indicators["STC"] = {
-            Signal.BUY: lambda x: x["STC_12_14_28_0.6"] < 75,
-            Signal.SELL: lambda x: x["STC_12_14_28_0.6"] > 25,
-            "columns": ["STC_12_14_28_0.6"],
+        ta_indicators["STC_EMA"] = {
+            Signal.BUY: lambda x: x["STC_12_14_28_0.6"] < 75 and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["STC_12_14_28_0.6"] > 25 and x["EMA_diff"] == 0,
+            "columns": ["STC_12_14_28_0.6", "EMA_diff"],
         }
 
         # BOP (Balance Of Power)
@@ -202,35 +213,39 @@ class StrategyDT:
             Signal.SELL: lambda x: x["BOP"] > 0.3,
             "columns": ["BOP"],
         }
-        ta_indicators["BOP_R"] = {
-            Signal.BUY: lambda x: x["BOP"] > 0,
-            Signal.SELL: lambda x: x["BOP"] < 0,
-            "columns": ["BOP"],
+        ta_indicators["BOP(R)_EMA"] = {
+            Signal.BUY: lambda x: x["BOP"] > 0 and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["BOP"] < 0 and x["EMA_diff"] == 0,
+            "columns": ["BOP", "EMA_diff"],
         }
 
         # RSI (Relative Strength Index) (mod 2022.10.10)
         self.data.ta.rsi(length=15, append=True)
-        ta_indicators["RSI"] = {
-            Signal.BUY: lambda x: x["RSI_15"] > 50,
-            Signal.SELL: lambda x: x["RSI_15"] < 40,
-            "columns": ["RSI_15"],
+        ta_indicators["RSI_EMA"] = {
+            Signal.BUY: lambda x: x["RSI_15"] > 50 and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["RSI_15"] < 40 and x["EMA_diff"] == 0,
+            "columns": ["RSI_15", "EMA_diff"],
         }
 
         # STOCH (Stochastic Oscillator) (mod 2022.10.10)
         self.data.ta.stoch(k=6, d=4, smooth_k=3, append=True)
-        ta_indicators["STOCH"] = {
-            Signal.BUY: lambda x: x["STOCHd_6_4_3"] > 20 and x["STOCHk_6_4_3"] > 20,
-            Signal.SELL: lambda x: x["STOCHd_6_4_3"] < 80 and x["STOCHk_6_4_3"] < 80,
-            "columns": ["STOCHd_6_4_3", "STOCHk_6_4_3"],
+        ta_indicators["STOCH_EMA"] = {
+            Signal.BUY: lambda x: x["STOCHd_6_4_3"] > 20
+            and x["STOCHk_6_4_3"] > 20
+            and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["STOCHd_6_4_3"] < 80
+            and x["STOCHk_6_4_3"] < 80
+            and x["EMA_diff"] == 0,
+            "columns": ["STOCHd_6_4_3", "STOCHk_6_4_3", "EMA_diff"],
         }
 
         # UO (Ultimate Oscillator) (mod 2022.10.09)
         self.data.ta.uo(fast=7, medium=14, slow=28, append=True)
         self.data.ta.uo(fast=9, medium=18, slow=36, append=True)
-        ta_indicators["UO"] = {
-            Signal.BUY: lambda x: x["UO_7_14_28"] < 30,
-            Signal.SELL: lambda x: x["UO_9_18_36"] > 70,
-            "columns": ["UO_7_14_28", "UO_9_18_36"],
+        ta_indicators["UO_EMA"] = {
+            Signal.BUY: lambda x: x["UO_7_14_28"] < 30 and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["UO_9_18_36"] > 70 and x["EMA_diff"] == 0,
+            "columns": ["UO_7_14_28", "UO_9_18_36", "EMA_diff"],
         }
 
         return ta_indicators
