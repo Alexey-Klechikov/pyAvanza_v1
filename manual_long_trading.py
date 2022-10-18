@@ -320,7 +320,7 @@ if __name__ == "__main__":
         show_only_tickers_to_act_on=False,
         print_transactions=False,
         extra_tickers_plot=[],
-        plot_portfolio_tickers=False,
+        plot_portfolio_tickers=True,
         plot_total_algo_performance_vs_hold=False,
         plot_tickers_to_act_on=False,
         cache=False,

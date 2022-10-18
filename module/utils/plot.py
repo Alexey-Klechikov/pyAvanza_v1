@@ -160,13 +160,7 @@ class Plot:
                     color="orange",
                     panel=panel_num,
                     ylabel="LINREG",
-                ),
-                mpf.make_addplot(
-                    self.data[data_columns["LRrLag"]],
-                    color="red",
-                    panel=panel_num,
-                    secondary_y=False,
-                ),
+                )
             ]
 
             return data_columns["LRr"]
@@ -224,13 +218,7 @@ class Plot:
                     color="orange",
                     panel=panel_num,
                     ylabel="CCI",
-                ),
-                mpf.make_addplot(
-                    self.data[data_columns["CCILag"]],
-                    color="red",
-                    panel=panel_num,
-                    secondary_y=False,
-                ),
+                )
             ]
 
             return data_columns["CCI"]
@@ -288,22 +276,7 @@ class Plot:
         ## Momentum
         def _macd(panel_num: int) -> str:
             data_columns = get_data_columns("MACD")
-            plot_lim = (
-                0.9
-                * min(
-                    [
-                        self.data[data_columns[i]].min()
-                        for i in ("MACD", "MACDh", "MACDs")
-                    ]
-                ),
-                1.1
-                * max(
-                    [
-                        self.data[data_columns[i]].max()
-                        for i in ("MACD", "MACDh", "MACDs")
-                    ]
-                ),
-            )
+            plot_lim = (-0.1, 1.1)
 
             self.plots += [
                 mpf.make_addplot(
@@ -312,24 +285,7 @@ class Plot:
                     color="orange",
                     panel=panel_num,
                     ylabel="MACD",
-                ),
-                mpf.make_addplot(
-                    self.data[data_columns["MACDs"]],
-                    ylim=plot_lim,
-                    color="black",
-                    panel=panel_num,
-                    secondary_y=False,
-                ),
-                mpf.make_addplot(
-                    self.data[data_columns["MACDh"]],
-                    type="bar",
-                    width=0.7,
-                    color="dimgray",
-                    alpha=1,
-                    ylim=plot_lim,
-                    secondary_y=False,
-                    panel=panel_num,
-                ),
+                )
             ]
 
             return data_columns["MACD"]
@@ -626,7 +582,7 @@ class Plot:
                     color="black",
                     ylim=(1000 * 0.9, self.data["total"].max() * 1.1),
                     panel=0,
-                    secondary_y=False,
+                    secondary_y=True,
                 )
             )
 
@@ -638,7 +594,7 @@ class Plot:
                     markersize=100,
                     marker="o",
                     color="red",
-                    secondary_y=False,
+                    secondary_y=True,
                 )
             )
 
@@ -650,7 +606,7 @@ class Plot:
                     markersize=100,
                     marker="o",
                     color="green",
-                    secondary_y=False,
+                    secondary_y=True,
                 )
             )
 

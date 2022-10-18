@@ -182,9 +182,7 @@ class Helper:
         ):
             return
 
-        if (
-            instrument_status.spread is None or instrument_status.spread > 0.65
-        ) and self.status != "evening":
+        if instrument_status.spread is None or instrument_status.spread > 0.65:
             log.error(
                 f"{instrument_type} - (place_order) HIGH SPREAD: {instrument_status.spread}"
             )
@@ -256,16 +254,18 @@ class Helper:
         price: Optional[float],
     ) -> None:
 
-        if instrument_status.spread is None or instrument_status.spread > 0.6:
+        if price is None or instrument_status.spread is None:
+            return
+
+        if (
+            instrument_status.spread > 0.65 and self.status.day_time != DayTime.EVENING
+        ) or (instrument_status.spread > 3 and self.status.day_time == DayTime.EVENING):
             log.error(
                 f"{instrument_type} - (update_order) HIGH SPREAD: {instrument_status.spread}"
             )
 
             self.log_data["number_errors"] += 1
 
-            return
-
-        elif price is None:
             return
 
         instrument_type = instrument_status.active_order["orderbook"]["name"].split(

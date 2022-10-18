@@ -318,11 +318,11 @@ class Calibration:
             self.settings["instruments"]["MONITORING"]["YAHOO"],
             "90d",
             "1m",
-            cache="reuse",
+            cache="append",
             extra_data=extra_data,
         )
 
-        # history.data = history.data[history.data.index < "2022-10-2"]
+        # history.data = history.data[history.data.index < "2022-10-18"]
 
         strategy = StrategyDT(
             history.data,
