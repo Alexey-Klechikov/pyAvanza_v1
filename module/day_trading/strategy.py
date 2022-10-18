@@ -74,23 +74,31 @@ class StrategyDT:
     def get_ta_indicators(self) -> dict:
         ta_indicators = {}
 
+        self.data.ta.ema(length=21, append=True)
+        self.data.ta.ema(length=50, append=True)
+        self.data["EMA_diff"] = self.data.apply(
+            lambda x: 1 if x["EMA_21"] - x["EMA_50"] >= 0 else 0, axis=1
+        )
+
         """ Volume """
-        if "Volume" in self.data.columns and False:
+        if "Volume" in self.data.columns:
             # CMF (Chaikin Money Flow)
             self.data.ta.cmf(append=True)
             cmf = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
-            ta_indicators["CMF"] = {
-                Signal.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.2,
-                Signal.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.2,
-                "columns": ["CMF_20"],
+            ta_indicators["CMF_EMA"] = {
+                Signal.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.2
+                and x["EMA_diff"] == 1,
+                Signal.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.2
+                and x["EMA_diff"] == 0,
+                "columns": ["CMF_20", "EMA_diff"],
             }
 
             # EFI (Elder's Force Index)
             self.data.ta.efi(append=True)
-            ta_indicators["EFI"] = {
-                Signal.BUY: lambda x: x["EFI_13"] < 0,
-                Signal.SELL: lambda x: x["EFI_13"] > 0,
-                "columns": ["EFI_13"],
+            ta_indicators["EFI_EMA"] = {
+                Signal.BUY: lambda x: x["EFI_13"] > 0 and x["EMA_diff"] == 1,
+                Signal.SELL: lambda x: x["EFI_13"] < 0 and x["EMA_diff"] == 0,
+                "columns": ["EFI_13", "EMA_diff"],
             }
 
         else:
@@ -100,12 +108,6 @@ class StrategyDT:
                     Signal.SELL: lambda x: False,
                     "columns": [],
                 }
-
-        self.data.ta.ema(length=21, append=True)
-        self.data.ta.ema(length=50, append=True)
-        self.data["EMA_diff"] = self.data.apply(
-            lambda x: 1 if x["EMA_21"] - x["EMA_50"] >= 0 else 0, axis=1
-        )
 
         """ Trend """
         # PSAR (Parabolic Stop and Reverse) (mod 2022.10.10)
