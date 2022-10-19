@@ -86,9 +86,9 @@ class StrategyDT:
             self.data.ta.cmf(append=True)
             cmf = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
             ta_indicators["CMF_EMA"] = {
-                Signal.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.2
+                Signal.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.27
                 and x["EMA_diff"] == 1,
-                Signal.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.2
+                Signal.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.27
                 and x["EMA_diff"] == 0,
                 "columns": ["CMF_20", "EMA_diff"],
             }
