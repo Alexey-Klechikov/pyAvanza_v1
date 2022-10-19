@@ -102,7 +102,7 @@ class StrategyDT:
             }
 
         else:
-            for indicator in ["CMF", "EFI"]:
+            for indicator in ["CMF_EMA", "EFI_EMA"]:
                 ta_indicators[indicator] = {
                     Signal.BUY: lambda x: False,
                     Signal.SELL: lambda x: False,
