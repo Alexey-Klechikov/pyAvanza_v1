@@ -101,8 +101,20 @@ class StrategyDT:
                 "columns": ["EFI_13", "EMA_diff"],
             }
 
+            # ADOSC (Accumulation/Distribution Oscillator)
+            self.data["ADOSC_direction"] = (
+                self.data.ta.adosc(fast=2, slow=5)
+                .rolling(2)
+                .apply(lambda x: x.iloc[1] > x.iloc[0])
+            )
+            ta_indicators["ADOSC_EMA"] = {
+                Signal.BUY: lambda x: x["ADOSC_direction"] == 1 and x["EMA_diff"] == 1,
+                Signal.SELL: lambda x: x["ADOSC_direction"] == 0 and x["EMA_diff"] == 0,
+                "columns": ["ADOSC_direction", "EMA_diff"],
+            }
+
         else:
-            for indicator in ["CMF_EMA", "EFI_EMA"]:
+            for indicator in ["CMF_EMA", "EFI_EMA", "ADOSC_EMA"]:
                 ta_indicators[indicator] = {
                     Signal.BUY: lambda x: False,
                     Signal.SELL: lambda x: False,
@@ -118,6 +130,14 @@ class StrategyDT:
             Signal.SELL: lambda x: x["Close"] < x["PSARs_0.015_0.12"]
             and x["EMA_diff"] == 0,
             "columns": ["PSARl_0.015_0.12", "PSARs_0.015_0.12", "EMA_diff"],
+        }
+
+        # AROON (Aroon Indicator) (mod 2022.10.19)
+        self.data.ta.aroon(length=12, append=True)
+        ta_indicators["AROON_EMA"] = {
+            Signal.BUY: lambda x: x["AROONOSC_12"] > 0 and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["AROONOSC_12"] < 0 and x["EMA_diff"] == 0,
+            "columns": ["AROONOSC_12", "EMA_diff"],
         }
 
         """ Overlap """

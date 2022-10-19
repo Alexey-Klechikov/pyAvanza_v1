@@ -28,7 +28,7 @@
                     "stop_loss": 0.95, 
                     "stop_loss_trailing": 0.98               
                 },
-                "stop_loss_trailing_timer": 45
+                "stop_loss_trailing_timer": 75
             },
             "calibration": {
                 "update": true,
