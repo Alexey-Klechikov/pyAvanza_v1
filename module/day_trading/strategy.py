@@ -82,25 +82,26 @@ class StrategyDT:
 
         """ Volume """
         if "Volume" in self.data.columns:
+            """-> Yet unreliable
             # CMF (Chaikin Money Flow)
-            self.data.ta.cmf(append=True)
-            cmf = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
+            self.data.ta.cmf(length=24, append=True)
+            cmf = {"max": self.data["CMF_24"].max(), "min": self.data["CMF_24"].min()}
             ta_indicators["CMF_EMA"] = {
-                Signal.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.27
+                Signal.BUY: lambda x: x["CMF_24"] > cmf["max"] * 0.27
                 and x["EMA_diff"] == 1,
-                Signal.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.27
+                Signal.SELL: lambda x: x["CMF_24"] < cmf["min"] * 0.27
                 and x["EMA_diff"] == 0,
-                "columns": ["CMF_20", "EMA_diff"],
+                "columns": ["CMF_24", "EMA_diff"],
             }
 
             # EFI (Elder's Force Index)
-            self.data.ta.efi(append=True)
+            self.data.ta.efi(length=15, mamode="dema", append=True)
             ta_indicators["EFI_EMA"] = {
-                Signal.BUY: lambda x: x["EFI_13"] > 0 and x["EMA_diff"] == 1,
-                Signal.SELL: lambda x: x["EFI_13"] < 0 and x["EMA_diff"] == 0,
-                "columns": ["EFI_13", "EMA_diff"],
+                Signal.BUY: lambda x: x["EFI_15"] > 0 and x["EMA_diff"] == 1,
+                Signal.SELL: lambda x: x["EFI_15"] < 0 and x["EMA_diff"] == 0,
+                "columns": ["EFI_15", "EMA_diff"],
             }
-
+            """
             # ADOSC (Accumulation/Distribution Oscillator)
             self.data["ADOSC_direction"] = (
                 self.data.ta.adosc(fast=2, slow=5)
@@ -114,7 +115,7 @@ class StrategyDT:
             }
 
         else:
-            for indicator in ["CMF_EMA", "EFI_EMA", "ADOSC_EMA"]:
+            for indicator in ["ADOSC_EMA"]:
                 ta_indicators[indicator] = {
                     Signal.BUY: lambda x: False,
                     Signal.SELL: lambda x: False,
@@ -189,14 +190,6 @@ class StrategyDT:
             Signal.BUY: lambda x: x["Close"] > x["ACCBU_12"] and x["EMA_diff"] == 1,
             Signal.SELL: lambda x: x["Close"] < x["ACCBL_10"] and x["EMA_diff"] == 0,
             "columns": ["ACCBU_12", "ACCBL_10", "EMA_diff"],
-        }
-
-        # KC (Keltner Channel) (mod 2022.10.11)
-        self.data.ta.kc(length=14, scalar=2.3, append=True)
-        ta_indicators["KC_EMA"] = {
-            Signal.BUY: lambda x: x["Close"] > x["KCUe_14_2.3"] and x["EMA_diff"] == 1,
-            Signal.SELL: lambda x: x["Close"] < x["KCLe_14_2.3"] and x["EMA_diff"] == 0,
-            "columns": ["KCLe_14_2.3", "KCUe_14_2.3", "EMA_diff"],
         }
 
         # RVI (Relative Volatility Index) (mod 2022.10.10)

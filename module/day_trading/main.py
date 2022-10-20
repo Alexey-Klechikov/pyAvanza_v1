@@ -110,7 +110,7 @@ class Helper:
 
             if cs_signal == ta_signal == instrument_type:
                 log.warning(
-                    f">>> {instrument_type} - {ta_indicator}-{cs_pattern} at {str(row.name)[:-9]}"
+                    f">>> {instrument_type} - {ta_indicator}-{cs_pattern} at {str(row.name)[11:-9]} ({round(row['Close'], 2)})"
                 )
                 return True
 
