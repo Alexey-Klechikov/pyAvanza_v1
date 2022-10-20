@@ -291,6 +291,21 @@ class Helper:
 
             log.info(telelog_message[-1])
 
+        efficiency_percent = round(
+            sum([self.stats_strategy["good"][i] for i in Instrument])
+            / sum(
+                [
+                    sum([stats[i] for i in Instrument])
+                    for stats in self.stats_strategy.values()
+                ]
+            )
+            * 100
+        )
+
+        telelog_message.append(f">> {efficiency_percent} %")
+
+        log.info(telelog_message[-1])
+
         return telelog_message
 
 
