@@ -30,7 +30,7 @@ class CalibrationOrder:
         self.time_buy = index
 
         self.on_balance = True
-        self.price_buy = ((row["Low"] + row["High"]) / 2) * (
+        self.price_buy = ((row["Open"] + row["Close"]) / 2) * (
             1.00015 if self.instrument == Instrument.BULL else 0.99985
         )
 
@@ -63,7 +63,7 @@ class CalibrationOrder:
                 self.price_buy if self.price_buy is not None else take_profit_normalized
             )
 
-        self.price_sell = (row["Low"] + row["High"]) / 2
+        self.price_sell = (row["Close"] + row["Open"]) / 2
 
         if (
             self.price_sell <= stop_loss_normalized
@@ -178,10 +178,7 @@ class Helper:
             if not instrument_order.on_balance:
                 continue
 
-            enforce = (
-                enforce_sell_instrument is not None
-                and enforce_sell_instrument == instrument
-            )
+            enforce = enforce_sell_instrument == instrument
 
             instrument_order.sell(row, index, enforce)
 
@@ -357,6 +354,16 @@ class Calibration:
                 for index, row in data[
                     ["High", "Low", "Open", "Close", column] + ta_indicator["columns"]
                 ].iterrows():
+                    if index.time().hour == 9:
+                        continue
+
+                    elif index.time().hour == 17 and index.time().minute >= 25:
+                        for instrument in Instrument:
+                            helper.sell_order(
+                                index, row, enforce_sell_instrument=instrument
+                            )
+
+                        continue
 
                     instrument_buy = helper.buy_order(last_candle_signal, index, row)
                     if instrument_buy is not None:
@@ -406,10 +413,25 @@ class Calibration:
         signals: list = []
 
         for index, row in strategy.data.iterrows():
-            instrument_buy = helper.buy_order(None if not signals else signals[-1], index, row, is_realistic=True)  # type: ignore
+            time_index: datetime = index.time()  # type: ignore
 
-            if instrument_buy is None:
-                helper.sell_order(index, row)  # type: ignore
+            # Manage orders
+            if time_index.hour == 17 and time_index.minute >= 25:
+                for instrument in Instrument:
+                    helper.sell_order(
+                        time_index, row, enforce_sell_instrument=instrument
+                    )
+
+            else:
+                instrument_buy = helper.buy_order(
+                    None if not signals else signals[-1],
+                    time_index,
+                    row,
+                    is_realistic=True,
+                )
+
+                if instrument_buy is None:
+                    helper.sell_order(time_index, row)
 
             if helper.orders_history:
                 last_order = helper.orders_history.pop()
@@ -418,34 +440,36 @@ class Calibration:
                     f"{str(index)[5:16]} / {round(row['Close'], 2)} -> {last_order['instrument']}: {last_order['verdict']}"
                 )
 
+            # Get signal
             signal_result = None
 
-            for instrument in Instrument:
-                for ta_indicator_name, ta_indicator in strategy.ta_indicators.items():
-                    cs_columns = strategies[instrument].get(ta_indicator_name, [])
+            if time_index.hour > 9:
+                for instrument in Instrument:
+                    for (
+                        ta_indicator_name,
+                        ta_indicator,
+                    ) in strategy.ta_indicators.items():
+                        cs_columns = strategies[instrument].get(ta_indicator_name, [])
 
-                    for cs_column in cs_columns:
-                        signal = helper.get_signal(
-                            row[cs_column], ta_indicator, row  # type: ignore
-                        )
+                        for cs_column in cs_columns:
+                            signal = helper.get_signal(
+                                row[cs_column], ta_indicator, row  # type: ignore
+                            )
 
-                        if signal is not None and (
-                            signal
-                            == (
+                            if signal == (
                                 Signal.BUY
                                 if instrument == Instrument.BULL
                                 else Signal.SELL
-                            )
-                        ):
-                            strategy_name = (
-                                f"{cs_column} + {ta_indicator_name} - {instrument}"
-                            )
+                            ):
+                                strategy_name = (
+                                    f"{cs_column} + {ta_indicator_name} - {instrument}"
+                                )
 
-                            log.warning(
-                                f"{str(index)[5:16]} / {round(row['Close'], 2)} / {strategy_name} ({strategies_efficiency.get(strategy_name, '?')} %)"
-                            )
+                                log.warning(
+                                    f"{str(index)[5:16]} / {round(row['Close'], 2)} / {strategy_name} ({strategies_efficiency.get(strategy_name, '?')} %)"
+                                )
 
-                            signal_result = signal
+                                signal_result = signal
 
             signals.append(signal_result)
 
