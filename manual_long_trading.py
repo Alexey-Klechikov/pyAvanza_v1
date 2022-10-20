@@ -5,12 +5,12 @@ This module is used for manual runs (checkups, improvements, tests)
 
 import logging
 import traceback
+
 import pandas as pd
 from avanza import OrderType as Signal
 
-from module.utils import Plot, Logger, History, Context, Settings
 from module.long_trading import StrategyTA
-
+from module.utils import Context, History, Logger, Plot, Settings
 
 log = logging.getLogger("main")
 

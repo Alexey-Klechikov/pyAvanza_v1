@@ -3,9 +3,8 @@ This module is used for automated runs (cron)
 """
 
 
-from module.utils import Logger
 from module import run_day_trading_calibration
-
+from module.utils import Logger
 
 if __name__ == "__main__":
     log = Logger(

@@ -129,14 +129,6 @@ class Helper:
             self.settings["instruments"]["MONITORING"]["AVA"]
         )
 
-        if self.status.day_time == DayTime.MORNING_TRANSITION:
-            history = History(
-                self.settings["instruments"]["MONITORING"]["YAHOO"],
-                "2d",
-                "1m",
-                cache="skip",
-            ).data[["Open", "High", "Low", "Close"]]
-
         strategy = StrategyDT(
             history,
             order_price_limits=self.settings["trading"]["limits_percent"],

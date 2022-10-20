@@ -16,7 +16,6 @@ log = logging.getLogger("main.utils.status_dt")
 
 class DayTime(str, Enum):
     MORNING = "morning"  # No trading
-    MORNING_TRANSITION = "morning_transition"  # Trading starts (use YAHOO data)
     DAY = "day"  # Use AVA data
     EVENING_TRANSITION = "evening_transition"  # Market is closing, but certificates are still tradable. Pause trading while high spread and gaps.
     EVENING = "evening"  #  Market is closing. No buy orders, only sell.
@@ -208,13 +207,10 @@ class StatusDT:
         current_time = datetime.now()
         old_day_time = self.day_time
 
-        if current_time <= current_time.replace(hour=9, minute=0):
+        if current_time <= current_time.replace(hour=10, minute=0):
             self.day_time = DayTime.MORNING
 
             time.sleep(60)
-
-        elif current_time <= current_time.replace(hour=10, minute=0):
-            self.day_time = DayTime.MORNING_TRANSITION
 
         else:
             self.day_time = DayTime.DAY
