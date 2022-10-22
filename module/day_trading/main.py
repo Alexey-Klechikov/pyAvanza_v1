@@ -118,7 +118,7 @@ class Helper:
 
     def _update_budget(self) -> None:
         own_capital = self.ava.get_portfolio().total_own_capital
-        floating_budget = (own_capital // 1000 - 1) * 1000
+        floating_budget = (own_capital // 500 - 1) * 500
 
         self.settings["trading"]["budget"] = max(
             floating_budget, self.settings["trading"]["budget"]

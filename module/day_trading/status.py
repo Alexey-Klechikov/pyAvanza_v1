@@ -157,9 +157,9 @@ class InstrumentStatus:
         )
 
     def set_trailing_stop_loss_after_timer(
-        self, stop_loss_trailing_timer: Union[int, str]
+        self, stop_loss_trailing_timer: Optional[Union[int, str]]
     ) -> None:
-        if self.buy_time is None:
+        if self.buy_time is None or stop_loss_trailing_timer is None:
             return
 
         if self.stop_loss_trailing_is_active:
