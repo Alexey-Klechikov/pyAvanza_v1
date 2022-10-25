@@ -67,50 +67,56 @@ class Helper:
         strategies: dict,
         instrument_type: Instrument,
     ) -> bool:
-        def _get_ta_signal(row: pd.Series, ta_indicator: str) -> Optional[Instrument]:
-            ta_signal = None
+        def _get_trend_direction(row: pd.Series) -> Instrument:
+            return Instrument.BULL if row["TREND"] == 1 else Instrument.BEAR
 
-            if strategy.ta_indicators[ta_indicator][Signal.BUY](row):
-                ta_signal = Instrument.BULL
+        def _get_signal_ta(row: pd.Series, indicator_ta: str) -> Optional[Instrument]:
+            signal_ta = None
 
-            elif strategy.ta_indicators[ta_indicator][Signal.SELL](row):
-                ta_signal = Instrument.BEAR
+            if strategy.ta_indicators[indicator_ta][Signal.BUY](row):
+                signal_ta = Instrument.BULL
 
-            return ta_signal
+            elif strategy.ta_indicators[indicator_ta][Signal.SELL](row):
+                signal_ta = Instrument.BEAR
 
-        def _get_cs_signal(
+            return signal_ta
+
+        def _get_signal_cs(
             row: pd.Series, patterns: list
         ) -> Tuple[Optional[Instrument], Optional[str]]:
-            cs_signal, cs_pattern = None, None
+            signal_cs, pattern_cs = None, None
 
             for pattern in patterns:
                 if row[pattern] > 0:
-                    cs_signal = Instrument.BULL
+                    signal_cs = Instrument.BULL
                 elif row[pattern] < 0:
-                    cs_signal = Instrument.BEAR
+                    signal_cs = Instrument.BEAR
 
-                if cs_signal is not None:
-                    cs_pattern = pattern
+                if signal_cs is not None:
+                    pattern_cs = pattern
                     break
 
-            return cs_signal, cs_pattern
+            return signal_cs, pattern_cs
 
-        ta_indicator, cs_pattern = None, None
-        for ta_indicator in strategies:
-            ta_signal = _get_ta_signal(row, ta_indicator)
-            if ta_signal is None:
+        if instrument_type != _get_trend_direction(row):
+            return False
+
+        indicator_ta, pattern_cs = None, None
+        for indicator_ta in strategies:
+            signal_ta = _get_signal_ta(row, indicator_ta)
+            if signal_ta is None:
                 continue
 
-            cs_signal, cs_pattern = _get_cs_signal(
+            signal_cs, pattern_cs = _get_signal_cs(
                 row,
-                strategies.get(ta_indicator, []),
+                strategies.get(indicator_ta, []),
             )
-            if cs_signal is None:
+            if signal_cs is None:
                 continue
 
-            if cs_signal == ta_signal == instrument_type:
+            if signal_cs == signal_ta:
                 log.warning(
-                    f">>> {instrument_type} - {ta_indicator}-{cs_pattern} at {str(row.name)[11:-9]} ({round(row['Close'], 2)})"
+                    f">>> {instrument_type} - {indicator_ta}-{pattern_cs} at {str(row.name)[11:-9]} ({round(row['Close'], 2)})"
                 )
                 return True
 

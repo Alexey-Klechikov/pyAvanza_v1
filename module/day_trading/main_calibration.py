@@ -189,17 +189,28 @@ class Helper:
             self.orders_history.append(instrument_order.pop_result())
 
     def get_signal(
-        self, value: int, ta_indicator: dict, row: pd.Series
+        self,
+        cs_column: str,
+        ta_indicator: dict,
+        row: pd.Series,
     ) -> Optional[Signal]:
-        signal: Optional[Signal] = None
+        # Candlestick
+        if row[cs_column] == 0:
+            return None
 
-        if value > 0 and ta_indicator[Signal.BUY](row):
-            signal = Signal.BUY
+        signal_cs: Optional[Signal] = Signal.BUY if row[cs_column] > 0 else Signal.SELL
 
-        elif value < 0 and ta_indicator[Signal.SELL](row):
-            signal = Signal.SELL
+        # Trend
+        signal_trend: Optional[Signal] = (
+            Signal.BUY if row["TREND"] == 1 else Signal.SELL
+        )
 
-        return signal
+        # Indicator
+        signal_ta: Optional[Signal] = (
+            signal_cs if ta_indicator[signal_cs](row) else None
+        )
+
+        return signal_cs if (signal_cs == signal_ta == signal_trend) else None
 
     # Update_strategies functions
     def save_strategy(self, ta_indicator_name: str, column: str) -> None:
@@ -351,12 +362,14 @@ class Calibration:
             + f"({len([i for i in daily_volumes if i > 0])} / {len(daily_volumes)} days with Volume)"
         )
 
-        for i, pattern in enumerate(ALL_PATTERNS):
-            data, column = strategy.get_one_candlestick_pattern(pattern)
+        for i, cs_column in enumerate(ALL_PATTERNS):
+            data, cs_column = strategy.get_one_candlestick_pattern(cs_column)
 
-            signal_count = data[column][data[column] != 0].shape[0]
+            signal_count = data[cs_column][data[cs_column] != 0].shape[0]
 
-            log.info(f"Pattern [{i+1}/{len(ALL_PATTERNS)}]: {column} ({signal_count})")
+            log.info(
+                f"Pattern [{i+1}/{len(ALL_PATTERNS)}]: {cs_column} ({signal_count})"
+            )
 
             if signal_count <= 1 or signal_count / history.data.shape[0] > 0.1:
                 log.info("> SKIP")
@@ -367,7 +380,8 @@ class Calibration:
                 last_candle_signal = None
 
                 for index, row in data[
-                    ["High", "Low", "Open", "Close", column] + ta_indicator["columns"]
+                    ["High", "Low", "Open", "Close", cs_column, "TREND"]
+                    + ta_indicator["columns"]
                 ].iterrows():
                     if index.time().hour == 9:
                         continue
@@ -386,16 +400,14 @@ class Calibration:
 
                     helper.sell_order(index, row)
 
-                    last_candle_signal = helper.get_signal(
-                        row[column], ta_indicator, row
-                    )
+                    last_candle_signal = helper.get_signal(cs_column, ta_indicator, row)
 
                 helper.save_strategy(
                     ta_indicator_name,
-                    column,
+                    cs_column,
                 )
 
-                helper.save_stats_patterns(column)
+                helper.save_stats_patterns(cs_column)
 
         strategy.dump("DT", helper.filtered_strategies)
 
@@ -467,9 +479,7 @@ class Calibration:
                         cs_columns = strategies[instrument].get(ta_indicator_name, [])
 
                         for cs_column in cs_columns:
-                            signal = helper.get_signal(
-                                row[cs_column], ta_indicator, row  # type: ignore
-                            )
+                            signal = helper.get_signal(cs_column, ta_indicator, row)
 
                             if signal == (
                                 Signal.BUY
