@@ -222,10 +222,10 @@ class StrategyDT:
 
         # BOP (Balance Of Power)
         self.data.ta.bop(append=True)
-        ta_indicators["BOP"] = {
-            Signal.BUY: lambda x: x["BOP"] < -0.25,
-            Signal.SELL: lambda x: x["BOP"] > 0.3,
-            "columns": ["BOP"],
+        ta_indicators["BOP_EMA"] = {
+            Signal.BUY: lambda x: x["BOP"] < -0.25 and x["EMA_diff"] == 1,
+            Signal.SELL: lambda x: x["BOP"] > 0.3 and x["EMA_diff"] == 0,
+            "columns": ["BOP", "EMA_diff"],
         }
         ta_indicators["BOP(R)_EMA"] = {
             Signal.BUY: lambda x: x["BOP"] > 0 and x["EMA_diff"] == 1,
