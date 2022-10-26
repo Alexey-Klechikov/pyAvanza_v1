@@ -188,7 +188,7 @@ class InstrumentStatus:
                 trade_success_status = "( - )"
 
             log.warning(
-                f"<<< {self.instrument_type} - Trade is complete {trade_success_status}"
+                f"<<< ({self.price_current}) {self.instrument_type} - Trade is complete {trade_success_status}"
             )
 
             return True

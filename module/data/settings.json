@@ -32,7 +32,7 @@
             },
             "calibration": {
                 "update": true,
-                "success_limit": 62
+                "success_limit": 63
             },
             "instruments": {
                 "multiplier": 20,

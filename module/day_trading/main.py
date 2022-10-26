@@ -116,7 +116,7 @@ class Helper:
 
             if signal_cs == signal_ta:
                 log.warning(
-                    f">>> {instrument_type} - {indicator_ta}-{pattern_cs} at {str(row.name)[11:-9]} ({round(row['Close'], 2)})"
+                    f">>> ({round(row['Close'], 2)}) {instrument_type} - {indicator_ta}-{pattern_cs} at {str(row.name)[11:-9]}"
                 )
                 return True
 
@@ -130,7 +130,7 @@ class Helper:
             floating_budget, self.settings["trading"]["budget"]
         )
 
-    def get_signal(self, strategies: dict, instrument_type: Instrument) -> bool:
+    def get_signal_is_buy(self, strategies: dict, instrument_type: Instrument) -> bool:
         history = self.ava.get_today_history(
             self.settings["instruments"]["MONITORING"]["AVA"]
         )
@@ -276,6 +276,9 @@ class Helper:
 
         self.ava.update_order(instrument_status.active_order, price)
 
+    def delete_order(self) -> None:
+        self.ava.remove_active_orders(account_ids=self.settings["accounts"]["DT"])
+
     def add_std_output_message(self, instrument_type: str) -> None:
         instrument_status = getattr(self.status, instrument_type)
 
@@ -303,88 +306,43 @@ class Day_Trading:
 
                 self.helper.ava.ctx = self.helper.ava.get_ctx(user)
 
-    def check_instrument_for_buy_action(
-        self, strategies: dict, instrument_type: Instrument
-    ) -> None:
-        main_instrument_type = instrument_type
-        main_instrument_status = self.helper.update_instrument_status(
-            main_instrument_type
-        )
-        main_instrument_price_buy = self.helper.ava.get_certificate_info(
-            self.settings["instruments"]["TRADING"][main_instrument_type]
-        ).get(Signal.BUY)
-        main_instrument_signal_buy = self.helper.get_signal(
-            strategies, main_instrument_type
-        )
+    def buy_instrument(self, instrument_type: Instrument) -> None:
+        instrument_status = self.helper.update_instrument_status(instrument_type)
 
-        if not main_instrument_signal_buy:
-            return
-
-        other_instrument_type: Instrument = (
-            Instrument.BEAR
-            if main_instrument_type == Instrument.BULL
-            else Instrument.BULL
-        )
-        other_instrument_status = self.helper.update_instrument_status(
-            other_instrument_type
-        )
-
-        # action for other instrument
-        if other_instrument_status.has_position:
-            other_instrument_price_sell = self.helper.ava.get_certificate_info(
-                self.settings["instruments"]["TRADING"][other_instrument_type]
-            ).get(Signal.SELL)
-
-            self.helper.update_order(
-                Signal.SELL,
-                other_instrument_type,
-                other_instrument_status,
-                other_instrument_price_sell,
-            )
-            time.sleep(1)
-
-            other_instrument_status = self.helper.update_instrument_status(
-                other_instrument_type
-            )
-
-            if other_instrument_status.has_position:
-                return
-
-        # action for main instrument
-        if main_instrument_status.has_position:
+        if instrument_status.has_position:
             """HERE: I currently don't test for this scenario, so let's pass on it for now
             self.helper.status.update_instrument_trading_limits(
-                main_instrument_type, main_instrument_price_buy
+                instrument_type, instrument_price_buy
             )
             """
 
-        elif main_instrument_status.active_order:
+        elif instrument_status.active_order:
+            instrument_price_buy = self.helper.ava.get_certificate_info(
+                self.settings["instruments"]["TRADING"][instrument_type]
+            ).get(Signal.BUY)
+
             self.helper.update_order(
                 Signal.BUY,
-                main_instrument_type,
-                main_instrument_status,
-                main_instrument_price_buy,
+                instrument_type,
+                instrument_status,
+                instrument_price_buy,
             )
 
         else:
-            self.helper.place_order(
-                Signal.BUY, main_instrument_type, main_instrument_status
-            )
+            self.helper.place_order(Signal.BUY, instrument_type, instrument_status)
 
-    def check_instrument_for_sell_action(
+    def sell_instrument(
         self, instrument_type: Instrument, enforce_sell_bool: bool = False
     ) -> None:
         instrument_status = self.helper.update_instrument_status(instrument_type)
 
-        if not instrument_status.has_position:
-            return
+        if not instrument_status.has_position and instrument_status.active_order:
+            self.helper.delete_order()
 
-        # Create sell orders (take_profit)
-        if not instrument_status.active_order:
+        elif instrument_status.has_position and not instrument_status.active_order:
             self.helper.place_order(Signal.SELL, instrument_type, instrument_status)
 
-        # Update sell order (if hit stop_loss / enforced / trailing_stop_loss initiated, so price_take_profit has changed)
-        else:
+        if instrument_status.has_position and instrument_status.active_order:
             price_sell = None
             current_price_sell = self.helper.ava.get_certificate_info(
                 self.settings["instruments"]["TRADING"][instrument_type]
@@ -437,9 +395,20 @@ class Day_Trading:
             for instrument_type in Instrument:
 
                 if self.helper.status.day_time != DayTime.EVENING:
-                    self.check_instrument_for_buy_action(strategies, instrument_type)
 
-                self.check_instrument_for_sell_action(instrument_type)
+                    if not self.helper.get_signal_is_buy(strategies, instrument_type):
+                        return
+
+                    self.sell_instrument(
+                        Instrument.BEAR
+                        if instrument_type == Instrument.BULL
+                        else Instrument.BULL,
+                        enforce_sell_bool=True,
+                    )
+
+                    self.buy_instrument(instrument_type)
+
+                self.sell_instrument(instrument_type)
 
                 self.helper.add_std_output_message(instrument_type)
 

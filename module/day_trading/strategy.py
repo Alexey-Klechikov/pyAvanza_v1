@@ -10,6 +10,7 @@ import warnings
 from json import JSONDecodeError
 from typing import Tuple
 
+import numpy as np
 import pandas as pd
 from avanza import OrderType as Signal
 
@@ -74,11 +75,19 @@ class StrategyDT:
     def get_ta_indicators(self) -> dict:
         ta_indicators = {}
 
-        self.data.ta.dema(length=31, append=True)
-        self.data.ta.dema(length=10, append=True)
-        self.data["TREND"] = self.data.apply(
-            lambda x: 1 if x["DEMA_31"] >= x["DEMA_10"] else -1, axis=1
-        )
+        self.data.ta.dema(length=15, append=True)
+        for long_dema_len in range(40, 30, -1):
+            self.data.ta.dema(length=long_dema_len, append=True)
+
+            if np.isnan(self.data.iloc[-1][f"DEMA_{long_dema_len}"]):
+                continue
+
+            self.data["TREND"] = self.data.apply(
+                lambda x: 1 if x[f"DEMA_{long_dema_len}"] >= x["DEMA_15"] else -1,
+                axis=1,
+            )
+
+            break
 
         """ Volume """
         if "Volume" in self.data.columns:
