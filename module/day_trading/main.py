@@ -277,7 +277,7 @@ class Helper:
         self.ava.update_order(instrument_status.active_order, price)
 
     def delete_order(self) -> None:
-        self.ava.remove_active_orders(account_ids=self.settings["accounts"]["DT"])
+        self.ava.remove_active_orders(account_ids=[self.settings["accounts"]["DT"]])
 
     def add_std_output_message(self, instrument_type: str) -> None:
         instrument_status = getattr(self.status, instrument_type)
@@ -394,10 +394,10 @@ class Day_Trading:
             # Walk through instruments
             for instrument_type in Instrument:
 
-                if self.helper.status.day_time != DayTime.EVENING:
-
-                    if not self.helper.get_signal_is_buy(strategies, instrument_type):
-                        return
+                if (
+                    self.helper.status.day_time != DayTime.EVENING
+                    and self.helper.get_signal_is_buy(strategies, instrument_type)
+                ):
 
                     self.sell_instrument(
                         Instrument.BEAR
