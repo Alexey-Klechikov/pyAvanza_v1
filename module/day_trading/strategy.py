@@ -94,7 +94,7 @@ class StrategyDT:
             # CMF (Chaikin Money Flow)
             self.data.ta.cmf(length=20, append=True)
             ta_indicators["CMF"] = {
-                Signal.BUY: lambda x: x["CMF_24"] > 0,
+                Signal.BUY: lambda x: x["CMF_20"] > 0,
                 Signal.SELL: lambda x: x["CMF_24"] < 0,
                 "columns": ["CMF_24"],
             }
