@@ -250,6 +250,7 @@ class Helper:
         instrument_type: Instrument,
         instrument_status: InstrumentStatus,
         price: Optional[float],
+        enforce_sell_bool: bool = False,
     ) -> None:
 
         if price is None or instrument_status.spread is None:
@@ -271,7 +272,7 @@ class Helper:
         )[0]
 
         log.info(
-            f'{instrument_type} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price}'
+            f'{instrument_type} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price} {"(Enforce)" if enforce_sell_bool else ""}'
         )
 
         self.ava.update_order(instrument_status.active_order, price)
@@ -307,62 +308,72 @@ class Day_Trading:
                 self.helper.ava.ctx = self.helper.ava.get_ctx(user)
 
     def buy_instrument(self, instrument_type: Instrument) -> None:
-        instrument_status = self.helper.update_instrument_status(instrument_type)
+        for _ in range(3):
+            instrument_status = self.helper.update_instrument_status(instrument_type)
 
-        if instrument_status.has_position:
-            """HERE: I currently don't test for this scenario, so let's pass on it for now
-            self.helper.status.update_instrument_trading_limits(
-                instrument_type, instrument_price_buy
-            )
-            """
+            if instrument_status.has_position:
+                return
 
-        elif instrument_status.active_order:
-            instrument_price_buy = self.helper.ava.get_certificate_info(
-                self.settings["instruments"]["TRADING"][instrument_type]
-            ).get(Signal.BUY)
+            elif instrument_status.active_order:
+                instrument_price_buy = self.helper.ava.get_certificate_info(
+                    self.settings["instruments"]["TRADING"][instrument_type]
+                ).get(Signal.BUY)
 
-            self.helper.update_order(
-                Signal.BUY,
-                instrument_type,
-                instrument_status,
-                instrument_price_buy,
-            )
+                self.helper.update_order(
+                    Signal.BUY,
+                    instrument_type,
+                    instrument_status,
+                    instrument_price_buy,
+                )
 
-        else:
-            self.helper.place_order(Signal.BUY, instrument_type, instrument_status)
+            else:
+                self.helper.place_order(Signal.BUY, instrument_type, instrument_status)
+
+            time.sleep(2)
 
     def sell_instrument(
         self, instrument_type: Instrument, enforce_sell_bool: bool = False
     ) -> None:
-        instrument_status = self.helper.update_instrument_status(instrument_type)
+        for _ in range(3):
+            instrument_status = self.helper.update_instrument_status(instrument_type)
 
-        if not instrument_status.has_position and instrument_status.active_order:
-            self.helper.delete_order()
-
-        elif instrument_status.has_position and not instrument_status.active_order:
-            self.helper.place_order(Signal.SELL, instrument_type, instrument_status)
-
-        if instrument_status.has_position and instrument_status.active_order:
-            price_sell = None
-            current_price_sell = self.helper.ava.get_certificate_info(
-                self.settings["instruments"]["TRADING"][instrument_type]
-            )[Signal.SELL]
-
-            if any(
-                [
-                    current_price_sell <= instrument_status.price_stop_loss,
-                    current_price_sell >= instrument_status.price_take_profit,
-                    enforce_sell_bool,
-                ]
+            if (
+                not instrument_status.has_position
+                and not instrument_status.active_order
             ):
-                price_sell = current_price_sell
+                return
 
-            self.helper.update_order(
-                Signal.SELL,
-                instrument_type,
-                instrument_status,
-                price_sell,
-            )
+            elif not instrument_status.has_position and instrument_status.active_order:
+                self.helper.delete_order()
+
+            elif instrument_status.has_position and not instrument_status.active_order:
+                self.helper.place_order(Signal.SELL, instrument_type, instrument_status)
+
+            # Update order
+            if instrument_status.has_position and instrument_status.active_order:
+                price_sell = None
+                current_price_sell = self.helper.ava.get_certificate_info(
+                    self.settings["instruments"]["TRADING"][instrument_type]
+                )[Signal.SELL]
+
+                if any(
+                    [
+                        current_price_sell <= instrument_status.price_stop_loss,
+                        current_price_sell >= instrument_status.price_take_profit,
+                        enforce_sell_bool,
+                    ]
+                ):
+                    price_sell = current_price_sell
+
+                self.helper.update_order(
+                    Signal.SELL,
+                    instrument_type,
+                    instrument_status,
+                    price_sell,
+                    enforce_sell_bool,
+                )
+
+            time.sleep(2)
 
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:

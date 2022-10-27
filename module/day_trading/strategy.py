@@ -75,7 +75,7 @@ class StrategyDT:
     def get_ta_indicators(self) -> dict:
         ta_indicators = {}
 
-        self.data.ta.dema(length=15, append=True)
+        self.data.ta.dema(length=20, append=True)
         for long_dema_len in range(40, 30, -1):
             self.data.ta.dema(length=long_dema_len, append=True)
 
@@ -83,7 +83,7 @@ class StrategyDT:
                 continue
 
             self.data["TREND"] = self.data.apply(
-                lambda x: 1 if x[f"DEMA_{long_dema_len}"] >= x["DEMA_15"] else -1,
+                lambda x: 1 if x["DEMA_20"] >= x[f"DEMA_{long_dema_len}"] else -1,
                 axis=1,
             )
 
@@ -91,18 +91,13 @@ class StrategyDT:
 
         """ Volume """
         if "Volume" in self.data.columns:
-            """
             # CMF (Chaikin Money Flow)
-            self.data.ta.cmf(length=24, append=True)
-            cmf = {"max": self.data["CMF_24"].max(), "min": self.data["CMF_24"].min()}
+            self.data.ta.cmf(length=20, append=True)
             ta_indicators["CMF"] = {
-                Signal.BUY: lambda x: x["CMF_24"] > cmf["max"] * 0.27
-               ,
-                Signal.SELL: lambda x: x["CMF_24"] < cmf["min"] * 0.27
-               ,
+                Signal.BUY: lambda x: x["CMF_24"] > 0,
+                Signal.SELL: lambda x: x["CMF_24"] < 0,
                 "columns": ["CMF_24"],
             }
-            """
 
             # EFI (Elder's Force Index)
             self.data.ta.efi(length=15, mamode="dema", append=True)
@@ -201,22 +196,11 @@ class StrategyDT:
         self.data.ta.rvi(length=14, append=True)
         ta_indicators["RVI"] = {
             Signal.BUY: lambda x: x["RVI_14"] > 50,
-            Signal.SELL: lambda x: x["RVI_14"] < 45,
+            Signal.SELL: lambda x: x["RVI_14"] < 50,
             "columns": ["RVI_14"],
         }
 
         """ Momentum """
-        # MACD (Moving Average Convergence Divergence)
-        self.data.ta.macd(fast=8, slow=21, signal=5, append=True)
-        self.data["MACD_ma_diff"] = (
-            self.data["MACDh_8_21_5"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
-        )
-        ta_indicators["MACD"] = {
-            Signal.BUY: lambda x: x["MACD_ma_diff"] == 1,
-            Signal.SELL: lambda x: x["MACD_ma_diff"] == 0,
-            "columns": ["MACD_ma_diff"],
-        }
-
         # STC (Schaff Trend Cycle)
         self.data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
         ta_indicators["STC"] = {
@@ -242,7 +226,7 @@ class StrategyDT:
         self.data.ta.rsi(length=15, append=True)
         ta_indicators["RSI"] = {
             Signal.BUY: lambda x: x["RSI_15"] > 50,
-            Signal.SELL: lambda x: x["RSI_15"] < 40,
+            Signal.SELL: lambda x: x["RSI_15"] < 50,
             "columns": ["RSI_15"],
         }
 
@@ -256,11 +240,10 @@ class StrategyDT:
 
         # UO (Ultimate Oscillator)
         self.data.ta.uo(fast=7, medium=14, slow=28, append=True)
-        self.data.ta.uo(fast=9, medium=18, slow=36, append=True)
         ta_indicators["UO"] = {
             Signal.BUY: lambda x: x["UO_7_14_28"] < 30,
-            Signal.SELL: lambda x: x["UO_9_18_36"] > 70,
-            "columns": ["UO_7_14_28", "UO_9_18_36"],
+            Signal.SELL: lambda x: x["UO_7_14_28"] > 70,
+            "columns": ["UO_7_14_28"],
         }
 
         return ta_indicators
