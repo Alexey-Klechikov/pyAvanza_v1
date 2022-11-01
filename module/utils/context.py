@@ -285,19 +285,14 @@ class Context:
             if certificate.get(
                 "spread", 1
             ) <= 0.65 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
-                return {
-                    OrderType.BUY: certificate.get("sellPrice", None),
-                    OrderType.SELL: certificate.get("buyPrice", None),
-                    "positions": certificate.get("positions", []),
-                    "spread": certificate.get("spread"),
-                }
+                break
 
             time.sleep(2)
 
         return {
-            OrderType.BUY: None,
-            OrderType.SELL: None,
-            "positions": [],
+            OrderType.BUY: certificate.get("sellPrice", None),
+            OrderType.SELL: certificate.get("buyPrice", None),
+            "positions": certificate.get("positions", []),
             "spread": certificate.get("spread"),
         }
 
