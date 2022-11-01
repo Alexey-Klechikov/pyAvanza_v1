@@ -323,6 +323,8 @@ class Context:
 
             return active_order if not active_orders else active_orders[0]
 
+        log.error(f"Could not get active order for {certificate_id}")
+
         return active_order
 
     def remove_active_orders(self, account_ids: list[Union[str, int]]) -> None:
