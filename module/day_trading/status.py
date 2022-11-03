@@ -14,10 +14,16 @@ from avanza import OrderType
 log = logging.getLogger("main.utils.status_dt")
 
 
+PAUSE_TIMES = [
+    {"start": (13, 00), "end": (13, 30)},
+    {"start": (17, 25), "end": (17, 35)},
+]
+
+
 class DayTime(str, Enum):
     MORNING = "morning"  # No trading
     DAY = "day"  # Use AVA data
-    EVENING_TRANSITION = "evening_transition"  # Market is closing, but certificates are still tradable. Pause trading while high spread and gaps.
+    PAUSE = "pause"  # Other markets are opening and influence OMX with often recovery to the previous trend
     EVENING = "evening"  #  Market is closing. No buy orders, only sell.
     NIGHT = "night"  # No trading
 
@@ -215,24 +221,30 @@ class StatusDT:
         else:
             self.day_time = DayTime.DAY
 
-        if current_time >= current_time.replace(hour=17, minute=25):
-            self.day_time = DayTime.EVENING_TRANSITION
+        for pt in PAUSE_TIMES:
+            if current_time >= current_time.replace(
+                hour=pt["start"][0], minute=pt["start"][1]
+            ) and current_time <= current_time.replace(
+                hour=pt["end"][0], minute=pt["end"][1]
+            ):
+                self.day_time = DayTime.PAUSE
 
         if current_time >= current_time.replace(hour=17, minute=35):
             self.day_time = DayTime.EVENING
 
-            if (current_time >= current_time.replace(hour=18, minute=30)) or (
-                not any(
-                    [
-                        (
-                            getattr(self, instrument_type.name).has_position
-                            or getattr(self, instrument_type.name).active_order
-                        )
-                        for instrument_type in Instrument
-                    ]
-                )
-            ):
-                self.day_time = DayTime.NIGHT
+        if (current_time >= current_time.replace(hour=18, minute=30)) or (
+            self.day_time == DayTime.EVENING
+            and not any(
+                [
+                    (
+                        getattr(self, instrument_type.name).has_position
+                        or getattr(self, instrument_type.name).active_order
+                    )
+                    for instrument_type in Instrument
+                ]
+            )
+        ):
+            self.day_time = DayTime.NIGHT
 
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")

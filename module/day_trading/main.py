@@ -391,39 +391,38 @@ class Day_Trading:
             self.helper.status.update_day_time()
             self.helper.std_output.messages = []
 
-            if self.helper.status.day_time == DayTime.MORNING:
-                continue
-
-            elif self.helper.status.day_time == DayTime.EVENING_TRANSITION:
-                time.sleep(60)
-
-                continue
+            if self.helper.status.day_time in [
+                DayTime.MORNING,
+                DayTime.PAUSE,
+            ]:
+                pass
 
             elif self.helper.status.day_time == DayTime.NIGHT:
                 break
 
-            # Walk through instruments
-            for instrument_type in Instrument:
+            else:
+                # Walk through instruments
+                for instrument_type in Instrument:
 
-                if (
-                    self.helper.status.day_time != DayTime.EVENING
-                    and self.helper.get_signal_is_buy(strategies, instrument_type)
-                ):
+                    if (
+                        self.helper.status.day_time != DayTime.EVENING
+                        and self.helper.get_signal_is_buy(strategies, instrument_type)
+                    ):
 
-                    self.sell_instrument(
-                        Instrument.BEAR
-                        if instrument_type == Instrument.BULL
-                        else Instrument.BULL,
-                        enforce_sell_bool=True,
-                    )
+                        self.sell_instrument(
+                            Instrument.BEAR
+                            if instrument_type == Instrument.BULL
+                            else Instrument.BULL,
+                            enforce_sell_bool=True,
+                        )
 
-                    self.buy_instrument(instrument_type)
+                        self.buy_instrument(instrument_type)
 
-                self.sell_instrument(instrument_type)
+                    self.sell_instrument(instrument_type)
 
-                self.helper.add_std_output_message(instrument_type)
+                    self.helper.add_std_output_message(instrument_type)
 
-            self.helper.std_output.update_in_console()
+                self.helper.std_output.update_in_console()
 
             time.sleep(60)
 
