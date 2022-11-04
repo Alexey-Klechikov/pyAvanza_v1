@@ -75,22 +75,18 @@ class StrategyDT:
     def get_ta_indicators(self) -> dict:
         ta_indicators = {}
 
+        # Trend detection
         self.data.ta.dema(length=20, append=True)
-        for long_dema_len in range(45, 30, -1):
-            self.data.ta.dema(length=long_dema_len, append=True)
+        self.data.ta.dema(length=30, append=True)
+        self.data["TREND"] = self.data.apply(
+            lambda x: 1 if x["DEMA_20"] >= x[f"DEMA_30"] else -1,
+            axis=1,
+        )
 
-            if np.isnan(self.data.iloc[-1][f"DEMA_{long_dema_len}"]):
-                continue
-
-            self.data["TREND"] = self.data.apply(
-                lambda x: 1 if x["DEMA_20"] >= x[f"DEMA_{long_dema_len}"] else -1,
-                axis=1,
-            )
-
-            break
-
+        # Order limits correction
         self.data["ATR"] = self.data.ta.atr(length=14)
 
+        # Signal indicators
         """ Volume """
         if "Volume" in self.data.columns:
             """
