@@ -44,6 +44,7 @@ class CalibrationOrder:
                 abs(1 - self.settings["trading"]["limits_percent"]["stop_loss"])
                 / self.settings["instruments"]["multiplier"]
             )
+            * row["ATR"]
         )
 
         take_profit_normalized = self.price_buy * (
@@ -53,6 +54,7 @@ class CalibrationOrder:
                 abs(1 - self.settings["trading"]["limits_percent"]["take_profit"])
                 / self.settings["instruments"]["multiplier"]
             )
+            * row["ATR"]
         )
 
         if enforce:
@@ -380,7 +382,7 @@ class Calibration:
                 last_candle_signal = None
 
                 for index, row in data[
-                    ["High", "Low", "Open", "Close", cs_column, "TREND"]
+                    ["High", "Low", "Open", "Close", cs_column, "TREND", "ATR"]
                     + ta_indicator["columns"]
                 ].iterrows():
                     if index.time().hour == 9:

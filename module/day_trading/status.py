@@ -2,6 +2,7 @@
 This module contains a Status class for Day trading. Status of each instrument and time_of_day with their methods
 """
 
+import copy
 import logging
 import time
 from dataclasses import dataclass, field
@@ -15,7 +16,8 @@ log = logging.getLogger("main.utils.status_dt")
 
 
 PAUSE_TIMES = [
-    {"start": (13, 00), "end": (13, 30)},
+    {"start": (13, 00), "end": (13, 20)},
+    {"start": (14, 30), "end": (14, 50)},
     {"start": (17, 25), "end": (17, 35)},
 ]
 
@@ -207,7 +209,8 @@ class StatusDT:
         self.BULL: InstrumentStatus = InstrumentStatus(Instrument.BULL.name)
         self.BEAR: InstrumentStatus = InstrumentStatus(Instrument.BEAR.name)
         self.day_time: DayTime = DayTime.MORNING
-        self.settings = settings
+        self.settings_original = copy.copy(settings)
+        self.settings = copy.copy(settings)
 
     def update_day_time(self) -> None:
         current_time = datetime.now()
@@ -248,6 +251,17 @@ class StatusDT:
 
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")
+
+    def update_settings_limits_on_atr(self, atr: float) -> None:
+        for limit_name, limit_value in self.settings_original["limits_percent"].items():
+            if limit_name.startswith("take_profit"):
+                self.settings["limits_percent"][limit_name] = 1 + (
+                    (limit_value - 1) * atr
+                )
+            elif limit_name.startswith("stop_loss"):
+                self.settings["limits_percent"][limit_name] = 1 - (
+                    (1 - limit_value) * atr
+                )
 
     def update_instrument(
         self, instrument_type: Instrument, certificate_info: dict, active_order: dict

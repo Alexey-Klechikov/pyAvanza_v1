@@ -41,7 +41,7 @@ class StrategyDT:
         self.drop_columns(columns)
 
     def drop_columns(self, columns: dict) -> None:
-        columns["needed"] = ["TREND"]
+        columns["needed"] = ["TREND", "ATR"]
 
         for ta_indicator in self.ta_indicators.values():
             columns["needed"] += ta_indicator["columns"]
@@ -76,7 +76,7 @@ class StrategyDT:
         ta_indicators = {}
 
         self.data.ta.dema(length=20, append=True)
-        for long_dema_len in range(40, 30, -1):
+        for long_dema_len in range(45, 30, -1):
             self.data.ta.dema(length=long_dema_len, append=True)
 
             if np.isnan(self.data.iloc[-1][f"DEMA_{long_dema_len}"]):
@@ -89,8 +89,11 @@ class StrategyDT:
 
             break
 
+        self.data["ATR"] = self.data.ta.atr(length=14)
+
         """ Volume """
         if "Volume" in self.data.columns:
+            """
             # CMF (Chaikin Money Flow)
             self.data.ta.cmf(length=20, append=True)
             ta_indicators["CMF"] = {
@@ -98,6 +101,7 @@ class StrategyDT:
                 Signal.SELL: lambda x: x["CMF_20"] < 0,
                 "columns": ["CMF_20"],
             }
+            """
 
             # EFI (Elder's Force Index)
             self.data.ta.efi(length=15, mamode="dema", append=True)

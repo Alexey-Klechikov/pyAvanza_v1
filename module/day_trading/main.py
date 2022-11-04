@@ -48,6 +48,8 @@ class Helper:
 
         self.std_output: StdOutput = StdOutput()
 
+        self.atr = 1.0
+
         self.ava = Context(user, accounts, skip_lists=True)
 
         self._update_budget()
@@ -116,8 +118,9 @@ class Helper:
 
             if signal_cs == signal_ta:
                 log.warning(
-                    f">>> ({round(row['Close'], 2)}) {instrument_type} - {indicator_ta}-{pattern_cs} at {str(row.name)[11:-9]}"
+                    f">>> ({round(row['Close'], 2)}) {instrument_type} - {indicator_ta}-{pattern_cs} (ATR: {round(row['ATR'], 2)}) at {str(row.name)[11:-9]}"
                 )
+                self.atr = row["ATR"]
                 return True
 
         return False
@@ -162,6 +165,8 @@ class Helper:
         certificate_info = self.ava.get_certificate_info(instrument_id)
 
         active_order = self.ava.get_active_order(instrument_id)
+
+        self.status.update_settings_limits_on_atr(self.atr)
 
         instrument_status = self.status.update_instrument(
             instrument_type, certificate_info, active_order
