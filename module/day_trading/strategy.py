@@ -79,7 +79,7 @@ class StrategyDT:
         self.data.ta.dema(length=20, append=True)
         self.data.ta.dema(length=30, append=True)
         self.data["TREND"] = self.data.apply(
-            lambda x: 1 if x["DEMA_20"] >= x[f"DEMA_30"] else -1,
+            lambda x: 1 if x["DEMA_20"] >= x["DEMA_30"] else -1,
             axis=1,
         )
 
