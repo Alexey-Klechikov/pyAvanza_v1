@@ -25,10 +25,8 @@
                 "limits_percent": {
                     "take_profit_super": 1.11,
                     "take_profit": 1.1,
-                    "stop_loss": 0.91,
-                    "stop_loss_trailing": 0.98
+                    "stop_loss": 0.91
                 },
-                "stop_loss_trailing_timer": null
             },
             "calibration": {
                 "update": true,

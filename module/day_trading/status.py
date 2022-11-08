@@ -45,13 +45,12 @@ class InstrumentStatus:
     active_order: dict = field(default_factory=dict)
     has_position: bool = False
     buy_time: Optional[datetime] = None
-    stop_loss_trailing_is_active: bool = False
 
+    atr: Optional[float] = None
     spread: Optional[float] = None
     price_current: Optional[float] = None
     price_acquired: Optional[float] = None
     price_stop_loss: Optional[float] = None
-    price_stop_loss_trailing: float = 0
     price_take_profit: Optional[float] = None
     price_take_profit_super: Optional[float] = None
 
@@ -66,7 +65,7 @@ class InstrumentStatus:
             if position.get("averageAcquiredPrice") is not None
         ]
 
-        if len(active_positions) == 0:
+        if len(active_positions) == 0 and self.atr is not None:
             self.has_position = False
 
             return
@@ -85,7 +84,8 @@ class InstrumentStatus:
             self.price_stop_loss
             if self.price_stop_loss is not None
             else round(
-                position["averageAcquiredPrice"] * settings_limits_percent["stop_loss"],
+                position["averageAcquiredPrice"]
+                * (1 - (1 - settings_limits_percent["stop_loss"]) * self.atr),
                 2,
             )
         )
@@ -95,31 +95,15 @@ class InstrumentStatus:
             if self.price_take_profit is not None
             else round(
                 position["averageAcquiredPrice"]
-                * settings_limits_percent["take_profit"],
+                * (1 + (settings_limits_percent["take_profit"] - 1) * self.atr),
                 2,
             )
         )
 
         self.price_take_profit_super = round(
             position["averageAcquiredPrice"]
-            * settings_limits_percent["take_profit_super"],
+            * (1 + (settings_limits_percent["take_profit_super"] - 1) * self.atr),
             2,
-        )
-
-        self.price_stop_loss_trailing = max(
-            [
-                i
-                for i in [
-                    self.price_stop_loss,
-                    self.price_stop_loss_trailing,
-                    round(
-                        self.price_current
-                        * settings_limits_percent["stop_loss_trailing"],
-                        2,
-                    ),
-                ]
-                if i is not None
-            ]
         )
 
         if not self.has_position:
@@ -137,50 +121,16 @@ class InstrumentStatus:
             return
 
         self.price_stop_loss = round(
-            self.active_order["price"] * settings_limits_percent["stop_loss"],
+            self.active_order["price"]
+            * (1 - (1 - settings_limits_percent["stop_loss"]) * self.atr),
             2,
         )
 
         self.price_take_profit = round(
-            self.active_order["price"] * settings_limits_percent["take_profit"],
+            self.active_order["price"]
+            * (1 + (settings_limits_percent["take_profit"] - 1) * self.atr),
             2,
         )
-
-    def update_on_new_signal(
-        self, settings_limits_percent: dict, new_relative_price: float
-    ) -> None:
-        self.buy_time = datetime.now()
-        self.stop_loss_trailing_is_active = False
-
-        self.price_stop_loss = round(
-            settings_limits_percent["stop_loss"] * new_relative_price, 2
-        )
-        self.price_take_profit = round(
-            settings_limits_percent["take_profit"] * new_relative_price,
-            2,
-        )
-
-        log.info(
-            f"{self.instrument_type} - (UPD limits): SL: {self.price_stop_loss}, TP: {self.price_take_profit}"
-        )
-
-    def set_trailing_stop_loss_after_timer(
-        self, stop_loss_trailing_timer: Optional[Union[int, str]]
-    ) -> None:
-        if self.buy_time is None or stop_loss_trailing_timer is None:
-            return
-
-        if self.stop_loss_trailing_is_active:
-            self.price_stop_loss = self.price_stop_loss_trailing
-
-        elif (datetime.now() - self.buy_time).seconds > (
-            int(stop_loss_trailing_timer) * 60
-        ):
-            self.stop_loss_trailing_is_active = True
-
-            log.info(
-                f"{self.instrument_type} - {stop_loss_trailing_timer} min -> Switch to trailing stop_loss"
-            )
 
     def check_trade_is_completed(self) -> bool:
         if self.active_order or self.has_position:
@@ -209,8 +159,7 @@ class StatusDT:
         self.BULL: InstrumentStatus = InstrumentStatus(Instrument.BULL.name)
         self.BEAR: InstrumentStatus = InstrumentStatus(Instrument.BEAR.name)
         self.day_time: DayTime = DayTime.MORNING
-        self.settings_original = copy.copy(settings)
-        self.settings = copy.copy(settings)
+        self.settings = settings
 
     def update_day_time(self) -> None:
         current_time = datetime.now()
@@ -252,25 +201,19 @@ class StatusDT:
         if old_day_time != self.day_time:
             log.warning(f"Day time: {old_day_time} -> {self.day_time}")
 
-    def update_settings_limits_on_atr(self, atr: float) -> None:
-        for limit_name, limit_value in self.settings_original["limits_percent"].items():
-            if limit_name.startswith("take_profit"):
-                self.settings["limits_percent"][limit_name] = 1 + (
-                    (limit_value - 1) * atr
-                )
-            elif limit_name.startswith("stop_loss"):
-                self.settings["limits_percent"][limit_name] = 1 - (
-                    (1 - limit_value) * atr
-                )
-
     def update_instrument(
-        self, instrument_type: Instrument, certificate_info: dict, active_order: dict
+        self,
+        instrument_type: Instrument,
+        certificate_info: dict,
+        active_order: dict,
+        atr: float,
     ) -> InstrumentStatus:
         instrument_status: InstrumentStatus = getattr(self, instrument_type.name)
 
         instrument_status.active_order = active_order
         instrument_status.spread = certificate_info.get("spread")
         instrument_status.price_current = certificate_info.get(OrderType.SELL)
+        instrument_status.atr = atr
 
         instrument_status.update_prices_on_position(
             certificate_info["positions"],
@@ -281,25 +224,9 @@ class StatusDT:
             self.settings["limits_percent"],
         )
 
-        instrument_status.set_trailing_stop_loss_after_timer(
-            self.settings["stop_loss_trailing_timer"]
-        )
-
         if instrument_status.check_trade_is_completed():
             setattr(self, instrument_type.name, InstrumentStatus(instrument_type.name))
 
             instrument_status = getattr(self, instrument_type.name)
 
         return instrument_status
-
-    def update_instrument_trading_limits(
-        self, instrument_type: str, new_relative_price: Optional[float]
-    ) -> None:
-        if new_relative_price is None:
-            return
-
-        instrument_status = getattr(self, instrument_type)
-
-        instrument_status.update_on_new_signal(
-            self.settings["limits_percent"], new_relative_price
-        )

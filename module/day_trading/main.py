@@ -166,10 +166,8 @@ class Helper:
 
         active_order = self.ava.get_active_order(instrument_id)
 
-        self.status.update_settings_limits_on_atr(self.atr)
-
         instrument_status = self.status.update_instrument(
-            instrument_type, certificate_info, active_order
+            instrument_type, certificate_info, active_order, self.atr
         )
 
         return instrument_status
