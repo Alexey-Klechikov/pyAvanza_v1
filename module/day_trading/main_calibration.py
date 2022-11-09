@@ -493,7 +493,7 @@ class Calibration:
                                 )
 
                                 log.warning(
-                                    f"{str(index)[5:16]} / {round(row['Close'], 2)} / {strategy_name} ({strategies_efficiency.get(strategy_name, '?')} %)"
+                                    f"{str(index)[5:16]} / {round(row['Close'], 2)} / {strategy_name} (ATR: {round(row['ATR'], 2)}) ({strategies_efficiency.get(strategy_name, '?')} %)"
                                 )
 
                                 signal_result = signal

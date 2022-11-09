@@ -118,9 +118,9 @@ class Helper:
 
             if signal_cs == signal_ta:
                 log.warning(
-                    f">>> ({round(row['Close'], 2)}) {instrument_type} - {indicator_ta}-{pattern_cs} (ATR: {round(row['ATR'], 2)}) at {str(row.name)[11:-9]}"
+                    f">>> ({round(row['Close'], 2)}) {instrument_type} - {indicator_ta}-{pattern_cs} at {str(row.name)[11:-9]}"
                 )
-                self.atr = row["ATR"]
+
                 return True
 
         return False
@@ -156,6 +156,8 @@ class Helper:
             strategies[instrument_type],
             instrument_type,
         )
+
+        self.atr = strategy.data.iloc[last_full_candle_index]["ATR"]
 
         return last_candle_signal_buy
 
@@ -401,6 +403,13 @@ class Day_Trading:
                 pass
 
             elif self.helper.status.day_time == DayTime.NIGHT:
+                # Enforce sell
+                for instrument_type in Instrument:
+                    self.sell_instrument(
+                        instrument_type,
+                        enforce_sell_bool=True,
+                    )
+
                 break
 
             else:

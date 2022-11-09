@@ -16,8 +16,6 @@ log = logging.getLogger("main.utils.status_dt")
 
 
 PAUSE_TIMES = [
-    {"start": (13, 00), "end": (13, 20)},
-    {"start": (14, 30), "end": (14, 50)},
     {"start": (17, 25), "end": (17, 35)},
 ]
 
@@ -45,6 +43,7 @@ class InstrumentStatus:
     active_order: dict = field(default_factory=dict)
     has_position: bool = False
     buy_time: Optional[datetime] = None
+    last_update_limits_message_timer: int = 0
 
     atr: float = 0
     spread: Optional[float] = None
@@ -106,15 +105,28 @@ class InstrumentStatus:
             2,
         )
 
-        if not self.has_position or (
+        update_limits_message_timer = round(
+            (datetime.now() - self.buy_time).seconds / 60
+        )
+
+        action = None
+        if not self.has_position:
+            action = "SET"
+            self.last_update_limits_message_timer = 0
+
+        elif (
             self.buy_time is not None
-            and round((datetime.now() - self.buy_time).seconds / 60) % 30 == 0
+            and update_limits_message_timer % 10 == 0
+            and update_limits_message_timer != self.last_update_limits_message_timer
         ):
+            action = "UPDATE"
+            self.last_update_limits_message_timer = update_limits_message_timer
+
+        if action is not None:
             log.info(
                 "".join(
                     [
-                        self.instrument_type,
-                        f" - ({'UPDATE' if self.has_position else 'SET'} limits): ",
+                        f"{self.instrument_type} - ({action} limits): ",
                         f"ATR: {round(self.atr, 2)}, ",
                         f"SL: {self.price_stop_loss}, ",
                         f"TP: {self.price_take_profit}, ",
