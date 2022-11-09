@@ -46,7 +46,7 @@ class InstrumentStatus:
     has_position: bool = False
     buy_time: Optional[datetime] = None
 
-    atr: Optional[float] = None
+    atr: float = 0
     spread: Optional[float] = None
     price_current: Optional[float] = None
     price_acquired: Optional[float] = None
@@ -65,7 +65,7 @@ class InstrumentStatus:
             if position.get("averageAcquiredPrice") is not None
         ]
 
-        if len(active_positions) == 0 and self.atr is not None:
+        if len(active_positions) == 0:
             self.has_position = False
 
             return
@@ -106,9 +106,20 @@ class InstrumentStatus:
             2,
         )
 
-        if not self.has_position:
+        if not self.has_position or (
+            self.buy_time is not None
+            and round((datetime.now() - self.buy_time).seconds / 60) % 30 == 0
+        ):
             log.info(
-                f"{self.instrument_type} - (SET limits): SL: {self.price_stop_loss}, TP: {self.price_take_profit}"
+                "".join(
+                    [
+                        self.instrument_type,
+                        f" - ({'UPDATE' if self.has_position else 'SET'} limits): ",
+                        f"ATR: {round(self.atr, 2)}, ",
+                        f"SL: {self.price_stop_loss}, ",
+                        f"TP: {self.price_take_profit}, ",
+                    ]
+                )
             )
 
         self.has_position = True

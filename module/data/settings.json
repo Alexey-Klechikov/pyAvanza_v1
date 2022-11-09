@@ -26,7 +26,7 @@
                     "take_profit_super": 1.11,
                     "take_profit": 1.1,
                     "stop_loss": 0.91
-                },
+                }
             },
             "calibration": {
                 "update": true,
