@@ -23,7 +23,7 @@
             "trading": {
                 "budget": 1500,
                 "limits_percent": {
-                    "take_profit_super": 1.11,
+                    "take_profit_super": 1.1,
                     "take_profit": 1.07,
                     "stop_loss": 0.94
                 }

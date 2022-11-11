@@ -79,24 +79,16 @@ class InstrumentStatus:
             else self.price_current
         )
 
-        self.price_stop_loss = (
-            self.price_stop_loss
-            if self.price_stop_loss is not None
-            else round(
-                position["averageAcquiredPrice"]
-                * (1 - (1 - settings_limits_percent["stop_loss"]) * self.atr),
-                2,
-            )
+        self.price_stop_loss = round(
+            position["averageAcquiredPrice"]
+            * (1 - (1 - settings_limits_percent["stop_loss"]) * self.atr),
+            2,
         )
 
-        self.price_take_profit = (
-            self.price_take_profit
-            if self.price_take_profit is not None
-            else round(
-                position["averageAcquiredPrice"]
-                * (1 + (settings_limits_percent["take_profit"] - 1) * self.atr),
-                2,
-            )
+        self.price_take_profit = round(
+            position["averageAcquiredPrice"]
+            * (1 + (settings_limits_percent["take_profit"] - 1) * self.atr),
+            2,
         )
 
         self.price_take_profit_super = round(
