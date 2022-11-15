@@ -89,7 +89,6 @@ class StrategyDT:
         # Signal indicators
         """ Volume """
         if "Volume" in self.data.columns:
-            """
             # CMF (Chaikin Money Flow)
             self.data.ta.cmf(length=20, append=True)
             ta_indicators["CMF"] = {
@@ -97,7 +96,6 @@ class StrategyDT:
                 Signal.SELL: lambda x: x["CMF_20"] < 0,
                 "columns": ["CMF_20"],
             }
-            """
 
             # EFI (Elder's Force Index)
             self.data.ta.efi(length=15, mamode="dema", append=True)
@@ -134,14 +132,6 @@ class StrategyDT:
             Signal.BUY: lambda x: x["Close"] > x["PSARl_0.015_0.12"],
             Signal.SELL: lambda x: x["Close"] < x["PSARs_0.015_0.12"],
             "columns": ["PSARl_0.015_0.12", "PSARs_0.015_0.12"],
-        }
-
-        # AROON (Aroon Indicator)
-        self.data.ta.aroon(length=12, append=True)
-        ta_indicators["AROON"] = {
-            Signal.BUY: lambda x: x["AROONOSC_12"] > 0,
-            Signal.SELL: lambda x: x["AROONOSC_12"] < 0,
-            "columns": ["AROONOSC_12"],
         }
 
         """ Overlap """
