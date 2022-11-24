@@ -14,8 +14,8 @@ from module.day_trading_TA import (
     InstrumentStatus,
     Strategy,
     TradingTime,
-    run_day_trading_ta_calibration,
 )
+from module.day_trading_TA.main_calibration import run as run_day_trading_ta_calibration
 from module.utils import Context, Settings, TeleLog
 
 log = logging.getLogger("main.day_trading_ta")
