@@ -8,7 +8,7 @@ import pandas as pd
 from avanza import OrderType
 
 from module.day_trading_TA import Instrument, Strategy
-from module.utils import Context, History, Settings, TeleLog
+from module.utils import Context, History, Settings
 
 log = logging.getLogger("main.day_trading_ta_calibration")
 

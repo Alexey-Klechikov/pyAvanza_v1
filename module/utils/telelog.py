@@ -49,7 +49,7 @@ class TeleLog:
         profit_percentage = round(100 * profit / day_trading_stats["budget"], 2)
 
         messages = [
-            f'DT: Total value: {round(day_trading_stats["balance_after"])}',
+            f'DT: Total value: {round(day_trading_stats["balance_after"])}\n',
             f'> Budget: {day_trading_stats["budget"]}',
             f"> Profit: {profit_percentage}% ({profit} SEK)",
             ""

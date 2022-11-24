@@ -12,7 +12,8 @@ from typing import Optional, Tuple, Union
 
 import keyring
 import pandas as pd
-from avanza import Avanza, InstrumentType, OrderType, Resolution, TimePeriod
+from avanza import Avanza as AvanzaBase
+from avanza import InstrumentType, OrderType, Resolution, TimePeriod, constants
 from pytz import timezone
 from requests.exceptions import HTTPError
 
@@ -33,6 +34,47 @@ class Portfolio:
     buying_power: dict = field(default_factory=dict)
     total_own_capital: float = 0
     positions: Positions = Positions()
+
+
+class Avanza(AvanzaBase):
+    def get_chart_data(
+        self,
+        order_book_id: str,
+        period: TimePeriod,
+        resolution: Optional[Resolution] = None,
+    ):
+        """Return chart data for an order book for the specified time period with given resolution
+        Modified for another endpoint that gives more data
+
+        Returns:
+            {
+                'from': str,
+                'to': str,
+                'metadata': {
+                    'resolution': {
+                        'availableResolutions': [str],
+                        'chartResolution': str}},
+                'ohlc': [{
+                    'close': float,
+                    'high': float,
+                    'low': float,
+                    'open': float,
+                    'timestamp': int,
+                    'totalVolumeTraded': int}],
+                'previousClosingPrice': float
+            }
+        """
+
+        options = {"timePeriod": period.value.lower()}
+
+        if resolution is not None:
+            options["resolution"] = resolution.value.lower()
+
+        return self.__call(
+            constants.HttpMethod.GET,
+            "/_api/price-chart/stock/{}".format(order_book_id),
+            options,
+        )
 
 
 class Context:
