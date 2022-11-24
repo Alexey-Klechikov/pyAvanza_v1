@@ -12,7 +12,7 @@ from typing import Optional, Union
 
 from avanza import OrderType
 
-log = logging.getLogger("main.utils.status_dt")
+log = logging.getLogger("main.status_dt_cs")
 
 
 PAUSE_TIMES = [
@@ -169,7 +169,7 @@ class InstrumentStatus:
         return False
 
 
-class StatusDT:
+class Status:
     def __init__(self, settings: dict):
         self.BULL: InstrumentStatus = InstrumentStatus(Instrument.BULL.name)
         self.BEAR: InstrumentStatus = InstrumentStatus(Instrument.BEAR.name)

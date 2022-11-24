@@ -8,10 +8,10 @@ It will import other modules to run the analysis on the stocks -> move it to the
 import logging
 import traceback
 
-from module.long_trading import StrategyTA
+from module.long_trading_TA import Strategy
 from module.utils import Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.long_trading_calibration")
+log = logging.getLogger("main.long_trading_ta_calibration")
 
 
 class Calibration:
@@ -22,7 +22,7 @@ class Calibration:
 
         self.run_analysis(kwargs["log_to_telegram"], kwargs["budget_list_thresholds"])
 
-    def record_strategies(self, ticker: str, strategy: StrategyTA) -> None:
+    def record_strategies(self, ticker: str, strategy: Strategy) -> None:
         log.info("Record strategies")
 
         for strategy_item in strategy.summary.sorted_strategies[:20]:
@@ -92,7 +92,7 @@ class Calibration:
                         if str(data.iloc[-1]["Close"]) == "nan":
                             self.ava.update_todays_ochl(data, ticker["order_book_id"])
 
-                        strategy = StrategyTA(data)
+                        strategy = Strategy(data)
 
                     except Exception as e:
                         log.error(
@@ -114,7 +114,7 @@ class Calibration:
                     if target_watch_list_name != "skip":
                         self.record_strategies(ticker["ticker_yahoo"], strategy)
 
-        StrategyTA.dump("TA", self.top_strategies_per_ticket)
+        Strategy.dump("LT_TA", self.top_strategies_per_ticket)
 
         if log_to_telegram:
             TeleLog(watch_lists_analysis_log=self.logs)

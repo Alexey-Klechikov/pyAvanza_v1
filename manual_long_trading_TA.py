@@ -9,7 +9,7 @@ import traceback
 import pandas as pd
 from avanza import OrderType as Signal
 
-from module.long_trading import StrategyTA
+from module.long_trading_TA import Strategy
 from module.utils import Context, History, Logger, Plot, Settings
 
 log = logging.getLogger("main")
@@ -39,7 +39,7 @@ class PortfolioAnalysis:
             kwargs["plot_total_algo_performance_vs_hold"]
         )
 
-    def plot_ticker(self, strategy: StrategyTA) -> None:
+    def plot_ticker(self, strategy: Strategy) -> None:
         log.info(f"Plotting {strategy.summary.ticker_name}")
 
         plot_obj = Plot(
@@ -126,7 +126,7 @@ class PortfolioAnalysis:
             )
         )
 
-    def record_ticker_performance(self, strategy: StrategyTA, ticker: str) -> None:
+    def record_ticker_performance(self, strategy: Strategy, ticker: str) -> None:
         log.info(f"Recording performance for {ticker}")
 
         self.data = (
@@ -180,7 +180,7 @@ class PortfolioAnalysis:
                 ticker_yahoo, "18mo", "1d", cache="reuse" if cache else "skip"
             ).data
 
-            strategy = StrategyTA(data, ticker_name=comment)
+            strategy = Strategy(data, ticker_name=comment)
 
         except Exception as exc:
             log.error(

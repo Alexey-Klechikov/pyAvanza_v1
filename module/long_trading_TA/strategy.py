@@ -15,20 +15,20 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import pandas_ta as ta
-from avanza import OrderType as Signal
+from avanza import OrderType
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.expand_frame_repr", False)
 
-log = logging.getLogger("main.utils.strategy_ta")
+log = logging.getLogger("main.strategy_ta")
 
 
 @dataclass
 class StrategyInfo:
     transactions: list = field(default_factory=list)
     result: float = 0
-    signal: Signal = Signal.SELL
+    signal: OrderType = OrderType.SELL
     transactions_counter: int = 0
 
 
@@ -36,14 +36,14 @@ class StrategyInfo:
 class MaxOutput:
     strategy: str = ""
     result: float = 0
-    signal: Signal = Signal.SELL
+    signal: OrderType = OrderType.SELL
     transactions_counter: int = 0
 
 
 @dataclass
 class Summary:
     ticker_name: str
-    signal: Signal = Signal.SELL
+    signal: OrderType = OrderType.SELL
     hold_result: float = 0
     strategies: Dict[str, StrategyInfo] = field(default_factory=dict)
     max_output: MaxOutput = MaxOutput()
@@ -67,7 +67,7 @@ class Balance:
     sell_signal: float = np.nan
 
 
-class StrategyTA:
+class Strategy:
     def __init__(self, data: pd.DataFrame, **kwargs):
         skip_points = kwargs.get("skip_points", 100)
         self.data, self.conditions, columns_needed = self.prepare_conditions(
@@ -109,8 +109,8 @@ class StrategyTA:
 
         """ Blank """
         conditions["Blank"]["HOLD"] = {
-            Signal.BUY: lambda x: True,
-            Signal.SELL: lambda x: False,
+            OrderType.BUY: lambda x: True,
+            OrderType.SELL: lambda x: False,
         }
         columns_needed = ["Open", "High", "Low", "Close", "Volume"]
 
@@ -119,8 +119,8 @@ class StrategyTA:
         data.ta.ebsw(append=True)
         if _check_enough_data("EBSW_40_10", data):
             conditions["Cycles"]["EBSW"] = {
-                Signal.BUY: lambda x: x["EBSW_40_10"] > 0.5,
-                Signal.SELL: lambda x: x["EBSW_40_10"] < -0.5,
+                OrderType.BUY: lambda x: x["EBSW_40_10"] > 0.5,
+                OrderType.SELL: lambda x: x["EBSW_40_10"] < -0.5,
             }
             columns_needed += ["EBSW_40_10"]
 
@@ -130,8 +130,8 @@ class StrategyTA:
         if _check_enough_data("PVT", data):
             data.ta.sma(close="PVT", length=9, append=True)
             conditions["Volume"]["PVT"] = {
-                Signal.BUY: lambda x: x["SMA_9"] < x["PVT"],
-                Signal.SELL: lambda x: x["SMA_9"] > x["PVT"],
+                OrderType.BUY: lambda x: x["SMA_9"] < x["PVT"],
+                OrderType.SELL: lambda x: x["SMA_9"] > x["PVT"],
             }
             columns_needed += ["SMA_9", "PVT"]
 
@@ -140,8 +140,8 @@ class StrategyTA:
         if _check_enough_data("CMF_20", data):
             cmf = {"max": data["CMF_20"].max(), "min": data["CMF_20"].min()}
             conditions["Volume"]["CMF"] = {
-                Signal.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.2,
-                Signal.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.2,
+                OrderType.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.2,
+                OrderType.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.2,
             }
             columns_needed += ["CMF_20"]
 
@@ -149,8 +149,8 @@ class StrategyTA:
         data.ta.cmf(append=True)
         if _check_enough_data("EFI_13", data):
             conditions["Volume"]["EFI"] = {
-                Signal.BUY: lambda x: x["EFI_13"] < 0,
-                Signal.SELL: lambda x: x["EFI_13"] > 0,
+                OrderType.BUY: lambda x: x["EFI_13"] < 0,
+                OrderType.SELL: lambda x: x["EFI_13"] > 0,
             }
             columns_needed += ["EFI_13"]
 
@@ -159,8 +159,8 @@ class StrategyTA:
             data.ta.kvo(append=True)
             if _check_enough_data("KVO_34_55_13", data):
                 conditions["Volume"]["KVO"] = {
-                    Signal.BUY: lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
-                    Signal.SELL: lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
+                    OrderType.BUY: lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
+                    OrderType.SELL: lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
                 }
                 columns_needed += ["KVO_34_55_13", "KVOs_34_55_13"]
         except Exception as exc:
@@ -171,8 +171,8 @@ class StrategyTA:
         data.ta.massi(append=True)
         if _check_enough_data("MASSI_9_25", data):
             conditions["Volatility"]["MASSI"] = {
-                Signal.BUY: lambda x: 26 < x["MASSI_9_25"] < 27,
-                Signal.SELL: lambda x: 26 < x["MASSI_9_25"] < 27,
+                OrderType.BUY: lambda x: 26 < x["MASSI_9_25"] < 27,
+                OrderType.SELL: lambda x: 26 < x["MASSI_9_25"] < 27,
             }
             columns_needed += ["MASSI_9_25"]
 
@@ -180,8 +180,8 @@ class StrategyTA:
         data.ta.hwc(append=True)
         if _check_enough_data("HWM", data):
             conditions["Volatility"]["HWC"] = {
-                Signal.BUY: lambda x: x["Close"] > x["HWM"],
-                Signal.SELL: lambda x: x["Close"] < x["HWM"],
+                OrderType.BUY: lambda x: x["Close"] > x["HWM"],
+                OrderType.SELL: lambda x: x["Close"] < x["HWM"],
             }
             columns_needed += ["HWM"]
 
@@ -189,8 +189,8 @@ class StrategyTA:
         data.ta.bbands(length=20, std=2, append=True)
         if _check_enough_data("BBL_20_2.0", data):
             conditions["Volatility"]["BBANDS"] = {
-                Signal.BUY: lambda x: x["Close"] > x["BBL_20_2.0"],
-                Signal.SELL: lambda x: x["Close"] < x["BBU_20_2.0"],
+                OrderType.BUY: lambda x: x["Close"] > x["BBL_20_2.0"],
+                OrderType.SELL: lambda x: x["Close"] < x["BBU_20_2.0"],
             }
             columns_needed += ["BBL_20_2.0", "BBU_20_2.0"]
 
@@ -198,8 +198,8 @@ class StrategyTA:
         data.ta.accbands(append=True)
         if _check_enough_data("ACCBU_20", data):
             conditions["Volatility"]["ACCBANDS"] = {
-                Signal.BUY: lambda x: x["Close"] > x["ACCBU_20"],
-                Signal.SELL: lambda x: x["Close"] < x["ACCBU_20"],
+                OrderType.BUY: lambda x: x["Close"] > x["ACCBU_20"],
+                OrderType.SELL: lambda x: x["Close"] < x["ACCBU_20"],
             }
             columns_needed += ["ACCBU_20"]
 
@@ -208,9 +208,9 @@ class StrategyTA:
         data.ta.ha(append=True)
         if _check_enough_data("HA_open", data):
             conditions["Candle"]["HA"] = {
-                Signal.BUY: lambda x: (x["HA_open"] < x["HA_close"])
+                OrderType.BUY: lambda x: (x["HA_open"] < x["HA_close"])
                 and (x["HA_low"] == x["HA_open"]),
-                Signal.SELL: lambda x: (x["HA_open"] > x["HA_close"])
+                OrderType.SELL: lambda x: (x["HA_open"] > x["HA_close"])
                 and (x["HA_high"] == x["HA_open"]),
             }
             columns_needed += ["HA_open", "HA_close", "HA_low", "HA_high"]
@@ -220,8 +220,8 @@ class StrategyTA:
         data.ta.psar(append=True)
         if _check_enough_data("PSARl_0.02_0.2", data):
             conditions["Trend"]["PSAR"] = {
-                Signal.BUY: lambda x: x["Close"] > x["PSARl_0.02_0.2"],
-                Signal.SELL: lambda x: x["Close"] < x["PSARs_0.02_0.2"],
+                OrderType.BUY: lambda x: x["Close"] > x["PSARl_0.02_0.2"],
+                OrderType.SELL: lambda x: x["Close"] < x["PSARs_0.02_0.2"],
             }
             columns_needed += ["PSARl_0.02_0.2", "PSARs_0.02_0.2"]
 
@@ -229,8 +229,8 @@ class StrategyTA:
         data.ta.chop(append=True)
         if _check_enough_data("CHOP_14_1_100", data):
             conditions["Trend"]["CHOP"] = {
-                Signal.BUY: lambda x: x["CHOP_14_1_100"] < 61.8,
-                Signal.SELL: lambda x: x["CHOP_14_1_100"] > 61.8,
+                OrderType.BUY: lambda x: x["CHOP_14_1_100"] < 61.8,
+                OrderType.SELL: lambda x: x["CHOP_14_1_100"] > 61.8,
             }
             columns_needed += ["CHOP_14_1_100"]
 
@@ -238,8 +238,8 @@ class StrategyTA:
         data.ta.cksp(append=True)
         if _check_enough_data("CKSPl_10_3_20", data):
             conditions["Trend"]["CKSP"] = {
-                Signal.BUY: lambda x: x["CKSPl_10_3_20"] > x["CKSPs_10_3_20"],
-                Signal.SELL: lambda x: x["CKSPl_10_3_20"] < x["CKSPs_10_3_20"],
+                OrderType.BUY: lambda x: x["CKSPl_10_3_20"] > x["CKSPs_10_3_20"],
+                OrderType.SELL: lambda x: x["CKSPl_10_3_20"] < x["CKSPs_10_3_20"],
             }
             columns_needed += ["CKSPl_10_3_20", "CKSPs_10_3_20"]
 
@@ -248,8 +248,8 @@ class StrategyTA:
         data.ta.hilo(append=True)
         if _check_enough_data("HILO_13_21", data):
             conditions["Overlap"]["GHLA"] = {
-                Signal.BUY: lambda x: x["Close"] > x["HILO_13_21"],
-                Signal.SELL: lambda x: x["Close"] < x["HILO_13_21"],
+                OrderType.BUY: lambda x: x["Close"] > x["HILO_13_21"],
+                OrderType.SELL: lambda x: x["Close"] < x["HILO_13_21"],
             }
             columns_needed += ["HILO_13_21"]
 
@@ -257,8 +257,8 @@ class StrategyTA:
         data.ta.supertrend(append=True)
         if _check_enough_data("SUPERT_7_3.0", data):
             conditions["Overlap"]["SUPERT"] = {
-                Signal.BUY: lambda x: x["Close"] > x["SUPERT_7_3.0"],
-                Signal.SELL: lambda x: x["Close"] < x["SUPERT_7_3.0"],
+                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_7_3.0"],
+                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_7_3.0"],
             }
             columns_needed += ["SUPERT_7_3.0"]
 
@@ -269,8 +269,8 @@ class StrategyTA:
                 data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
             )
             conditions["Overlap"]["LINREG"] = {
-                Signal.BUY: lambda x: x["LRr_direction"] == 1,
-                Signal.SELL: lambda x: x["LRr_direction"] == 0,
+                OrderType.BUY: lambda x: x["LRr_direction"] == 1,
+                OrderType.SELL: lambda x: x["LRr_direction"] == 0,
             }
             columns_needed += ["LRr_direction"]
 
@@ -279,8 +279,8 @@ class StrategyTA:
         data.ta.stc(append=True)
         if _check_enough_data("STC_10_12_26_0.5", data):
             conditions["Momentum"]["STC"] = {
-                Signal.BUY: lambda x: x["STC_10_12_26_0.5"] < 75,
-                Signal.SELL: lambda x: x["STC_10_12_26_0.5"] > 25,
+                OrderType.BUY: lambda x: x["STC_10_12_26_0.5"] < 75,
+                OrderType.SELL: lambda x: x["STC_10_12_26_0.5"] > 25,
             }
             columns_needed += ["STC_10_12_26_0.5"]
 
@@ -291,9 +291,9 @@ class StrategyTA:
                 data["CCI_20_0.015"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
             )
             conditions["Overlap"]["LINREG"] = {
-                Signal.BUY: lambda x: x["CCI_20_0.015"] < -100
+                OrderType.BUY: lambda x: x["CCI_20_0.015"] < -100
                 and x["CCI_direction"] == 1,
-                Signal.SELL: lambda x: x["CCI_20_0.015"] > 100
+                OrderType.SELL: lambda x: x["CCI_20_0.015"] > 100
                 and x["CCI_direction"] == 0,
             }
             columns_needed += ["CCI_20_0.015", "CCI_direction"]
@@ -302,8 +302,8 @@ class StrategyTA:
         data.ta.rvgi(append=True)
         if _check_enough_data("RVGI_14_4", data):
             conditions["Momentum"]["RVGI"] = {
-                Signal.BUY: lambda x: x["RVGI_14_4"] > x["RVGIs_14_4"],
-                Signal.SELL: lambda x: x["RVGI_14_4"] < x["RVGIs_14_4"],
+                OrderType.BUY: lambda x: x["RVGI_14_4"] > x["RVGIs_14_4"],
+                OrderType.SELL: lambda x: x["RVGI_14_4"] < x["RVGIs_14_4"],
             }
             columns_needed += ["RVGI_14_4", "RVGIs_14_4"]
 
@@ -314,8 +314,8 @@ class StrategyTA:
                 data["MACDh_8_21_5"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
             )
             conditions["Momentum"]["MACD"] = {
-                Signal.BUY: lambda x: x["MACD_ma_diff"] == 1,
-                Signal.SELL: lambda x: x["MACD_ma_diff"] == 0,
+                OrderType.BUY: lambda x: x["MACD_ma_diff"] == 1,
+                OrderType.SELL: lambda x: x["MACD_ma_diff"] == 0,
             }
             columns_needed += ["MACD_ma_diff"]
 
@@ -323,9 +323,9 @@ class StrategyTA:
         data.ta.stoch(k=14, d=3, append=True)
         if _check_enough_data("STOCHd_14_3_3", data):
             conditions["Momentum"]["STOCH"] = {
-                Signal.BUY: lambda x: x["STOCHd_14_3_3"] < 80
+                OrderType.BUY: lambda x: x["STOCHd_14_3_3"] < 80
                 and x["STOCHk_14_3_3"] < 80,
-                Signal.SELL: lambda x: x["STOCHd_14_3_3"] > 20
+                OrderType.SELL: lambda x: x["STOCHd_14_3_3"] > 20
                 and x["STOCHk_14_3_3"] > 20,
             }
             columns_needed += ["STOCHd_14_3_3", "STOCHk_14_3_3"]
@@ -400,7 +400,7 @@ class StrategyTA:
         for strategy_components_names in strategies_component_names:
             strategy = {}
 
-            for order_type in Signal:
+            for order_type in OrderType:
                 strategy[order_type] = [
                     self.conditions[strategy_component_name[0]][
                         strategy_component_name[1]
@@ -432,7 +432,7 @@ class StrategyTA:
 
                 # Sell event
                 if all(
-                    map(lambda x: x(row), strategies[strategy][Signal.SELL])
+                    map(lambda x: x(row), strategies[strategy][OrderType.SELL])
                 ) and not np.isnan(balance.market):
                     summary.strategies[strategy].transactions.append(
                         f'({date}) Sell at {row["Close"]}'
@@ -451,7 +451,7 @@ class StrategyTA:
 
                 # Buy event
                 elif all(
-                    map(lambda x: x(row), strategies[strategy][Signal.BUY])
+                    map(lambda x: x(row), strategies[strategy][OrderType.BUY])
                 ) and not np.isnan(balance.deposit):
                     summary.strategies[strategy].transactions.append(
                         f'({date}) Buy at {row["Close"]}'
@@ -476,7 +476,7 @@ class StrategyTA:
 
             summary.strategies[strategy].result = round(balance.total)
             summary.strategies[strategy].signal = (
-                Signal.SELL if np.isnan(balance.market) else Signal.BUY
+                OrderType.SELL if np.isnan(balance.market) else OrderType.BUY
             )
             summary.strategies[strategy].transactions_counter = len(
                 summary.strategies[strategy].transactions
@@ -501,7 +501,9 @@ class StrategyTA:
         sorted_signals = [getattr(i[1], "signal") for i in summary.sorted_strategies]
         if summary.max_output.transactions_counter == 1:
             summary.signal = (
-                Signal.BUY if sorted_signals[:3].count(Signal.BUY) >= 2 else Signal.SELL
+                OrderType.BUY
+                if sorted_signals[:3].count(OrderType.BUY) >= 2
+                else OrderType.SELL
             )
 
         log.info(

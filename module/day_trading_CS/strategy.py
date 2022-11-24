@@ -19,10 +19,10 @@ pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.max_rows", None)
 pd.set_option("display.expand_frame_repr", False)
 
-log = logging.getLogger("main.utils.strategy_dt")
+log = logging.getLogger("main.strategy_dt_cs")
 
 
-class StrategyDT:
+class Strategy:
     def __init__(self, data: pd.DataFrame, **kwargs):
         self.data = data.groupby(data.index).last()
 

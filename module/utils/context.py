@@ -180,7 +180,8 @@ class Context:
 
             if len(orders) > 0:
                 orders.sort(
-                    key=lambda x: (int(x["budget"]), int(x["max_return"])), reverse=True
+                    key=lambda x: (int(x["budget"]), int(x.get("max_return", 0))),
+                    reverse=True,
                 )
                 reserved_budget = {account: 0 for account in self.accounts}
 

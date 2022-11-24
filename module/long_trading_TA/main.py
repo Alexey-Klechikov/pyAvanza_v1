@@ -9,15 +9,15 @@ from typing import Tuple
 
 from avanza import OrderType as Signal
 
-from module.long_trading import StrategyTA
+from module.long_trading_TA import Strategy
 from module.utils import Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.long_trading")
+log = logging.getLogger("main.long_trading_ta")
 
 
 class PortfolioAnalysis:
     def __init__(self, **kwargs):
-        self.strategies = StrategyTA.load("TA")
+        self.strategies = Strategy.load("LT_TA")
         self.signals = kwargs.get("signals", {})
 
         self.ava = Context(kwargs["user"], kwargs["accounts"])
@@ -33,7 +33,7 @@ class PortfolioAnalysis:
                 if str(data.iloc[-1]["Close"]) == "nan":
                     self.ava.update_todays_ochl(data, ticker_ava)
 
-                strategy_obj = StrategyTA(
+                strategy_obj = Strategy(
                     data,
                     strategies=self.strategies.get(ticker_yahoo, []),
                 )

@@ -8,10 +8,10 @@ import pandas as pd
 from avanza import OrderType as Signal
 from pandas_ta.candles.cdl_pattern import ALL_PATTERNS
 
-from module.day_trading import Instrument, StrategyDT
+from module.day_trading_CS import Instrument, Strategy
 from module.utils import Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.day_trading_calibration")
+log = logging.getLogger("main.day_trading_cs_calibration")
 
 
 @dataclass
@@ -349,7 +349,7 @@ class Calibration:
 
         # history.data = history.data[history.data.index < "2022-10-18"]
 
-        strategy = StrategyDT(
+        strategy = Strategy(
             history.data,
             order_price_limits=self.settings["trading"]["limits_percent"],
             iterate_candlestick_patterns=True,
@@ -430,12 +430,12 @@ class Calibration:
             extra_data=extra_data,
         )
 
-        strategy = StrategyDT(
+        strategy = Strategy(
             history.data,
             order_price_limits=self.settings["trading"]["limits_percent"],
         )
 
-        strategies = strategy.load("DT")
+        strategies = strategy.load("DT_CS")
 
         helper = Helper(self.settings)
 

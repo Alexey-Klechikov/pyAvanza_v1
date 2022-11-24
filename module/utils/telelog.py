@@ -52,7 +52,9 @@ class TeleLog:
             f'DT: Total value: {round(day_trading_stats["balance_after"])}',
             f'> Budget: {day_trading_stats["budget"]}',
             f"> Profit: {profit_percentage}% ({profit} SEK)",
-            f'> Trades: {day_trading_stats["number_trades"]}',
+            ""
+            if "number_trades" not in day_trading_stats
+            else f'> Trades: {day_trading_stats["number_trades"]}',
         ]
 
         if day_trading_stats["number_errors"] > 0:

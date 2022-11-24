@@ -6,15 +6,19 @@ from datetime import datetime
 from typing import Optional, Tuple
 
 import pandas as pd
-from avanza import OrderType as Signal
+from avanza import OrderType
 from requests import ReadTimeout
 
-from module.day_trading import DayTime, Instrument, InstrumentStatus
-from module.day_trading import StatusDT as Status
-from module.day_trading import StrategyDT
-from module.utils import Context, History, Settings, TeleLog
+from module.day_trading_CS import (
+    DayTime,
+    Instrument,
+    InstrumentStatus,
+    Status,
+    Strategy,
+)
+from module.utils import Context, Settings, TeleLog
 
-log = logging.getLogger("main.day_trading")
+log = logging.getLogger("main.day_trading_cs")
 
 
 @dataclass
@@ -43,7 +47,7 @@ class Helper:
         self.trading_done = False
         self.accounts = accounts
 
-        self.strategies = StrategyDT.load("DT")
+        self.strategies = Strategy.load("DT_CS")
         self.status = Status(self.settings["trading"])
 
         self.std_output: StdOutput = StdOutput()
@@ -64,7 +68,7 @@ class Helper:
 
     def _check_last_candle_buy(
         self,
-        strategy: StrategyDT,
+        strategy: Strategy,
         row: pd.Series,
         strategies: dict,
         instrument_type: Instrument,
@@ -75,10 +79,10 @@ class Helper:
         def _get_signal_ta(row: pd.Series, indicator_ta: str) -> Optional[Instrument]:
             signal_ta = None
 
-            if strategy.ta_indicators[indicator_ta][Signal.BUY](row):
+            if strategy.ta_indicators[indicator_ta][OrderType.BUY](row):
                 signal_ta = Instrument.BULL
 
-            elif strategy.ta_indicators[indicator_ta][Signal.SELL](row):
+            elif strategy.ta_indicators[indicator_ta][OrderType.SELL](row):
                 signal_ta = Instrument.BEAR
 
             return signal_ta
@@ -138,12 +142,12 @@ class Helper:
             self.settings["instruments"]["MONITORING"]["AVA"]
         )
 
-        strategy = StrategyDT(
+        strategy = Strategy(
             history,
             order_price_limits=self.settings["trading"]["limits_percent"],
         )
 
-        strategies = strategies if strategies else strategy.load("DT")
+        strategies = strategies if strategies else strategy.load("DT_CS")
 
         last_full_candle_index = -2
 
@@ -176,12 +180,12 @@ class Helper:
 
     def place_order(
         self,
-        signal: Signal,
+        signal: OrderType,
         instrument_type: Instrument,
         instrument_status: InstrumentStatus,
     ) -> None:
-        if (signal == Signal.BUY and instrument_status.has_position) or (
-            signal == Signal.SELL and not instrument_status.has_position
+        if (signal == OrderType.BUY and instrument_status.has_position) or (
+            signal == OrderType.SELL and not instrument_status.has_position
         ):
             return
 
@@ -203,13 +207,12 @@ class Helper:
             "signal": signal,
             "account_id": list(self.accounts.values())[0],
             "order_book_id": self.settings["instruments"]["TRADING"][instrument_type],
-            "max_return": 0,
         }
 
         if certificate_info[signal] is None:
             return
 
-        if signal == Signal.BUY:
+        if signal == OrderType.BUY:
             self.log_data["number_trades"] += 1
 
             order_data.update(
@@ -222,7 +225,7 @@ class Helper:
                 }
             )
 
-        elif signal == Signal.SELL:
+        elif signal == OrderType.SELL:
             price = (
                 certificate_info[signal]
                 if certificate_info[signal] < instrument_status.price_stop_loss
@@ -251,7 +254,7 @@ class Helper:
 
     def update_order(
         self,
-        signal: Signal,
+        signal: OrderType,
         instrument_type: Instrument,
         instrument_status: InstrumentStatus,
         price: Optional[float],
@@ -322,17 +325,19 @@ class Day_Trading:
             elif instrument_status.active_order:
                 instrument_price_buy = self.helper.ava.get_certificate_info(
                     self.settings["instruments"]["TRADING"][instrument_type]
-                ).get(Signal.BUY)
+                ).get(OrderType.BUY)
 
                 self.helper.update_order(
-                    Signal.BUY,
+                    OrderType.BUY,
                     instrument_type,
                     instrument_status,
                     instrument_price_buy,
                 )
 
             else:
-                self.helper.place_order(Signal.BUY, instrument_type, instrument_status)
+                self.helper.place_order(
+                    OrderType.BUY, instrument_type, instrument_status
+                )
 
             time.sleep(2)
 
@@ -352,14 +357,16 @@ class Day_Trading:
                 self.helper.delete_order()
 
             elif instrument_status.has_position and not instrument_status.active_order:
-                self.helper.place_order(Signal.SELL, instrument_type, instrument_status)
+                self.helper.place_order(
+                    OrderType.SELL, instrument_type, instrument_status
+                )
 
             # Update order
             if instrument_status.has_position and instrument_status.active_order:
                 price_sell = None
                 current_price_sell = self.helper.ava.get_certificate_info(
                     self.settings["instruments"]["TRADING"][instrument_type]
-                )[Signal.SELL]
+                )[OrderType.SELL]
 
                 if any(
                     [
@@ -371,7 +378,7 @@ class Day_Trading:
                     price_sell = current_price_sell
 
                 self.helper.update_order(
-                    Signal.SELL,
+                    OrderType.SELL,
                     instrument_type,
                     instrument_status,
                     price_sell,
