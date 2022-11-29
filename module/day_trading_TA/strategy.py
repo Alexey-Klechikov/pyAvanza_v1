@@ -62,27 +62,27 @@ class Strategy:
         columns_needed = ["Open", "High", "Low", "Close", "Volume"]
 
         """ Cycles """
-        # EBSW (Even Better Sinewave)
-        data.ta.ebsw(append=True)
-        if _check_enough_data("EBSW_40_10", data):
+        # EBSW (Even Better Sinewave) # FIXED
+        data.ta.ebsw(length=50, bars=15, append=True)
+        if _check_enough_data("EBSW_50_15", data):
             conditions["Cycles"]["EBSW"] = {
-                OrderType.BUY: lambda x: x["EBSW_40_10"] > 0.5,
-                OrderType.SELL: lambda x: x["EBSW_40_10"] < -0.5,
+                OrderType.BUY: lambda x: x["EBSW_50_15"] > 0.5,
+                OrderType.SELL: lambda x: x["EBSW_50_15"] < -0.5,
             }
-            columns_needed += ["EBSW_40_10"]
+            columns_needed += ["EBSW_50_15"]
 
         """ Volume """
-        # PVT (Price Volume Trend)
+        # PVT (Price Volume Trend) # FIXED
         data.ta.pvt(append=True)
         if _check_enough_data("PVT", data):
-            data.ta.sma(close="PVT", length=9, append=True)
+            data.ta.ema(close="PVT", length=9, append=True)
             conditions["Volume"]["PVT"] = {
-                OrderType.BUY: lambda x: x["SMA_9"] < x["PVT"],
-                OrderType.SELL: lambda x: x["SMA_9"] > x["PVT"],
+                OrderType.BUY: lambda x: x["EMA_9"] < x["PVT"],
+                OrderType.SELL: lambda x: x["EMA_9"] > x["PVT"],
             }
-            columns_needed += ["SMA_9", "PVT"]
+            columns_needed += ["EMA_9", "PVT"]
 
-        # CMF (Chaikin Money Flow)
+        # CMF (Chaikin Money Flow) # FIXED
         data.ta.cmf(append=True)
         if _check_enough_data("CMF_20", data):
             cmf = {"max": data["CMF_20"].max(), "min": data["CMF_20"].min()}
@@ -92,9 +92,9 @@ class Strategy:
             }
             columns_needed += ["CMF_20"]
 
-        # ADOSC (Accumulation/Distribution Oscillator)
+        # ADOSC (Accumulation/Distribution Oscillator) # FIXED
         data["ADOSC_direction"] = (
-            data.ta.adosc(fast=30, slow=40)
+            data.ta.adosc(fast=30, slow=45)
             .rolling(2)
             .apply(lambda x: x.iloc[1] > x.iloc[0])
         )
@@ -106,16 +106,16 @@ class Strategy:
             columns_needed += ["ADOSC_direction"]
 
         """ Volatility """
-        # MASSI (Mass Index)
-        data.ta.massi(append=True)
-        if _check_enough_data("MASSI_9_25", data):
+        # MASSI (Mass Index) # FIXED
+        data.ta.massi(fast=12, slow=30, append=True)
+        if _check_enough_data("MASSI_12_30", data):
             conditions["Volatility"]["MASSI"] = {
-                OrderType.BUY: lambda x: 26 < x["MASSI_9_25"] < 27,
-                OrderType.SELL: lambda x: 26 < x["MASSI_9_25"] < 27,
+                OrderType.BUY: lambda x: 26 < x["MASSI_12_30"] < 27,
+                OrderType.SELL: lambda x: 26 < x["MASSI_12_30"] < 27,
             }
-            columns_needed += ["MASSI_9_25"]
+            columns_needed += ["MASSI_12_30"]
 
-        # HWC (Holt-Winter Channel)
+        # HWC (Holt-Winter Channel) # FIXED
         data.ta.hwc(append=True)
         if _check_enough_data("HWM", data):
             conditions["Volatility"]["HWC"] = {
@@ -124,7 +124,7 @@ class Strategy:
             }
             columns_needed += ["HWM"]
 
-        # BBANDS (Bollinger Bands)
+        # BBANDS (Bollinger Bands) # FIXED
         data.ta.bbands(length=20, std=2, append=True)
         if _check_enough_data("BBL_20_2.0", data):
             conditions["Volatility"]["BBANDS"] = {
@@ -143,11 +143,11 @@ class Strategy:
             columns_needed += ["RVI_30"]
 
         """ Trend """
-        # Trend direction (2DEMA)
-        data.ta.dema(length=20, append=True)
+        # Trend direction (2DEMA) # FIXED
+        data.ta.dema(length=15, append=True)
         data.ta.dema(length=30, append=True)
         data["2DEMA"] = data.apply(
-            lambda x: 1 if x["DEMA_20"] >= x["DEMA_30"] else -1,
+            lambda x: 1 if x["DEMA_15"] >= x["DEMA_30"] else -1,
             axis=1,
         )
         if _check_enough_data("2DEMA", data):
@@ -167,7 +167,7 @@ class Strategy:
             columns_needed += ["PSARl_0.1_0.25", "PSARs_0.1_0.25"]
 
         """ Overlap """
-        # ALMA (Arnaud Legoux Moving Average) # TEST
+        # ALMA (Arnaud Legoux Moving Average)
         data.ta.alma(
             length=16, sigma=6.0, distribution_offset=0.85, append=True
         )  # 18 6.0 0.85
@@ -178,7 +178,7 @@ class Strategy:
             }
             columns_needed += ["ALMA_18_6.0_0.85"]
 
-        # GHLA (Gann High-Low Activator)
+        # GHLA (Gann High-Low Activator) # FIXED
         data.ta.hilo(high_length=11, low_length=18, append=True)
         if _check_enough_data("HILO_11_18", data):
             conditions["Overlap"]["GHLA"] = {
@@ -187,20 +187,20 @@ class Strategy:
             }
             columns_needed += ["HILO_11_18"]
 
-        # SUPERT (Supertrend)
-        data.ta.supertrend(length=14, multiplier=6, append=True)
-        if _check_enough_data("SUPERT_14_6.0", data):
+        # SUPERT (Supertrend) # FIXED
+        data.ta.supertrend(length=14, multiplier=7, append=True)
+        if _check_enough_data("SUPERT_14_7.0", data):
             conditions["Overlap"]["SUPERT"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_14_6.0"],
-                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_14_6.0"],
+                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_14_7.0"],
+                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_14_7.0"],
             }
-            columns_needed += ["SUPERT_14_6.0"]
+            columns_needed += ["SUPERT_14_7.0"]
 
-        # LINREG (Linear Regression)
-        data.ta.linreg(length=24, append=True, r=True)
-        if _check_enough_data("LRr_24", data):
+        # LINREG (Linear Regression) # FIXED
+        data.ta.linreg(length=30, append=True, r=True)
+        if _check_enough_data("LRr_30", data):
             data["LRr_direction"] = (
-                data["LRr_24"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+                data["LRr_30"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
             )
             conditions["Overlap"]["LINREG"] = {
                 OrderType.BUY: lambda x: x["LRr_direction"] == 1,
@@ -209,16 +209,16 @@ class Strategy:
             columns_needed += ["LRr_direction"]
 
         """ Momentum """
-        # RSI (Relative Strength Index)
+        # RSI (Relative Strength Index) # FIXED
         data.ta.rsi(length=20, append=True)
         if _check_enough_data("RSI_20", data):
             conditions["Momentum"]["RSI"] = {
-                OrderType.BUY: lambda x: x["RSI_20"] > 50,
-                OrderType.SELL: lambda x: x["RSI_20"] < 50,
+                OrderType.BUY: lambda x: x["RSI_20"] < 30,
+                OrderType.SELL: lambda x: x["RSI_20"] > 70,
             }
             columns_needed += ["RSI_20"]
 
-        # STC (Schaff Trend Cycle)
+        # STC (Schaff Trend Cycle) # FIXED
         data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
         if _check_enough_data("STC_12_14_28_0.6", data):
             conditions["Momentum"]["STC"] = {

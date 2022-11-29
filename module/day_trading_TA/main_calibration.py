@@ -244,7 +244,7 @@ class Calibration:
 
             self.strategies.append(strategy_summary)
 
-            if strategy_summary["profit"] < 0:
+            if strategy_summary["profit"] <= 0:
                 continue
 
             log.info(
@@ -313,7 +313,7 @@ class Calibration:
 
         strategies["14d"] = [
             s
-            for s in sorted(self.strategies, key=lambda s: s["profit"], reverse=True)
+            for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
             if s["profit"] > 0
         ]
 
