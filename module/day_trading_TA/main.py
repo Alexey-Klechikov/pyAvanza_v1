@@ -295,7 +295,7 @@ class Day_Trading:
         if log_to_telegram:
             TeleLog(day_trading_stats=self.helper.log_data)
 
-        run_day_trading_ta_calibration(update=False, print_orders_history=False)
+        run_day_trading_ta_calibration(print_orders_history=False)
 
 
 def run() -> None:
