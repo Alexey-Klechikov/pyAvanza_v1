@@ -284,7 +284,7 @@ class Day_Trading:
                         self.helper.signal_to_instrument(signal)[OrderType.BUY]
                     )
 
-            time.sleep(60)
+            time.sleep(45)
 
         self.helper.log_data["balance_after"] = sum(
             self.helper.ava.get_portfolio().buying_power.values()

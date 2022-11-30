@@ -157,7 +157,7 @@ class Strategy:
             }
             columns_needed += ["2DEMA"]
 
-        # PSAR (Parabolic Stop and Reverse)
+        # PSAR (Parabolic Stop and Reverse) # FIXED
         data.ta.psar(af=0.1, max_af=0.25, append=True)
         if _check_enough_data("PSARl_0.1_0.25", data):
             conditions["Trend"]["PSAR"] = {
@@ -168,9 +168,7 @@ class Strategy:
 
         """ Overlap """
         # ALMA (Arnaud Legoux Moving Average)
-        data.ta.alma(
-            length=16, sigma=6.0, distribution_offset=0.85, append=True
-        )  # 18 6.0 0.85
+        data.ta.alma(length=16, sigma=6.0, distribution_offset=0.85, append=True)
         if _check_enough_data("ALMA_18_6.0_0.85", data):
             conditions["Overlap"]["ALMA"] = {
                 OrderType.BUY: lambda x: x["Close"] > x["ALMA_18_6.0_0.85"],
@@ -227,14 +225,14 @@ class Strategy:
             }
             columns_needed += ["STC_12_14_28_0.6"]
 
-        # UO (Ultimate Oscillator)
-        data.ta.uo(fast=7, medium=14, slow=28, append=True)
-        if _check_enough_data("UO_7_14_28", data):
+        # UO (Ultimate Oscillator) # FIXED
+        data.ta.uo(fast=10, medium=20, slow=40, append=True)
+        if _check_enough_data("UO_10_20_40", data):
             conditions["Momentum"]["UO"] = {
-                OrderType.BUY: lambda x: x["UO_7_14_28"] < 30,
-                OrderType.SELL: lambda x: x["UO_7_14_28"] > 70,
+                OrderType.BUY: lambda x: x["UO_10_20_40"] < 30,
+                OrderType.SELL: lambda x: x["UO_10_20_40"] > 70,
             }
-            columns_needed += ["UO_7_14_28"]
+            columns_needed += ["UO_10_20_40"]
 
         # RVGI (Relative Vigor Index)
         data.ta.rvgi(append=True)
