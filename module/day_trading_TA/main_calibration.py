@@ -312,9 +312,7 @@ class Calibration:
         self._walk_through_strategies(history, strategy, print_orders_history)
 
         strategies["14d"] = [
-            s
-            for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
-            if s["profit"] > 0
+            s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
         ]
 
         for s in strategies["14d"]:
