@@ -34,6 +34,8 @@ class Helper:
 
         self._update_budget()
 
+        self.last_candle = datetime.now()
+
         self.strategy_name = Strategy.load("DT_TA").get("use")
 
         self.log_data = {
@@ -68,15 +70,18 @@ class Helper:
 
         strategy = Strategy(history, strategies=[self.strategy_name])
 
-        last_full_candle_index = -2
+        if self.last_candle.minute == strategy.data.iloc[-2].name.replace(tzinfo=None).minute:  # type: ignore
+            return None
 
-        if (datetime.now() - strategy.data.iloc[last_full_candle_index].name.replace(tzinfo=None)).seconds > 122:  # type: ignore
+        self.last_candle = strategy.data.iloc[-2]
+
+        if (datetime.now() - self.last_candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
             return None
 
         for signal in [OrderType.BUY, OrderType.SELL]:
             if all(
                 [
-                    i(strategy.data.iloc[last_full_candle_index])
+                    i(self.last_candle)
                     for i in list(strategy.strategies.values())[0][signal]
                 ]
             ):
@@ -284,7 +289,7 @@ class Day_Trading:
                         self.helper.signal_to_instrument(signal)[OrderType.BUY]
                     )
 
-            time.sleep(45)
+            time.sleep(30)
 
         self.helper.log_data["balance_after"] = sum(
             self.helper.ava.get_portfolio().buying_power.values()
