@@ -34,7 +34,7 @@ class Helper:
 
         self._update_budget()
 
-        self.last_candle = datetime.now()
+        self.last_candle = None
 
         self.strategy_name = Strategy.load("DT_TA").get("use")
 
@@ -70,7 +70,7 @@ class Helper:
 
         strategy = Strategy(history, strategies=[self.strategy_name])
 
-        if self.last_candle.minute == strategy.data.iloc[-2].name.replace(tzinfo=None).minute:  # type: ignore
+        if self.last_candle is not None and self.last_candle.name == strategy.data.iloc[-2].name:  # type: ignore
             return None
 
         self.last_candle = strategy.data.iloc[-2]

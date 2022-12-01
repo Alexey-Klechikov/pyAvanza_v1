@@ -264,7 +264,7 @@ class Calibration:
 
         history = History(
             self.settings["instruments"]["MONITORING"]["YAHOO"],
-            "80d",
+            "50d",
             "1m",
             cache="append",
             extra_data=extra_data,
