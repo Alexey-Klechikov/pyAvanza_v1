@@ -17,7 +17,7 @@ log = logging.getLogger("main.long_trading_ta_calibration")
 class Calibration:
     def __init__(self, **kwargs):
         self.ava = Context(kwargs["user"], kwargs["accounts"])
-        self.logs = ["LT calibration"]
+        self.logs = ["LT calibration:\n"]
         self.top_strategies_per_ticket = {}
 
         self.run_analysis(kwargs["log_to_telegram"], kwargs["budget_list_thresholds"])

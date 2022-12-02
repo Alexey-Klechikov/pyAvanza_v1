@@ -525,9 +525,7 @@ def run() -> None:
 
                 telelog_message = calibration.test(strategies_efficiency)
 
-                TeleLog(
-                    message=("DT calibration: done.\n" + "\n".join(telelog_message))
-                )
+                TeleLog(message=("DT calibration:\n" + "\n".join(telelog_message)))
 
             except Exception as exc:
                 log.error(f">>> {exc}: {traceback.format_exc()}")

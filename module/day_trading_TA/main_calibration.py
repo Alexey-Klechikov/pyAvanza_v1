@@ -8,7 +8,7 @@ import pandas as pd
 from avanza import OrderType
 
 from module.day_trading_TA import Instrument, Strategy
-from module.utils import Context, History, Settings
+from module.utils import Context, History, Settings, TeleLog
 
 log = logging.getLogger("main.day_trading_ta_calibration")
 
@@ -283,11 +283,11 @@ class Calibration:
         Strategy.dump(
             "DT_TA",
             {
-                "80d": self.strategies,
+                "50d": self.strategies,
             },
         )
 
-    def test(self, print_orders_history: bool) -> None:
+    def test(self, print_orders_history: bool) -> str:
         log.info("Testing strategies")
 
         extra_data = self.ava.get_today_history(
@@ -304,7 +304,7 @@ class Calibration:
 
         strategies = Strategy.load("DT_TA")
         strategies_dict = {
-            i["strategy"]: i["points"] for i in strategies.get("80d", [])
+            i["strategy"]: i["points"] for i in strategies.get("50d", [])
         }
 
         strategy = Strategy(history.data, strategies=list(strategies_dict.keys()))
@@ -322,10 +322,10 @@ class Calibration:
 
         Strategy.dump("DT_TA", strategies)
 
+        return strategies["use"]
 
-def run(
-    update: bool = True, test: bool = True, print_orders_history: bool = False
-) -> None:
+
+def run(update: bool = True, print_orders_history: bool = False) -> None:
     settings = Settings().load()
 
     for user, settings_per_user in settings.items():
@@ -339,10 +339,16 @@ def run(
                 if update:
                     calibration.update(print_orders_history)
 
-                if test:
-                    calibration.test(print_orders_history)
+                strategy_use = calibration.test(print_orders_history)
 
-            except Exception as exc:
-                log.error(f">>> {exc}: {traceback.format_exc()}")
+                TeleLog(
+                    message="DT calibration:\n\n> "
+                    + "\n> ".join(strategy_use.split(" + "))
+                )
+
+            except Exception as e:
+                log.error(f">>> {e}: {traceback.format_exc()}")
+
+                TeleLog(crash_report=f"DT_Calibration: script has crashed: {e}")
 
             return
