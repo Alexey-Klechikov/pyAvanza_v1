@@ -70,11 +70,18 @@ class Avanza(AvanzaBase):
         if resolution is not None:
             options["resolution"] = resolution.value.lower()
 
-        return self.__call(
-            constants.HttpMethod.GET,
-            "/_api/price-chart/stock/{}".format(order_book_id),
-            options,
-        )
+        for _ in range(2 * 60):
+            try:
+                return self.__call(
+                    constants.HttpMethod.GET,
+                    f"/_api/price-chart/stock/{order_book_id}",
+                    options,
+                )
+
+            except HTTPError as e:
+                log.error(e)
+
+                time.sleep(30)
 
 
 class Context:
