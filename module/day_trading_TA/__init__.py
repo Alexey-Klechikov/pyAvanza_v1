@@ -4,4 +4,4 @@ from module.day_trading_TA.status import (
     InstrumentStatus,
     TradingTime,
 )
-from module.day_trading_TA.strategy import Strategy
+from module.day_trading_TA.strategy import Signal, Strategy

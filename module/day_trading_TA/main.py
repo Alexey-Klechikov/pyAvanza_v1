@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+import pandas as pd
 from avanza import OrderType
 from requests import ReadTimeout
 
@@ -12,6 +13,7 @@ from module.day_trading_TA import (
     DayTime,
     Instrument,
     InstrumentStatus,
+    Signal,
     Strategy,
     TradingTime,
 )
@@ -28,15 +30,12 @@ class Helper:
         self.trading_done = False
         self.accounts = accounts
 
-        self.ava = Context(user, accounts, skip_lists=True)
         self.trading_time = TradingTime()
         self.instrument_status = InstrumentStatus()
+        self.ava = Context(user, accounts, skip_lists=True)
+        self.strategy_names = Strategy.load("DT_TA").get("use", [])
 
         self._update_budget()
-
-        self.last_candle = None
-
-        self.strategy_name = Strategy.load("DT_TA").get("use")
 
         self.log_data = {
             "balance_before": 0,
@@ -52,44 +51,6 @@ class Helper:
         self.settings["trading"]["budget"] = max(
             floating_budget, self.settings["trading"]["budget"]
         )
-
-    def signal_to_instrument(self, signal: OrderType) -> dict:
-        return {
-            OrderType.BUY: Instrument.BULL
-            if signal == OrderType.BUY
-            else Instrument.BEAR,
-            OrderType.SELL: Instrument.BEAR
-            if signal == OrderType.BUY
-            else Instrument.BULL,
-        }
-
-    def get_signal(self) -> Optional[OrderType]:
-        history = self.ava.get_today_history(
-            self.settings["instruments"]["MONITORING"]["AVA"]
-        )
-
-        strategy = Strategy(history, strategies=[self.strategy_name])
-
-        if self.last_candle is not None and self.last_candle.name == strategy.data.iloc[-2].name:  # type: ignore
-            return None
-
-        self.last_candle = strategy.data.iloc[-2]
-
-        if (datetime.now() - self.last_candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
-            return None
-
-        for signal in [OrderType.BUY, OrderType.SELL]:
-            if all(
-                [
-                    i(self.last_candle)
-                    for i in list(strategy.strategies.values())[0][signal]
-                ]
-            ):
-                log.info(f"Signal: {signal.name}")
-
-                return signal
-
-        return None
 
     def place_order(self, signal: OrderType, instrument_type: Instrument) -> None:
         if (
@@ -194,8 +155,9 @@ class Day_Trading:
         self.settings = settings
 
         self.helper = Helper(user, accounts, settings)
+        self.signal = Signal(self.helper.ava, self.settings, self.helper.strategy_names)
 
-        log.info(f"Strategy: {self.helper.strategy_name}")
+        log.info(f"Strategies: {self.helper.strategy_names}")
 
         while True:
             try:
@@ -278,15 +240,20 @@ class Day_Trading:
                     break
 
             else:
-                signal = self.helper.get_signal()
+                signal = self.signal.get()
+
+                if self.signal.last_candle is None:
+                    time.sleep(10)
+
+                    continue
 
                 if signal is not None:
                     self.sell_instrument(
-                        self.helper.signal_to_instrument(signal)[OrderType.SELL]
+                        self.signal.get_instrument(signal)[OrderType.SELL]
                     )
 
                     self.buy_instrument(
-                        self.helper.signal_to_instrument(signal)[OrderType.BUY]
+                        self.signal.get_instrument(signal)[OrderType.BUY]
                     )
 
             time.sleep(30)

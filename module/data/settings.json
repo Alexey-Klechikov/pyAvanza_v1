@@ -21,16 +21,7 @@
             "log_to_telegram": true,
             "run_day_trading": true,
             "trading": {
-                "budget": 1500,
-                "limits_percent": {
-                    "take_profit_super": 1.1,
-                    "take_profit": 1.07,
-                    "stop_loss": 0.94
-                }
-            },
-            "calibration": {
-                "update": true,
-                "success_limit": 62
+                "budget": 1500
             },
             "instruments": {
                 "multiplier": 20,

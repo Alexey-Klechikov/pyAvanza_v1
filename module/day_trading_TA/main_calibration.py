@@ -57,12 +57,11 @@ class CalibrationOrder:
                 + 1000
             )
 
-        points = 0
-        points_bin = 0
+        points_bin = 0.0
         if profit is not None:
             points = 1 if (profit - 1000) > 0 else -1
-            points_bin = points * (2 if abs(profit - 1000) > 100 else 1)
-            points_bin = points * (3 if abs(profit - 1000) > 200 else 1)
+            multiplier = min([1 + abs(profit - 1000) // 100, 4])
+            points_bin = points * multiplier
 
         result = {
             "instrument": self.instrument,
@@ -287,7 +286,7 @@ class Calibration:
             },
         )
 
-    def test(self, print_orders_history: bool) -> str:
+    def test(self, print_orders_history: bool) -> list:
         log.info("Testing strategies")
 
         extra_data = self.ava.get_today_history(
@@ -318,7 +317,12 @@ class Calibration:
         for s in strategies["14d"]:
             strategies_dict[s["strategy"]] += s["points"]
 
-        strategies["use"] = max(strategies_dict, key=strategies_dict.get)  # type: ignore
+        strategies_ordered = sorted(
+            [(k, v) for k, v in strategies_dict.items()],
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        strategies["use"] = [strategies_ordered[i][0] for i in range(3)]
 
         Strategy.dump("DT_TA", strategies)
 
@@ -342,8 +346,10 @@ def run(update: bool = True, print_orders_history: bool = False) -> None:
                 strategy_use = calibration.test(print_orders_history)
 
                 TeleLog(
-                    message="DT calibration:\n\n> "
-                    + "\n> ".join(strategy_use.split(" + "))
+                    message="DT calibration:\n"
+                    + "\n".join(
+                        ["\n> " + "\n> ".join(s.split(" + ")) for s in strategy_use]
+                    )
                 )
 
             except Exception as e:

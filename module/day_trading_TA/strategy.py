@@ -7,19 +7,105 @@ import json
 import logging
 import os
 import warnings
+from datetime import datetime
 from json import JSONDecodeError
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import pandas_ta as ta
 from avanza import OrderType
 
+from module.day_trading_TA import Instrument
+
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.expand_frame_repr", False)
 
 log = logging.getLogger("main.strategy_dt_ta")
+
+
+class Signal:
+    def __init__(self, ava, settings: dict, strategy_names: list) -> None:
+        self.ava = ava
+        self.settings = settings
+
+        self.strategy_names = strategy_names
+
+        self.last_candle = None
+
+    def get_instrument(self, signal: OrderType) -> dict:
+        return {
+            OrderType.BUY: Instrument.BULL
+            if signal == OrderType.BUY
+            else Instrument.BEAR,
+            OrderType.SELL: Instrument.BEAR
+            if signal == OrderType.BUY
+            else Instrument.BULL,
+        }
+
+    def _get_last_signal_on_strategy(
+        self, data: pd.DataFrame, strategy_logic: dict
+    ) -> Optional[OrderType]:
+        for index in reversed(data.index):
+            time_index: datetime = index  # type: ignore
+            if (
+                time_index.hour < 10
+                or (datetime.now() - time_index.replace(tzinfo=None)).seconds / 60 > 60
+            ):
+                continue
+
+            row = data.loc[index]
+            for signal in [OrderType.BUY, OrderType.SELL]:
+                if not all([i(row) for i in strategy_logic[signal]]):
+                    continue
+
+                return signal
+
+        return None
+
+    def _get_signal_from_list(self, signals: list) -> Optional[OrderType]:
+        count = {
+            "buy": signals.count(OrderType.BUY),
+            "sell": signals.count(OrderType.SELL),
+        }
+
+        if count["buy"] > count["sell"]:
+            return OrderType.BUY
+
+        if count["sell"] > count["buy"]:
+            return OrderType.SELL
+
+        for signal in signals:
+            if signal is not None:
+                return signal
+
+        return None
+
+    def get(self) -> Optional[OrderType]:
+        history = self.ava.get_today_history(
+            self.settings["instruments"]["MONITORING"]["AVA"]
+        ).iloc[:-1]
+
+        strategy = Strategy(history, strategies=self.strategy_names)
+
+        # Case when I hit the same candle multiple times
+        if self.last_candle is not None and self.last_candle.name == strategy.data.iloc[-1].name:  # type: ignore
+            return None
+
+        self.last_candle = strategy.data.iloc[-1]
+
+        if (datetime.now() - self.last_candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
+            return None
+
+        signals = [
+            self._get_last_signal_on_strategy(strategy.data, strategy_logic)
+            for strategy_logic in strategy.strategies.values()
+        ]
+
+        print("Signals: ", signals, " -> ", self._get_signal_from_list(signals))
+
+        return self._get_signal_from_list(signals)
 
 
 class Strategy:
