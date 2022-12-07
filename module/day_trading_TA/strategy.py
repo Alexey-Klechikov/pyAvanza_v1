@@ -33,6 +33,7 @@ class Signal:
         self.strategy_names = strategy_names
 
         self.last_candle = None
+        self.last_signals: List[Optional[OrderType]] = []
 
     def get_instrument(self, signal: OrderType) -> dict:
         return {
@@ -103,14 +104,23 @@ class Signal:
             for strategy_logic in strategy.strategies.values()
         ]
 
-        print("Signals: ", signals, " -> ", self._get_signal_from_list(signals))
+        signal = self._get_signal_from_list(signals)
 
-        return self._get_signal_from_list(signals)
+        if signals != self.last_signals:
+            log.info(
+                "Signals: "
+                + " + ".join(["None" if s is None else s.value for s in signals])
+                + f' => {("None" if signal is None else signal.value)}'
+            )
+
+            self.last_signals = signals
+
+        return signal
 
 
 class Strategy:
     def __init__(self, data: pd.DataFrame, **kwargs):
-        self.data = data.groupby(data.index).last().iloc[100:]
+        self.data = data.groupby(data.index).last()
 
         self.data, self.conditions, columns_needed = self.prepare_conditions(data)
 
@@ -163,8 +173,9 @@ class Strategy:
         if _check_enough_data("PVT", data):
             data.ta.ema(close="PVT", length=9, append=True)
             conditions["Volume"]["PVT"] = {
-                OrderType.BUY: lambda x: x["EMA_9"] < x["PVT"],
-                OrderType.SELL: lambda x: x["EMA_9"] > x["PVT"],
+                OrderType.BUY: lambda x: (x["Volume"] != 0) and (x["EMA_9"] < x["PVT"]),
+                OrderType.SELL: lambda x: (x["Volume"] != 0)
+                and (x["EMA_9"] > x["PVT"]),
             }
             columns_needed += ["EMA_9", "PVT"]
 
@@ -173,8 +184,10 @@ class Strategy:
         if _check_enough_data("CMF_20", data):
             cmf = {"max": data["CMF_20"].max(), "min": data["CMF_20"].min()}
             conditions["Volume"]["CMF"] = {
-                OrderType.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.2,
-                OrderType.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.2,
+                OrderType.BUY: lambda x: (x["Volume"] != 0)
+                and (x["CMF_20"] > cmf["max"] * 0.2),
+                OrderType.SELL: lambda x: (x["Volume"] != 0)
+                and (x["CMF_20"] < cmf["min"] * 0.2),
             }
             columns_needed += ["CMF_20"]
 
@@ -186,8 +199,10 @@ class Strategy:
         )
         if _check_enough_data("ADOSC_direction", data):
             conditions["Volume"]["ADOSC"] = {
-                OrderType.BUY: lambda x: x["ADOSC_direction"] == 1,
-                OrderType.SELL: lambda x: x["ADOSC_direction"] == 0,
+                OrderType.BUY: lambda x: (x["Volume"] != 0)
+                and (x["ADOSC_direction"] == 1),
+                OrderType.SELL: lambda x: (x["Volume"] != 0)
+                and (x["ADOSC_direction"] == 0),
             }
             columns_needed += ["ADOSC_direction"]
 

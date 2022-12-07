@@ -157,7 +157,8 @@ class Day_Trading:
         self.helper = Helper(user, accounts, settings)
         self.signal = Signal(self.helper.ava, self.settings, self.helper.strategy_names)
 
-        log.info(f"Strategies: {self.helper.strategy_names}")
+        log.info("Strategies: ")
+        [log.info(f"> {i}") for i in self.helper.strategy_names]  # type: ignore
 
         while True:
             try:

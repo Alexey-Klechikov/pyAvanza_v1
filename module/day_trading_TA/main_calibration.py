@@ -218,7 +218,9 @@ class Calibration:
                 if time_index.hour < 10:
                     continue
 
-                if time_index.hour == 17 and time_index.minute >= 15:
+                if (time_index.hour == 17 and time_index.minute >= 15) or (
+                    history.data.iloc[-1].name == time_index
+                ):
                     for instrument in helper.orders:
                         helper.sell_order(time_index, row, instrument)
 
