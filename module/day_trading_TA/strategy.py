@@ -77,9 +77,11 @@ class Signal:
         if count["sell"] > count["buy"]:
             return OrderType.SELL
 
-        for signal in signals:
-            if signal is not None:
-                return signal
+        if OrderType.SELL in signals:
+            return OrderType.SELL
+
+        if OrderType.BUY in signals:
+            return OrderType.BUY
 
         return None
 
