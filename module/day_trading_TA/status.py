@@ -37,16 +37,12 @@ class InstrumentStatus:
     position: dict = field(default_factory=dict)
     active_order: dict = field(default_factory=dict)
 
-    def get_status(self, certificate_info: dict, active_order: dict) -> None:
+    def get_status(self, certificate_info: dict) -> None:
         self.price_buy = certificate_info[OrderType.BUY]
         self.price_sell = certificate_info[OrderType.SELL]
         self.spread = certificate_info["spread"]
-        self.position = (
-            {}
-            if len(certificate_info["positions"]) == 0
-            else certificate_info["positions"][0]
-        )
-        self.active_order = active_order
+        self.position = certificate_info["position"]
+        self.active_order = certificate_info["order"]
 
 
 @dataclass

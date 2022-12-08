@@ -52,6 +52,8 @@ class Helper:
             floating_budget, self.settings["trading"]["budget"]
         )
 
+        log.info(f'Trading budget: {self.settings["trading"]["budget"]}')
+
     def place_order(self, signal: OrderType, instrument_type: Instrument) -> None:
         if (
             (signal == OrderType.BUY and self.instrument_status.position)
@@ -145,9 +147,7 @@ class Helper:
 
         certificate_info = self.ava.get_certificate_info(instrument_id)
 
-        active_order = self.ava.get_active_order(instrument_id)
-
-        self.instrument_status.get_status(certificate_info, active_order)
+        self.instrument_status.get_status(certificate_info)
 
 
 class Day_Trading:

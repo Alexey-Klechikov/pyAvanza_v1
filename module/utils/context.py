@@ -83,6 +83,34 @@ class Avanza(AvanzaBase):
 
                 time.sleep(30)
 
+    def get_instrument(
+        self, instrument_type: InstrumentType, instrument_id: str
+    ) -> dict:
+        """
+        Get instrument info
+        """
+
+        result = {}
+        for path in [
+            "/_api/market-guide/{}/{}",
+            "/_api/market-guide/{}/{}/details",
+        ]:
+            response = self.__call(
+                constants.HttpMethod.GET,
+                path.format(instrument_type.value, instrument_id),
+            )
+
+            if response:
+                result.update(response)
+
+        return result
+
+    def get_certificate_info(self, certificate_id: str) -> dict:
+        return self.get_instrument(InstrumentType.CERTIFICATE, certificate_id)
+
+    def get_stock_info(self, stock_id: str) -> dict:
+        return self.get_instrument(InstrumentType.STOCK, stock_id)
+
 
 class Context:
     def __init__(self, user: str, accounts: dict, skip_lists: bool = False):
@@ -145,11 +173,9 @@ class Context:
             tickers_yahoo = []
             for orderbook_id in portfolio.positions.df["orderbookId"].tolist():
                 stock_info = self.ctx.get_stock_info(orderbook_id)
-                if not stock_info:
-                    stock_info = {}
 
                 tickers_yahoo.append(
-                    f"{stock_info.get('tickerSymbol', '').replace(' ', '-')}.ST"
+                    f"{stock_info.get('listing', {}).get('tickerSymbol', '').replace(' ', '-')}.ST"
                 )
 
             portfolio.positions.df["ticker_yahoo"] = tickers_yahoo
@@ -175,7 +201,7 @@ class Context:
                     ticker_dict = {
                         "order_book_id": order_book_id,
                         "name": stock_info.get("name"),
-                        "ticker_yahoo": f"{stock_info.get('tickerSymbol', '').replace(' ', '-')}.ST",
+                        "ticker_yahoo": f"{stock_info.get('listing', {}).get('tickerSymbol', '').replace(' ', '-')}.ST",
                     }
                     tickers.append(ticker_dict)
 
@@ -276,15 +302,17 @@ class Context:
         log.debug("Updating order")
 
         order_attr = {
-            "account_id": old_order["account"]["id"],
-            "order_book_id": old_order["orderbook"]["id"],
-            "order_type": OrderType["SELL" if old_order["type"] == "SELL" else "BUY"],
+            "account_id": old_order["accountId"],
+            "order_book_id": old_order["orderbookId"],
+            "order_type": OrderType[
+                "SELL" if old_order["orderType"] == "SELL" else "BUY"
+            ],
             "price": price,
             "valid_until": (datetime.today() + timedelta(days=1)).date(),
             "volume": old_order["volume"],
             "instrument_type": InstrumentType[
                 "CERTIFICATE"
-                if old_order["orderbook"]["type"] == "CERTIFICATE"
+                if old_order["orderbookType"] == "CERTIFICATE"
                 else "STOCK"
             ],
             "order_id": old_order["orderId"],
@@ -299,78 +327,60 @@ class Context:
     def get_stock_price(self, stock_id: str) -> dict:
         stock_info = self.ctx.get_stock_info(stock_id)
 
-        if stock_info is None:
+        if not stock_info:
             raise Exception(f"Stock {stock_id} not found")
 
         stock_price = {
-            OrderType.BUY: stock_info["lastPrice"],
-            OrderType.SELL: stock_info["lastPrice"],
+            OrderType.BUY: stock_info.get("quote", {}).get("sell"),
+            OrderType.SELL: stock_info.get("quote", {}).get("buy"),
         }
 
         order_depth = pd.DataFrame(stock_info["orderDepthLevels"])
         if not order_depth.empty:
             stock_price[OrderType.SELL] = max(
-                order_depth["buy"].apply(lambda x: x["price"])
+                order_depth["buySide"].apply(lambda x: x["price"])
             )
             stock_price[OrderType.BUY] = min(
-                order_depth["sell"].apply(lambda x: x["price"])
+                order_depth["sellSide"].apply(lambda x: x["price"])
             )
 
         return stock_price
 
     def get_certificate_info(self, certificate_id: str) -> dict:
-        certificate = {}
+        certificate_info = {}
 
         for _ in range(5):
             try:
-                certificate = self.ctx.get_certificate_info(certificate_id)
-
-            except HTTPError:
-                time.sleep(1)
-
-                continue
-
-            certificate = {} if certificate is None else certificate
-
-            if certificate.get(
-                "spread", 1
-            ) <= 0.65 or datetime.now() >= datetime.now().replace(hour=17, minute=30):
+                certificate_info = self.ctx.get_certificate_info(certificate_id)
                 break
 
-            time.sleep(2)
-
-        return {
-            OrderType.BUY: certificate.get("sellPrice", None),
-            OrderType.SELL: certificate.get("buyPrice", None),
-            "positions": certificate.get("positions", []),
-            "spread": certificate.get("spread"),
-        }
-
-    def get_active_order(self, certificate_id: Optional[str] = None) -> dict:
-        active_order: dict = {}
-
-        for _ in range(5):
-            try:
-                orders = self.ctx.get_deals_and_orders()
-
             except HTTPError:
-                time.sleep(1)
-
+                time.sleep(2)
                 continue
 
-            active_orders = [] if not orders else orders["orders"]
-            active_orders = [
-                order
-                for order in active_orders
-                if (order["orderbook"]["id"] == certificate_id)
-                and (order["rawStatus"] == "ACTIVE")
-            ]
+        positions = certificate_info.get("holdings", {}).get(
+            "accountAndPositionsView", {}
+        )
 
-            return active_order if not active_orders else active_orders[0]
+        orders = [
+            i
+            for i in certificate_info.get("ordersAndDeals", {}).get("orders", [])
+            if i["orderState"] == "ACTIVE"
+        ]
+        if len(orders) == 0:
+            order = {}
+        else:
+            order = orders[0]
+            order["orderbookId"] = certificate_id
+            order["orderbookType"] = certificate_info.get("type", "CERTIFICATE")
 
-        log.error(f"Could not get active order for {certificate_id}")
-
-        return active_order
+        return {
+            OrderType.BUY: certificate_info.get("quote", {}).get("sell", None),
+            OrderType.SELL: certificate_info.get("quote", {}).get("buy", None),
+            "spread": certificate_info.get("quote", {}).get("spread"),
+            "position": {} if len(positions) == 0 else positions[0],
+            "order": {} if len(orders) == 0 else orders[0],
+        }
 
     def remove_active_orders(self, account_ids: list[Union[str, int]]) -> None:
         active_orders = []
@@ -400,21 +410,17 @@ class Context:
     def update_todays_ochl(self, data: pd.DataFrame, stock_id: str) -> pd.DataFrame:
         stock_info = self.ctx.get_stock_info(stock_id)
 
-        if stock_info is None:
+        if not stock_info:
             raise Exception(f"Stock {stock_id} not found")
 
         last_row_index = data.tail(1).index
-        data.loc[last_row_index, "Open"] = max(
-            min(
-                stock_info["lastPrice"] + stock_info["change"],
-                stock_info["highestPrice"],
-            ),
-            stock_info["lowestPrice"],
+        data.loc[last_row_index, "Open"] = (
+            stock_info["quote"]["last"] - stock_info["quote"]["change"]
         )
-        data.loc[last_row_index, "Close"] = stock_info["lastPrice"]
-        data.loc[last_row_index, "High"] = stock_info["highestPrice"]
-        data.loc[last_row_index, "Low"] = stock_info["lowestPrice"]
-        data.loc[last_row_index, "Volume"] = stock_info["totalVolumeTraded"]
+        data.loc[last_row_index, "Close"] = stock_info["quote"]["last"]
+        data.loc[last_row_index, "High"] = stock_info["quote"]["highest"]
+        data.loc[last_row_index, "Low"] = stock_info["quote"]["lowest"]
+        data.loc[last_row_index, "Volume"] = stock_info["quote"]["totalVolumeTraded"]
 
         return data
 
