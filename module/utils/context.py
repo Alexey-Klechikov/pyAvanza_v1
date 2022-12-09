@@ -45,24 +45,6 @@ class Avanza(AvanzaBase):
     ):
         """Return chart data for an order book for the specified time period with given resolution
         Modified for another endpoint that gives more data
-
-        Returns:
-            {
-                'from': str,
-                'to': str,
-                'metadata': {
-                    'resolution': {
-                        'availableResolutions': [str],
-                        'chartResolution': str}},
-                'ohlc': [{
-                    'close': float,
-                    'high': float,
-                    'low': float,
-                    'open': float,
-                    'timestamp': int,
-                    'totalVolumeTraded': int}],
-                'previousClosingPrice': float
-            }
         """
 
         options = {"timePeriod": period.value.lower()}

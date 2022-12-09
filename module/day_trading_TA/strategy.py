@@ -50,9 +50,10 @@ class Signal:
     ) -> Optional[OrderType]:
         for index in reversed(data.index):
             time_index: datetime = index  # type: ignore
+
             if (
                 time_index.hour < 10
-                or (datetime.now() - time_index.replace(tzinfo=None)).seconds / 60 > 60
+                or (datetime.now() - time_index.replace(tzinfo=None)).seconds / 60 > 30
             ):
                 continue
 
