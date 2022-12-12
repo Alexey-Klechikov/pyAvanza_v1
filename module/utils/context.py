@@ -43,8 +43,8 @@ class Avanza(AvanzaBase):
         period: TimePeriod,
         resolution: Optional[Resolution] = None,
     ):
-        """Return chart data for an order book for the specified time period with given resolution
-        Modified for another endpoint that gives more data
+        """
+        Return chart data for an order book for the specified time period with given resolution
         """
 
         options = {"timePeriod": period.value.lower()}

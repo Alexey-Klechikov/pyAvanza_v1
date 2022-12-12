@@ -53,7 +53,7 @@ class Signal:
 
             if (
                 time_index.hour < 10
-                or (datetime.now() - time_index.replace(tzinfo=None)).seconds / 60 > 30
+                or (datetime.now() - time_index.replace(tzinfo=None)).seconds / 60 > 10
             ):
                 continue
 

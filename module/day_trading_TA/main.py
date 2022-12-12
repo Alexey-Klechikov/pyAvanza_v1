@@ -257,6 +257,10 @@ class Day_Trading:
                         self.signal.get_instrument(signal)[OrderType.BUY]
                     )
 
+                else:
+                    for instrument_type in Instrument:
+                        self.sell_instrument(instrument_type)
+
             time.sleep(30)
 
         self.helper.log_data["balance_after"] = sum(
