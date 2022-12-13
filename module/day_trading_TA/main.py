@@ -219,9 +219,9 @@ class Day_Trading:
 
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:
-        self.helper.log_data["balance_before"] = sum(
-            self.helper.ava.get_portfolio().buying_power.values()
-        )
+        self.helper.log_data[
+            "balance_before"
+        ] = self.helper.ava.get_portfolio().total_own_capital
 
         log.info(
             f'Running trading for account(s): {" & ".join(self.helper.accounts)} [{self.helper.log_data["balance_before"]}]'
