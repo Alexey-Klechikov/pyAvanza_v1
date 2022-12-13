@@ -33,6 +33,7 @@ class Signal:
         self.strategy_names = strategy_names
 
         self.last_candle = None
+        self.last_signal: Optional[OrderType] = None
         self.last_signals: List[Optional[OrderType]] = []
 
     def get_instrument(self, signal: OrderType) -> dict:
@@ -95,12 +96,12 @@ class Signal:
 
         # Case when I hit the same candle multiple times
         if self.last_candle is not None and self.last_candle.name == strategy.data.iloc[-1].name:  # type: ignore
-            return None
+            return self.last_signal
 
         self.last_candle = strategy.data.iloc[-1]
 
         if (datetime.now() - self.last_candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
-            return None
+            return self.last_signal
 
         signals = [
             self._get_last_signal_on_strategy(strategy.data, strategy_logic)
@@ -117,6 +118,8 @@ class Signal:
             )
 
             self.last_signals = signals
+
+        self.last_signal = signal
 
         return signal
 
@@ -161,7 +164,7 @@ class Strategy:
         columns_needed = ["Open", "High", "Low", "Close", "Volume"]
 
         """ Cycles """
-        # EBSW (Even Better Sinewave) # FIXED
+        # EBSW (Even Better Sinewave)
         data.ta.ebsw(length=50, bars=15, append=True)
         if _check_enough_data("EBSW_50_15", data):
             conditions["Cycles"]["EBSW"] = {
@@ -171,7 +174,7 @@ class Strategy:
             columns_needed += ["EBSW_50_15"]
 
         """ Volume """
-        # PVT (Price Volume Trend) # FIXED
+        # PVT (Price Volume Trend)
         data.ta.pvt(append=True)
         if _check_enough_data("PVT", data):
             data.ta.ema(close="PVT", length=9, append=True)
@@ -182,7 +185,7 @@ class Strategy:
             }
             columns_needed += ["EMA_9", "PVT"]
 
-        # CMF (Chaikin Money Flow) # FIXED
+        # CMF (Chaikin Money Flow)
         data.ta.cmf(append=True)
         if _check_enough_data("CMF_20", data):
             cmf = {"max": data["CMF_20"].max(), "min": data["CMF_20"].min()}
@@ -194,7 +197,7 @@ class Strategy:
             }
             columns_needed += ["CMF_20"]
 
-        # ADOSC (Accumulation/Distribution Oscillator) # FIXED
+        # ADOSC (Accumulation/Distribution Oscillator)
         data["ADOSC_direction"] = (
             data.ta.adosc(fast=30, slow=45)
             .rolling(2)
@@ -210,7 +213,7 @@ class Strategy:
             columns_needed += ["ADOSC_direction"]
 
         """ Volatility """
-        # MASSI (Mass Index) # FIXED
+        # MASSI (Mass Index)
         data.ta.massi(fast=12, slow=30, append=True)
         if _check_enough_data("MASSI_12_30", data):
             conditions["Volatility"]["MASSI"] = {
@@ -219,7 +222,7 @@ class Strategy:
             }
             columns_needed += ["MASSI_12_30"]
 
-        # HWC (Holt-Winter Channel) # FIXED
+        # HWC (Holt-Winter Channel)
         data.ta.hwc(append=True)
         if _check_enough_data("HWM", data):
             conditions["Volatility"]["HWC"] = {
@@ -228,7 +231,7 @@ class Strategy:
             }
             columns_needed += ["HWM"]
 
-        # BBANDS (Bollinger Bands) # FIXED
+        # BBANDS (Bollinger Bands)
         data.ta.bbands(length=20, std=2, append=True)
         if _check_enough_data("BBL_20_2.0", data):
             conditions["Volatility"]["BBANDS"] = {
@@ -247,7 +250,7 @@ class Strategy:
             columns_needed += ["RVI_30"]
 
         """ Trend """
-        # Trend direction (2DEMA) # FIXED
+        # 2DEMA (Trend direction by Double EMA)
         data.ta.dema(length=15, append=True)
         data.ta.dema(length=30, append=True)
         data["2DEMA"] = data.apply(
@@ -261,7 +264,7 @@ class Strategy:
             }
             columns_needed += ["2DEMA"]
 
-        # PSAR (Parabolic Stop and Reverse) # FIXED
+        # PSAR (Parabolic Stop and Reverse)
         data.ta.psar(af=0.1, max_af=0.25, append=True)
         if _check_enough_data("PSARl_0.1_0.25", data):
             conditions["Trend"]["PSAR"] = {
@@ -280,7 +283,7 @@ class Strategy:
             }
             columns_needed += ["ALMA_18_6.0_0.85"]
 
-        # GHLA (Gann High-Low Activator) # FIXED
+        # GHLA (Gann High-Low Activator)
         data.ta.hilo(high_length=11, low_length=18, append=True)
         if _check_enough_data("HILO_11_18", data):
             conditions["Overlap"]["GHLA"] = {
@@ -289,7 +292,7 @@ class Strategy:
             }
             columns_needed += ["HILO_11_18"]
 
-        # SUPERT (Supertrend) # FIXED
+        # SUPERT (Supertrend)
         data.ta.supertrend(length=14, multiplier=7, append=True)
         if _check_enough_data("SUPERT_14_7.0", data):
             conditions["Overlap"]["SUPERT"] = {
@@ -298,7 +301,7 @@ class Strategy:
             }
             columns_needed += ["SUPERT_14_7.0"]
 
-        # LINREG (Linear Regression) # FIXED
+        # LINREG (Linear Regression)
         data.ta.linreg(length=30, append=True, r=True)
         if _check_enough_data("LRr_30", data):
             data["LRr_direction"] = (
@@ -311,7 +314,7 @@ class Strategy:
             columns_needed += ["LRr_direction"]
 
         """ Momentum """
-        # RSI (Relative Strength Index) # FIXED
+        # RSI (Relative Strength Index)
         data.ta.rsi(length=20, append=True)
         if _check_enough_data("RSI_20", data):
             conditions["Momentum"]["RSI"] = {
@@ -320,7 +323,7 @@ class Strategy:
             }
             columns_needed += ["RSI_20"]
 
-        # STC (Schaff Trend Cycle) # FIXED
+        # STC (Schaff Trend Cycle)
         data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
         if _check_enough_data("STC_12_14_28_0.6", data):
             conditions["Momentum"]["STC"] = {
@@ -329,7 +332,7 @@ class Strategy:
             }
             columns_needed += ["STC_12_14_28_0.6"]
 
-        # UO (Ultimate Oscillator) # FIXED
+        # UO (Ultimate Oscillator)
         data.ta.uo(fast=10, medium=20, slow=40, append=True)
         if _check_enough_data("UO_10_20_40", data):
             conditions["Momentum"]["UO"] = {
