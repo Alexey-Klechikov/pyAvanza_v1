@@ -92,6 +92,8 @@ class Helper:
             i: CalibrationOrder(i) for i in Instrument
         }
 
+        self.signal_timer = 0
+
         self.orders_history: List[dict] = []
 
     def signal_to_instrument(self, signal: OrderType) -> dict:
@@ -137,7 +139,11 @@ class Helper:
 
         for signal in [OrderType.BUY, OrderType.SELL]:
             if all([i(row) for i in strategy_logic[signal]]):
+                self.signal_timer = 30
+
                 return signal
+
+        self.signal_timer -= 1
 
         return None
 
@@ -238,6 +244,10 @@ class Calibration:
                         row,
                         helper.signal_to_instrument(signal)[OrderType.BUY],
                     )
+
+                elif helper.signal_timer <= 0:
+                    for instrument in Instrument:
+                        helper.sell_order(time_index, row, instrument)
 
                 signal = helper.get_signal(strategy_logic, row)
 
