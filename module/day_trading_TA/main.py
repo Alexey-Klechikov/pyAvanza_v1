@@ -63,7 +63,10 @@ class Helper:
         ):
             return
 
-        if self.instrument_status.spread is None or self.instrument_status.spread > 0.7:
+        if (
+            self.instrument_status.spread is None
+            or self.instrument_status.spread > 0.75
+        ):
             log.error(
                 f"{instrument_type} - (place_order) HIGH SPREAD: {self.instrument_status.spread}"
             )
@@ -116,7 +119,7 @@ class Helper:
         ):
             return
 
-        if self.instrument_status.spread > 0.7:
+        if self.instrument_status.spread > 0.75:
             log.error(
                 f"{instrument_type} - (update_order) HIGH SPREAD: "
                 + f"{self.instrument_status.spread}"
