@@ -256,6 +256,11 @@ class Calibration:
             self.strategies.append(strategy_summary)
 
             if strategy_summary["profit"] <= 0:
+                log.debug(
+                    f"[{i+1}/{len(strategy.strategies)}] > "
+                    + " | ".join([f"{k}: {v}" for k, v in strategy_summary.items()])
+                )
+
                 continue
 
             log.info(

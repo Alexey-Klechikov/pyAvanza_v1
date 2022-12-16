@@ -213,6 +213,17 @@ class Strategy:
             columns_needed += ["ADOSC_direction"]
 
         """ Volatility """
+        # DONCHAIN (Donchian Channel)
+        data.ta.donchian(lower_length=30, upper_length=30, append=True)
+        if _check_enough_data("DCM_30_30", data):
+            conditions["Volatility"]["DONCHAIN"] = {
+                OrderType.BUY: lambda x: x["Close"]
+                > x["DCU_30_30"] - (x["DCU_30_30"] - x["DCM_30_30"]) * 0.4,
+                OrderType.SELL: lambda x: x["Close"]
+                < x["DCL_30_30"] + (x["DCM_30_30"] - x["DCL_30_30"]) * 0.6,
+            }
+            columns_needed += ["DCM_30_30", "DCL_30_30", "DCU_30_30"]
+
         # MASSI (Mass Index)
         data.ta.massi(fast=12, slow=30, append=True)
         if _check_enough_data("MASSI_12_30", data):
@@ -250,6 +261,17 @@ class Strategy:
             columns_needed += ["RVI_30"]
 
         """ Trend """
+        # ADX (Average Directional Movement Index)
+        data.ta.adx(length=30, append=True)
+        if _check_enough_data("ADX_30", data):
+            conditions["Trend"]["ADX"] = {
+                OrderType.BUY: lambda x: x["ADX_30"] > 20
+                and x["DMP_30"] >= x["DMN_30"],
+                OrderType.SELL: lambda x: x["ADX_30"] > 20
+                and x["DMP_30"] <= x["DMN_30"],
+            }
+            columns_needed += ["ADX_30", "DMP_30", "DMN_30"]
+
         # 2DEMA (Trend direction by Double EMA)
         data.ta.dema(length=15, append=True)
         data.ta.dema(length=30, append=True)
@@ -314,14 +336,14 @@ class Strategy:
             columns_needed += ["LRr_direction"]
 
         """ Momentum """
-        # RSI (Relative Strength Index)
-        data.ta.rsi(length=20, append=True)
-        if _check_enough_data("RSI_20", data):
-            conditions["Momentum"]["RSI"] = {
-                OrderType.BUY: lambda x: x["RSI_20"] < 30,
-                OrderType.SELL: lambda x: x["RSI_20"] > 70,
+        # CMO (Chande Momentum Oscillator)
+        data.ta.cmo(length=40, append=True)
+        if _check_enough_data("CMO_40", data):
+            conditions["Momentum"]["CMO"] = {
+                OrderType.BUY: lambda x: x["CMO_40"] > 0,
+                OrderType.SELL: lambda x: x["CMO_40"] < 0,
             }
-            columns_needed += ["RSI_20"]
+            columns_needed += ["CMO_40"]
 
         # STC (Schaff Trend Cycle)
         data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
