@@ -35,7 +35,7 @@ class Helper:
         self.ava = Context(user, accounts, skip_lists=True)
         self.strategy_names = Strategy.load("DT_TA").get("use", [])
 
-        self._update_budget()
+        # self._update_budget()
 
         self.log_data = {
             "balance_before": 0,

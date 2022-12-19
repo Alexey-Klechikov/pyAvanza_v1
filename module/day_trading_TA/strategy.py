@@ -54,7 +54,8 @@ class Signal:
 
             if (
                 time_index.hour < 10
-                or (datetime.now() - time_index.replace(tzinfo=None)).seconds / 60 > 30
+                or (datetime.now() - time_index.replace(tzinfo=None)).seconds / 60
+                > self.settings["trading"]["reset_timer"]
             ):
                 continue
 
@@ -246,10 +247,12 @@ class Strategy:
         data.ta.bbands(length=20, std=2, append=True)
         if _check_enough_data("BBL_20_2.0", data):
             conditions["Volatility"]["BBANDS"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["BBL_20_2.0"],
-                OrderType.SELL: lambda x: x["Close"] < x["BBU_20_2.0"],
+                OrderType.BUY: lambda x: x["Close"]
+                > x["BBU_20_2.0"] - (x["BBU_20_2.0"] - x["BBM_20_2.0"]) * 0.4,
+                OrderType.SELL: lambda x: x["Close"]
+                < x["BBL_20_2.0"] + (x["BBM_20_2.0"] - x["BBL_20_2.0"]) * 0.6,
             }
-            columns_needed += ["BBL_20_2.0", "BBU_20_2.0"]
+            columns_needed += ["BBL_20_2.0", "BBU_20_2.0", "BBM_20_2.0"]
 
         # RVI (Relative Volatility Index)
         data.ta.rvi(length=30, append=True)
@@ -271,6 +274,15 @@ class Strategy:
                 and x["DMP_30"] <= x["DMN_30"],
             }
             columns_needed += ["ADX_30", "DMP_30", "DMN_30"]
+
+        # EMA (Trend direction by 100 EMA)
+        data.ta.ema(length=100, append=True)
+        if _check_enough_data("EMA_100", data):
+            conditions["Trend"]["EMA"] = {
+                OrderType.BUY: lambda x: x["Close"] > x["EMA_100"],
+                OrderType.SELL: lambda x: x["Close"] < x["EMA_100"],
+            }
+            columns_needed += ["EMA_100"]
 
         # 2DEMA (Trend direction by Double EMA)
         data.ta.dema(length=15, append=True)
@@ -296,24 +308,6 @@ class Strategy:
             columns_needed += ["PSARl_0.1_0.25", "PSARs_0.1_0.25"]
 
         """ Overlap """
-        # ALMA (Arnaud Legoux Moving Average)
-        data.ta.alma(length=16, sigma=6.0, distribution_offset=0.85, append=True)
-        if _check_enough_data("ALMA_18_6.0_0.85", data):
-            conditions["Overlap"]["ALMA"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["ALMA_18_6.0_0.85"],
-                OrderType.SELL: lambda x: x["Close"] < x["ALMA_18_6.0_0.85"],
-            }
-            columns_needed += ["ALMA_18_6.0_0.85"]
-
-        # GHLA (Gann High-Low Activator)
-        data.ta.hilo(high_length=11, low_length=18, append=True)
-        if _check_enough_data("HILO_11_18", data):
-            conditions["Overlap"]["GHLA"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["HILO_11_18"],
-                OrderType.SELL: lambda x: x["Close"] < x["HILO_11_18"],
-            }
-            columns_needed += ["HILO_11_18"]
-
         # SUPERT (Supertrend)
         data.ta.supertrend(length=14, multiplier=7, append=True)
         if _check_enough_data("SUPERT_14_7.0", data):
@@ -323,27 +317,15 @@ class Strategy:
             }
             columns_needed += ["SUPERT_14_7.0"]
 
-        # LINREG (Linear Regression)
-        data.ta.linreg(length=30, append=True, r=True)
-        if _check_enough_data("LRr_30", data):
-            data["LRr_direction"] = (
-                data["LRr_30"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
-            )
-            conditions["Overlap"]["LINREG"] = {
-                OrderType.BUY: lambda x: x["LRr_direction"] == 1,
-                OrderType.SELL: lambda x: x["LRr_direction"] == 0,
-            }
-            columns_needed += ["LRr_direction"]
-
         """ Momentum """
         # CMO (Chande Momentum Oscillator)
-        data.ta.cmo(length=40, append=True)
-        if _check_enough_data("CMO_40", data):
+        data.ta.cmo(length=20, append=True)
+        if _check_enough_data("CMO_20", data):
             conditions["Momentum"]["CMO"] = {
-                OrderType.BUY: lambda x: x["CMO_40"] > 0,
-                OrderType.SELL: lambda x: x["CMO_40"] < 0,
+                OrderType.BUY: lambda x: x["CMO_20"] > 0,
+                OrderType.SELL: lambda x: x["CMO_20"] < 0,
             }
-            columns_needed += ["CMO_40"]
+            columns_needed += ["CMO_20"]
 
         # STC (Schaff Trend Cycle)
         data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
@@ -355,22 +337,22 @@ class Strategy:
             columns_needed += ["STC_12_14_28_0.6"]
 
         # UO (Ultimate Oscillator)
-        data.ta.uo(fast=10, medium=20, slow=40, append=True)
-        if _check_enough_data("UO_10_20_40", data):
+        data.ta.uo(fast=10, medium=15, slow=30, append=True)
+        if _check_enough_data("UO_10_15_30", data):
             conditions["Momentum"]["UO"] = {
-                OrderType.BUY: lambda x: x["UO_10_20_40"] < 30,
-                OrderType.SELL: lambda x: x["UO_10_20_40"] > 70,
+                OrderType.BUY: lambda x: x["UO_10_15_30"] < 30,
+                OrderType.SELL: lambda x: x["UO_10_15_30"] > 70,
             }
-            columns_needed += ["UO_10_20_40"]
+            columns_needed += ["UO_10_15_30"]
 
         # RVGI (Relative Vigor Index)
-        data.ta.rvgi(append=True)
-        if _check_enough_data("RVGI_14_4", data):
+        data.ta.rvgi(length=18, swma_length=10, append=True)
+        if _check_enough_data("RVGI_18_10", data):
             conditions["Momentum"]["RVGI"] = {
-                OrderType.BUY: lambda x: x["RVGI_14_4"] > x["RVGIs_14_4"],
-                OrderType.SELL: lambda x: x["RVGI_14_4"] < x["RVGIs_14_4"],
+                OrderType.BUY: lambda x: x["RVGI_18_10"] > x["RVGIs_18_10"],
+                OrderType.SELL: lambda x: x["RVGI_18_10"] < x["RVGIs_18_10"],
             }
-            columns_needed += ["RVGI_14_4", "RVGIs_14_4"]
+            columns_needed += ["RVGI_18_10", "RVGIs_18_10"]
 
         # MACD (Moving Average Convergence Divergence)
         data.ta.macd(fast=18, slow=52, signal=14, append=True)
@@ -407,13 +389,11 @@ class Strategy:
 
         strategies_component_names = []
         indicators_names = []
-        special_case_indicators_names = "HOLD"
+        fine_tested_strategies: list = []  # This is used for tests
 
         for indicator_type, indicators_dict in self.conditions.items():
             indicators_names += [
-                (indicator_type, indicator)
-                for indicator in indicators_dict.keys()
-                if indicator not in special_case_indicators_names
+                (indicator_type, indicator) for indicator in indicators_dict.keys()
             ]
 
         for i_1, indicator_1 in enumerate(indicators_names):
@@ -425,6 +405,14 @@ class Strategy:
 
                 for indicator_3 in temp_indicators_names[i_2:]:
                     if indicator_2[0] == indicator_3[0]:
+                        continue
+
+                    if fine_tested_strategies and not any(
+                        [
+                            i[1].split("_")[0] in fine_tested_strategies
+                            for i in [indicator_1, indicator_2, indicator_3]
+                        ]
+                    ):
                         continue
 
                     strategies_component_names.append(

@@ -21,7 +21,8 @@
             "log_to_telegram": true,
             "run_day_trading": true,
             "trading": {
-                "budget": 1500
+                "budget": 1500,
+                "reset_timer": 180
             },
             "instruments": {
                 "multiplier": 20,

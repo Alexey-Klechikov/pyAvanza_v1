@@ -92,7 +92,7 @@ class Helper:
             i: CalibrationOrder(i) for i in Instrument
         }
 
-        self.signal_timer = 0
+        self.reset_timer = 0
 
         self.orders_history: List[dict] = []
 
@@ -132,18 +132,16 @@ class Helper:
         self.orders_history.append(self.orders[instrument].pop_result())
 
     def get_signal(
-        self,
-        strategy_logic: dict,
-        row: pd.Series,
+        self, strategy_logic: dict, row: pd.Series, reset_timer: int
     ) -> Optional[OrderType]:
 
         for signal in [OrderType.BUY, OrderType.SELL]:
             if all([i(row) for i in strategy_logic[signal]]):
-                self.signal_timer = 30
+                self.reset_timer = reset_timer
 
                 return signal
 
-        self.signal_timer -= 1
+        self.reset_timer -= 1
 
         return None
 
@@ -158,8 +156,14 @@ class Helper:
             "trades": len(df),
             "good": len(df[df.verdict == "good"]),
             "bad": len(df[df.verdict == "bad"]),
-            "BULL": len(df[df.instrument == Instrument.BULL]),
-            "BEAR": len(df[df.instrument == Instrument.BEAR]),
+            "BULL_trades": len(df[df.instrument == Instrument.BULL]),
+            "BULL_trades_good": len(
+                df[(df.instrument == Instrument.BULL) & (df.verdict == "good")]
+            ),
+            "BEAR_trades": len(df[df.instrument == Instrument.BEAR]),
+            "BEAR_trades_good": len(
+                df[(df.instrument == Instrument.BEAR) & (df.verdict == "good")]
+            ),
         }
 
         return {
@@ -167,10 +171,16 @@ class Helper:
             "points": int(df.points.sum()),
             "profit": int(df.profit.sum() - len(df) * 1000),
             "efficiency": f"{round(100 * len(df[df.verdict == 'good']) / len(df))}%",
-            "numbers": f"[trades: {numbers['trades']}] "
-            + ("" if numbers["BULL"] == 0 else f"[BULL: {numbers['BULL']}] ")
-            + ("" if numbers["BEAR"] == 0 else f"[BEAR: {numbers['BEAR']}] ")
-            + f"[good: {numbers['good']}]",
+            "numbers": (
+                ""
+                if numbers["BULL_trades"] == 0
+                else f"[BULL: {round(numbers['BULL_trades_good'] / numbers['BULL_trades'] * 100)}% - {numbers['BULL_trades_good']} / {numbers['BULL_trades']}] "
+            )
+            + (
+                ""
+                if numbers["BEAR_trades"] == 0
+                else f"[BEAR: {round(numbers['BEAR_trades_good'] / numbers['BEAR_trades'] * 100)}% - {numbers['BEAR_trades_good']} / {numbers['BEAR_trades']}]"
+            ),
         }
 
     def print_orders_history(self) -> None:
@@ -245,11 +255,13 @@ class Calibration:
                         helper.signal_to_instrument(signal)[OrderType.BUY],
                     )
 
-                elif helper.signal_timer <= 0:
+                elif helper.reset_timer <= 0:
                     for instrument in Instrument:
                         helper.sell_order(time_index, row, instrument)
 
-                signal = helper.get_signal(strategy_logic, row)
+                signal = helper.get_signal(
+                    strategy_logic, row, self.settings["trading"]["reset_timer"]
+                )
 
             strategy_summary = helper.get_orders_history_summary()
 
