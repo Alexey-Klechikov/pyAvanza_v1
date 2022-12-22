@@ -22,10 +22,10 @@
             "run_day_trading": true,
             "trading": {
                 "budget": 1500,
-                "reset_timer": 180
+                "stop_loss": 0.91,
+                "take_profit": 1.1
             },
             "instruments": {
-                "multiplier": 20,
                 "TRADING": {
                     "BEAR": 1498864,
                     "BULL": 1456629

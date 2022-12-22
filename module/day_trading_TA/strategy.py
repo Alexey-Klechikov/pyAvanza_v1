@@ -34,7 +34,6 @@ class Signal:
 
         self.last_candle = None
         self.last_signal: Optional[OrderType] = None
-        self.last_signals: List[Optional[OrderType]] = []
 
     def get_instrument(self, signal: OrderType) -> dict:
         return {
@@ -47,24 +46,13 @@ class Signal:
         }
 
     def _get_last_signal_on_strategy(
-        self, data: pd.DataFrame, strategy_logic: dict
+        self, row: pd.Series, strategy_logic: dict
     ) -> Optional[OrderType]:
-        for index in reversed(data.index):
-            time_index: datetime = index  # type: ignore
-
-            if (
-                time_index.hour < 10
-                or (datetime.now() - time_index.replace(tzinfo=None)).seconds / 60
-                > self.settings["trading"]["reset_timer"]
-            ):
+        for signal in [OrderType.BUY, OrderType.SELL]:
+            if not all([i(row) for i in strategy_logic[signal]]):
                 continue
 
-            row = data.loc[index]
-            for signal in [OrderType.BUY, OrderType.SELL]:
-                if not all([i(row) for i in strategy_logic[signal]]):
-                    continue
-
-                return signal
+            return signal
 
         return None
 
@@ -105,21 +93,16 @@ class Signal:
             return self.last_signal
 
         signals = [
-            self._get_last_signal_on_strategy(strategy.data, strategy_logic)
+            self._get_last_signal_on_strategy(self.last_candle, strategy_logic)
             for strategy_logic in strategy.strategies.values()
         ]
 
         signal = self._get_signal_from_list(signals)
 
-        if signals != self.last_signals:
+        if signal is not None and self.last_candle is not None:
             log.info(
-                "Signals: "
-                + " + ".join(["None" if s is None else s.value for s in signals])
-                + f' => {("None" if signal is None else signal.value)}'
+                f"Signal: {signal.name} | {str(self.last_candle.name)[11:-9]} | {self.last_candle['Close']}"
             )
-
-            self.last_signals = signals
-
         self.last_signal = signal
 
         return signal
@@ -163,6 +146,10 @@ class Strategy:
         conditions: dict = {ct: {} for ct in condition_types_list}
 
         columns_needed = ["Open", "High", "Low", "Close", "Volume"]
+
+        # ATR (Average True Range) - used for SL/TP calculation
+        data["ATR"] = data.ta.atr(length=14)
+        columns_needed += ["ATR"]
 
         """ Cycles """
         # EBSW (Even Better Sinewave)
@@ -214,7 +201,7 @@ class Strategy:
             columns_needed += ["ADOSC_direction"]
 
         """ Volatility """
-        # DONCHAIN (Donchian Channel)
+        # DONCHAIN (Donchian Channel) ---
         data.ta.donchian(lower_length=30, upper_length=30, append=True)
         if _check_enough_data("DCM_30_30", data):
             conditions["Volatility"]["DONCHAIN"] = {
@@ -243,7 +230,7 @@ class Strategy:
             }
             columns_needed += ["HWM"]
 
-        # BBANDS (Bollinger Bands)
+        # BBANDS (Bollinger Bands) ???
         data.ta.bbands(length=20, std=2, append=True)
         if _check_enough_data("BBL_20_2.0", data):
             conditions["Volatility"]["BBANDS"] = {
@@ -254,7 +241,7 @@ class Strategy:
             }
             columns_needed += ["BBL_20_2.0", "BBU_20_2.0", "BBM_20_2.0"]
 
-        # RVI (Relative Volatility Index)
+        # RVI (Relative Volatility Index) ???
         data.ta.rvi(length=30, append=True)
         if _check_enough_data("RVI_30", data):
             conditions["Volatility"]["RVI"] = {
@@ -318,15 +305,6 @@ class Strategy:
             columns_needed += ["SUPERT_14_7.0"]
 
         """ Momentum """
-        # CMO (Chande Momentum Oscillator)
-        data.ta.cmo(length=20, append=True)
-        if _check_enough_data("CMO_20", data):
-            conditions["Momentum"]["CMO"] = {
-                OrderType.BUY: lambda x: x["CMO_20"] > 0,
-                OrderType.SELL: lambda x: x["CMO_20"] < 0,
-            }
-            columns_needed += ["CMO_20"]
-
         # STC (Schaff Trend Cycle)
         data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
         if _check_enough_data("STC_12_14_28_0.6", data):
@@ -344,15 +322,6 @@ class Strategy:
                 OrderType.SELL: lambda x: x["UO_10_15_30"] > 70,
             }
             columns_needed += ["UO_10_15_30"]
-
-        # RVGI (Relative Vigor Index)
-        data.ta.rvgi(length=18, swma_length=10, append=True)
-        if _check_enough_data("RVGI_18_10", data):
-            conditions["Momentum"]["RVGI"] = {
-                OrderType.BUY: lambda x: x["RVGI_18_10"] > x["RVGIs_18_10"],
-                OrderType.SELL: lambda x: x["RVGI_18_10"] < x["RVGIs_18_10"],
-            }
-            columns_needed += ["RVGI_18_10", "RVGIs_18_10"]
 
         # MACD (Moving Average Convergence Divergence)
         data.ta.macd(fast=18, slow=52, signal=14, append=True)

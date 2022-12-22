@@ -30,6 +30,8 @@ class Instrument(str, Enum):
 
 @dataclass
 class InstrumentStatus:
+    stop_settings: dict
+
     price_sell: Optional[float] = None
     price_buy: Optional[float] = None
     spread: Optional[float] = None
@@ -37,12 +39,26 @@ class InstrumentStatus:
     position: dict = field(default_factory=dict)
     active_order: dict = field(default_factory=dict)
 
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+
     def get_status(self, certificate_info: dict) -> None:
         self.price_buy = certificate_info[OrderType.BUY]
         self.price_sell = certificate_info[OrderType.SELL]
         self.spread = certificate_info["spread"]
         self.position = certificate_info["position"]
         self.active_order = certificate_info["order"]
+
+    def update_limits(self, atr) -> None:
+        if not self.position:
+            return None
+
+        self.stop_loss = round(
+            self.price_sell * (1 - (1 - self.stop_settings["stop_loss"]) * atr), 2
+        )
+        self.take_profit = round(
+            self.price_sell * (1 + (self.stop_settings["take_profit"] - 1) * atr), 2
+        )
 
 
 @dataclass

@@ -20,6 +20,8 @@ class CalibrationOrder:
     on_balance: bool = False
     price_buy: Optional[float] = None
     price_sell: Optional[float] = None
+    price_stop_loss: Optional[float] = None
+    price_take_profit: Optional[float] = None
     time_buy: Optional[datetime] = None
     time_sell: Optional[datetime] = None
     verdict: Optional[str] = None
@@ -45,6 +47,52 @@ class CalibrationOrder:
 
         else:
             self.verdict = "good"
+
+    def set_limits(self, row: pd.Series, settings_trading: dict) -> None:
+        if self.instrument == Instrument.BULL:
+            reference_price = ((row["Open"] + row["Close"]) / 2) * 1.00015
+
+            self.price_stop_loss = reference_price * (
+                1 - (1 - settings_trading["stop_loss"]) * row["ATR"] / 20
+            )
+
+            self.price_take_profit = reference_price * (
+                1 + (settings_trading["take_profit"] - 1) * row["ATR"] / 20
+            )
+
+        elif self.instrument == Instrument.BEAR:
+            reference_price = ((row["Open"] + row["Close"]) / 2) * 0.99985
+
+            self.price_stop_loss = reference_price * (
+                1 + (1 - settings_trading["stop_loss"]) * row["ATR"] / 20
+            )
+
+            self.price_take_profit = reference_price * (
+                1 - (settings_trading["take_profit"] - 1) * row["ATR"] / 20
+            )
+
+    def check_limits(self, row: pd.Series) -> bool:
+        self.price_sell = (row["Close"] + row["Open"]) / 2
+
+        if self.price_stop_loss is None or self.price_take_profit is None:
+            return False
+
+        if (
+            (
+                self.price_sell <= self.price_stop_loss
+                or self.price_sell >= self.price_take_profit
+            )
+            and self.instrument == Instrument.BULL
+        ) or (
+            (
+                self.price_sell <= self.price_take_profit
+                or self.price_sell >= self.price_stop_loss
+            )
+            and self.instrument == Instrument.BEAR
+        ):
+            return True
+
+        return False
 
     def pop_result(self) -> dict:
         profit: Optional[float] = None
@@ -85,14 +133,13 @@ class CalibrationOrder:
 
 
 class Helper:
-    def __init__(self, strategy_name: str) -> None:
+    def __init__(self, strategy_name: str, settings: dict) -> None:
         self.strategy_name = strategy_name
+        self.settings = settings
 
         self.orders: Dict[Instrument, CalibrationOrder] = {
             i: CalibrationOrder(i) for i in Instrument
         }
-
-        self.reset_timer = 0
 
         self.orders_history: List[dict] = []
 
@@ -113,10 +160,13 @@ class Helper:
         row: pd.Series,
         instrument: Instrument,
     ) -> None:
-        if any([signal is None, self.orders[instrument].on_balance]):
+        if signal is None:
             return
 
-        self.orders[instrument].buy(row, index)
+        if not self.orders[instrument].on_balance:
+            self.orders[instrument].buy(row, index)
+
+        self.orders[instrument].set_limits(row, self.settings["trading"])
 
     def sell_order(
         self,
@@ -131,17 +181,16 @@ class Helper:
 
         self.orders_history.append(self.orders[instrument].pop_result())
 
-    def get_signal(
-        self, strategy_logic: dict, row: pd.Series, reset_timer: int
-    ) -> Optional[OrderType]:
+    def check_orders_for_limits(self, index: datetime, row: pd.Series) -> None:
+        for instrument, calibration_order in self.orders.items():
+            if calibration_order.check_limits(row):
+                self.sell_order(index, row, instrument)
+
+    def get_signal(self, strategy_logic: dict, row: pd.Series) -> Optional[OrderType]:
 
         for signal in [OrderType.BUY, OrderType.SELL]:
             if all([i(row) for i in strategy_logic[signal]]):
-                self.reset_timer = reset_timer
-
                 return signal
-
-        self.reset_timer -= 1
 
         return None
 
@@ -225,7 +274,7 @@ class Calibration:
         for i, (strategy_name, strategy_logic) in enumerate(
             strategy.strategies.items()
         ):
-            helper = Helper(strategy_name)
+            helper = Helper(strategy_name, self.settings)
             signal = None
 
             for index, row in history.data.iterrows():
@@ -255,13 +304,9 @@ class Calibration:
                         helper.signal_to_instrument(signal)[OrderType.BUY],
                     )
 
-                elif helper.reset_timer <= 0:
-                    for instrument in Instrument:
-                        helper.sell_order(time_index, row, instrument)
+                helper.check_orders_for_limits(time_index, row)
 
-                signal = helper.get_signal(
-                    strategy_logic, row, self.settings["trading"]["reset_timer"]
-                )
+                signal = helper.get_signal(strategy_logic, row)
 
             strategy_summary = helper.get_orders_history_summary()
 
