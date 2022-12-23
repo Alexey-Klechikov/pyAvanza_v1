@@ -75,7 +75,7 @@ class Signal:
 
         # Case when I hit the same candle multiple times
         if self.last_candle is not None and self.last_candle.name == strategy.data.iloc[-1].name:  # type: ignore
-            return self.last_signal
+            return None
 
         self.last_candle = strategy.data.iloc[-1]
 

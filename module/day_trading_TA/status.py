@@ -50,6 +50,8 @@ class InstrumentStatus:
     position: dict = field(default_factory=dict)
     active_order: dict = field(default_factory=dict)
 
+    acquired_price: Optional[float] = None
+
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
 
@@ -59,6 +61,16 @@ class InstrumentStatus:
         self.spread = certificate_info["spread"]
         self.position = certificate_info["position"]
         self.active_order = certificate_info["order"]
+
+        if self.acquired_price and not self.position:
+            log.info(
+                f'=> {"Good" if self.acquired_price < self.price_sell else "Bad"} (acquired: {self.acquired_price})'
+            )
+
+            self.acquired_price = None
+
+        elif not self.acquired_price and self.position:
+            self.acquired_price = self.position.get("acquiredPrice")
 
     def update_limits(self, atr) -> None:
         if not self.position:

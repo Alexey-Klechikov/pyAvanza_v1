@@ -121,18 +121,9 @@ class Order:
         if custom_price is not None:
             price = custom_price
 
-        log_message = (
-            f"{instrument_type} - (UPD {signal.name.upper()} order): "
-            + f'{instrument_status.active_order["price"]} -> {price} '
+        log.info(
+            f'{instrument_type} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price} '
         )
-
-        if custom_price is None and signal == OrderType.SELL:
-            log_message += (
-                f'(acquired: {instrument_status.position["acquiredPrice"]})'
-                + f' => {"Good" if instrument_status.position["acquiredPrice"] < price else "Bad"}'
-            )
-
-        log.info(log_message)
 
         self.ava.update_order(instrument_status.active_order, price)
 
