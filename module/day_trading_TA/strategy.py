@@ -155,13 +155,14 @@ class Strategy:
         # PVT (Price Volume Trend)
         data.ta.pvt(append=True)
         if _check_enough_data("PVT", data):
-            data.ta.ema(close="PVT", length=9, append=True)
+            data.ta.ema(close="PVT", length=14, append=True)
             conditions["Volume"]["PVT"] = {
-                OrderType.BUY: lambda x: (x["Volume"] != 0) and (x["EMA_9"] < x["PVT"]),
+                OrderType.BUY: lambda x: (x["Volume"] != 0)
+                and (x["EMA_14"] < x["PVT"]),
                 OrderType.SELL: lambda x: (x["Volume"] != 0)
-                and (x["EMA_9"] > x["PVT"]),
+                and (x["EMA_14"] > x["PVT"]),
             }
-            columns_needed += ["EMA_9", "PVT"]
+            columns_needed += ["EMA_14", "PVT"]
 
         # CMF (Chaikin Money Flow)
         data.ta.cmf(append=True)
@@ -220,16 +221,16 @@ class Strategy:
             }
             columns_needed += ["HWM"]
 
-        # BBANDS (Bollinger Bands) ???
-        data.ta.bbands(length=20, std=2, append=True)
-        if _check_enough_data("BBL_20_2.0", data):
+        # BBANDS (Bollinger Bands)
+        data.ta.bbands(length=16, std=2, append=True)
+        if _check_enough_data("BBL_16_2.0", data):
             conditions["Volatility"]["BBANDS"] = {
                 OrderType.BUY: lambda x: x["Close"]
-                > x["BBU_20_2.0"] - (x["BBU_20_2.0"] - x["BBM_20_2.0"]) * 0.4,
+                > x["BBU_16_2.0"] - (x["BBU_16_2.0"] - x["BBM_16_2.0"]) * 0.4,
                 OrderType.SELL: lambda x: x["Close"]
-                < x["BBL_20_2.0"] + (x["BBM_20_2.0"] - x["BBL_20_2.0"]) * 0.6,
+                < x["BBL_16_2.0"] + (x["BBM_16_2.0"] - x["BBL_16_2.0"]) * 0.6,
             }
-            columns_needed += ["BBL_20_2.0", "BBU_20_2.0", "BBM_20_2.0"]
+            columns_needed += ["BBL_16_2.0", "BBU_16_2.0", "BBM_16_2.0"]
 
         # RVI (Relative Volatility Index) ???
         data.ta.rvi(length=30, append=True)
@@ -286,13 +287,13 @@ class Strategy:
 
         """ Overlap """
         # SUPERT (Supertrend)
-        data.ta.supertrend(length=14, multiplier=7, append=True)
-        if _check_enough_data("SUPERT_14_7.0", data):
+        data.ta.supertrend(length=16, multiplier=7, append=True)
+        if _check_enough_data("SUPERT_16_7.0", data):
             conditions["Overlap"]["SUPERT"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_14_7.0"],
-                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_14_7.0"],
+                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_16_7.0"],
+                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_16_7.0"],
             }
-            columns_needed += ["SUPERT_14_7.0"]
+            columns_needed += ["SUPERT_16_7.0"]
 
         """ Momentum """
         # STC (Schaff Trend Cycle)
