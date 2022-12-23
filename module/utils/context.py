@@ -364,7 +364,7 @@ class Context:
             "order": {} if len(orders) == 0 else orders[0],
         }
 
-    def remove_active_orders(self, account_ids: list[Union[str, int]]) -> None:
+    def delete_active_orders(self, account_ids: list[Union[str, int]]) -> None:
         active_orders = []
 
         deals_and_orders = self.ctx.get_deals_and_orders()

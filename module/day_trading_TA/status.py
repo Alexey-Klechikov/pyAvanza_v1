@@ -27,6 +27,17 @@ class Instrument(str, Enum):
     def generate_empty_counters(cls) -> dict:
         return {i: 0 for i in cls}
 
+    @classmethod
+    def from_signal(cls, signal: OrderType) -> dict:
+        return {
+            OrderType.BUY: Instrument.BULL
+            if signal == OrderType.BUY
+            else Instrument.BEAR,
+            OrderType.SELL: Instrument.BEAR
+            if signal == OrderType.BUY
+            else Instrument.BULL,
+        }
+
 
 @dataclass
 class InstrumentStatus:

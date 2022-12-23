@@ -49,27 +49,19 @@ class CalibrationOrder:
             self.verdict = "good"
 
     def set_limits(self, row: pd.Series, settings_trading: dict) -> None:
-        if self.instrument == Instrument.BULL:
-            reference_price = ((row["Open"] + row["Close"]) / 2) * 1.00015
+        atr_correction = row["ATR"] / 20
+        direction = 1 if self.instrument == Instrument.BULL else -1
 
-            self.price_stop_loss = reference_price * (
-                1 - (1 - settings_trading["stop_loss"]) * row["ATR"] / 20
-            )
+        reference_price = ((row["Open"] + row["Close"]) / 2) * (
+            1.00015 if self.instrument == Instrument.BULL else 0.99985
+        )
 
-            self.price_take_profit = reference_price * (
-                1 + (settings_trading["take_profit"] - 1) * row["ATR"] / 20
-            )
-
-        elif self.instrument == Instrument.BEAR:
-            reference_price = ((row["Open"] + row["Close"]) / 2) * 0.99985
-
-            self.price_stop_loss = reference_price * (
-                1 + (1 - settings_trading["stop_loss"]) * row["ATR"] / 20
-            )
-
-            self.price_take_profit = reference_price * (
-                1 - (settings_trading["take_profit"] - 1) * row["ATR"] / 20
-            )
+        self.price_stop_loss = reference_price * (
+            1 - (1 - settings_trading["stop_loss"]) * atr_correction * direction
+        )
+        self.price_take_profit = reference_price * (
+            1 + (settings_trading["take_profit"] - 1) * atr_correction * direction
+        )
 
     def check_limits(self, row: pd.Series) -> bool:
         self.price_sell = (row["Close"] + row["Open"]) / 2
@@ -78,17 +70,17 @@ class CalibrationOrder:
             return False
 
         if (
-            (
+            self.instrument == Instrument.BULL
+            and (
                 self.price_sell <= self.price_stop_loss
                 or self.price_sell >= self.price_take_profit
             )
-            and self.instrument == Instrument.BULL
         ) or (
-            (
+            self.instrument == Instrument.BEAR
+            and (
                 self.price_sell <= self.price_take_profit
                 or self.price_sell >= self.price_stop_loss
             )
-            and self.instrument == Instrument.BEAR
         ):
             return True
 
@@ -142,16 +134,6 @@ class Helper:
         }
 
         self.orders_history: List[dict] = []
-
-    def signal_to_instrument(self, signal: OrderType) -> dict:
-        return {
-            OrderType.BUY: Instrument.BULL
-            if signal == OrderType.BUY
-            else Instrument.BEAR,
-            OrderType.SELL: Instrument.BEAR
-            if signal == OrderType.BUY
-            else Instrument.BULL,
-        }
 
     def buy_order(
         self,
@@ -295,13 +277,13 @@ class Calibration:
                     helper.sell_order(
                         time_index,
                         row,
-                        helper.signal_to_instrument(signal)[OrderType.SELL],
+                        Instrument.from_signal(signal)[OrderType.SELL],
                     )
                     helper.buy_order(
                         signal,
                         time_index,
                         row,
-                        helper.signal_to_instrument(signal)[OrderType.BUY],
+                        Instrument.from_signal(signal)[OrderType.BUY],
                     )
 
                 helper.check_orders_for_limits(time_index, row)

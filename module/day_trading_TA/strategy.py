@@ -35,16 +35,6 @@ class Signal:
         self.last_candle = None
         self.last_signal: Optional[OrderType] = None
 
-    def get_instrument(self, signal: OrderType) -> dict:
-        return {
-            OrderType.BUY: Instrument.BULL
-            if signal == OrderType.BUY
-            else Instrument.BEAR,
-            OrderType.SELL: Instrument.BEAR
-            if signal == OrderType.BUY
-            else Instrument.BULL,
-        }
-
     def _get_last_signal_on_strategy(
         self, row: pd.Series, strategy_logic: dict
     ) -> Optional[OrderType]:

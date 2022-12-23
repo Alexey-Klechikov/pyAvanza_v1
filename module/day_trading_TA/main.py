@@ -23,48 +23,19 @@ from module.utils import Context, Settings, TeleLog
 log = logging.getLogger("main.day_trading_ta")
 
 
-class Helper:
-    def __init__(self, user, accounts: dict, settings: dict):
+class Order:
+    def __init__(self, ava: Context, settings: dict, accounts: dict):
+        self.ava = ava
         self.settings = settings
-
-        self.trading_done = False
         self.accounts = accounts
 
-        self.trading_time = TradingTime()
-        self.instrument_status: dict = {
-            instrument: InstrumentStatus(self.settings["trading"])
-            for instrument in Instrument
-        }
-        self.ava = Context(user, accounts, skip_lists=True)
-        self.strategy_names = Strategy.load("DT_TA").get("use", [])
-
-        self._update_budget()
-
-        self.log_data = {
-            "balance_before": 0,
-            "balance_after": 0,
-            "number_errors": 0,
-            "budget": self.settings["trading"]["budget"],
-        }
-
-    def _update_budget(self) -> None:
-        own_capital = self.ava.get_portfolio().total_own_capital
-        floating_budget = (own_capital // 500 - 1) * 500
-
-        self.settings["trading"]["budget"] = max(
-            floating_budget, self.settings["trading"]["budget"]
-        )
-
-        log.info(f'Trading budget: {self.settings["trading"]["budget"]}')
-
-    def place_order(
+    def place(
         self,
         signal: OrderType,
         instrument_type: Instrument,
+        instrument_status: InstrumentStatus,
         custom_price: Optional[float] = None,
     ) -> None:
-        instrument_status = self.instrument_status[instrument_type]
-
         if (
             (signal == OrderType.BUY and instrument_status.position)
             or (signal == OrderType.SELL and not instrument_status.position)
@@ -75,10 +46,8 @@ class Helper:
 
         if instrument_status.spread is None or instrument_status.spread > 0.75:
             log.error(
-                f"{instrument_type} - (place_order) HIGH SPREAD: {instrument_status.spread}"
+                f"{instrument_type} - (place) HIGH SPREAD: {instrument_status.spread}"
             )
-
-            self.log_data["number_errors"] += 1
 
             return
 
@@ -121,14 +90,13 @@ class Helper:
             f'{instrument_type} - (SET {signal.name.upper()} order): {order_data["price"]}'
         )
 
-    def update_order(
+    def update(
         self,
         signal: OrderType,
         instrument_type: Instrument,
+        instrument_status: InstrumentStatus,
         custom_price: Optional[float] = None,
     ) -> None:
-        instrument_status = self.instrument_status[instrument_type]
-
         if (
             instrument_status.price_buy is None
             or instrument_status.price_sell is None
@@ -138,11 +106,9 @@ class Helper:
 
         if instrument_status.spread > 0.75:
             log.error(
-                f"{instrument_type} - (update_order) HIGH SPREAD: "
+                f"{instrument_type} - (update) HIGH SPREAD: "
                 + f"{instrument_status.spread}"
             )
-
-            self.log_data["number_errors"] += 1
 
             return
 
@@ -157,21 +123,57 @@ class Helper:
 
         log_message = (
             f"{instrument_type} - (UPD {signal.name.upper()} order): "
-            + f'{instrument_status.active_order["price"]} -> {price}'
+            + f'{instrument_status.active_order["price"]} -> {price} '
         )
 
         if custom_price is None and signal == OrderType.SELL:
             log_message += (
-                f'(Acquired: {instrument_status.position["acquiredPrice"]})'
-                + f' -> {"Good" if instrument_status.position["acquiredPrice"] < price else "Bad"}'
+                f'(acquired: {instrument_status.position["acquiredPrice"]})'
+                + f' => {"Good" if instrument_status.position["acquiredPrice"] < price else "Bad"}'
             )
 
         log.info(log_message)
 
         self.ava.update_order(instrument_status.active_order, price)
 
-    def delete_order(self) -> None:
-        self.ava.remove_active_orders(account_ids=[self.settings["accounts"]["DT"]])
+    def delete(self) -> None:
+        self.ava.delete_active_orders(account_ids=[self.settings["accounts"]["DT"]])
+
+
+class Helper:
+    def __init__(self, user, accounts: dict, settings: dict):
+        self.settings = settings
+        self.accounts = accounts
+
+        self.trading_done = False
+
+        self.trading_time = TradingTime()
+        self.instrument_status: dict = {
+            instrument: InstrumentStatus(self.settings["trading"])
+            for instrument in Instrument
+        }
+        self.strategy_names = Strategy.load("DT_TA").get("use", [])
+        self.ava = Context(user, accounts, skip_lists=True)
+        self.order = Order(self.ava, settings, accounts)
+
+        self._update_budget()
+
+        self.log_data = {
+            "balance_before": 0,
+            "balance_after": 0,
+            "number_errors": 0,
+            "budget": self.settings["trading"]["budget"],
+        }
+
+    def _update_budget(self) -> None:
+        own_capital = self.ava.get_portfolio().total_own_capital
+        floating_budget = (own_capital // 500 - 1) * 500
+
+        self.settings["trading"]["budget"] = max(
+            floating_budget, self.settings["trading"]["budget"]
+        )
+
+        log.info(f'Trading budget: {self.settings["trading"]["budget"]}')
 
     def update_instrument_status(self, instrument_type: Instrument) -> InstrumentStatus:
         instrument_id = str(self.settings["instruments"]["TRADING"][instrument_type])
@@ -181,6 +183,51 @@ class Helper:
         self.instrument_status[instrument_type].get_status(certificate_info)
 
         return self.instrument_status[instrument_type]
+
+    def buy_instrument(self, instrument_type: Instrument) -> None:
+        for _ in range(5):
+            instrument_status = self.update_instrument_status(instrument_type)
+
+            if instrument_status.position:
+                return
+
+            elif not instrument_status.active_order:
+                self.order.place(OrderType.BUY, instrument_type, instrument_status)
+
+            else:
+                self.order.update(OrderType.BUY, instrument_type, instrument_status)
+
+            time.sleep(10)
+
+    def sell_instrument(
+        self, instrument_type: Instrument, custom_price: Optional[float] = None
+    ) -> None:
+        for _ in range(5):
+            instrument_status = self.update_instrument_status(instrument_type)
+
+            if not instrument_status.active_order and not instrument_status.position:
+                return
+
+            elif instrument_status.active_order and not instrument_status.position:
+                self.order.delete()
+
+            elif not instrument_status.active_order and instrument_status.position:
+                self.order.place(
+                    OrderType.SELL, instrument_type, instrument_status, custom_price
+                )
+
+            elif instrument_status.active_order and instrument_status.position:
+                if instrument_status.active_order["price"] == custom_price:
+                    return
+
+                self.order.update(
+                    OrderType.SELL, instrument_type, instrument_status, custom_price
+                )
+
+                if custom_price is not None:
+                    break
+
+            time.sleep(10)
 
 
 class Day_Trading:
@@ -204,47 +251,6 @@ class Day_Trading:
                 self.helper.log_data["number_errors"] += 1
 
                 self.helper.ava.ctx = self.helper.ava.get_ctx(user)
-
-    def _buy_instrument(self, instrument_type: Instrument) -> None:
-        for _ in range(5):
-            instrument_status = self.helper.update_instrument_status(instrument_type)
-
-            if instrument_status.position:
-                return
-
-            elif instrument_status.active_order:
-                self.helper.update_order(OrderType.BUY, instrument_type)
-
-            else:
-                self.helper.place_order(OrderType.BUY, instrument_type)
-
-            time.sleep(10)
-
-    def _sell_instrument(
-        self, instrument_type: Instrument, custom_price: Optional[float] = None
-    ) -> None:
-        for _ in range(5):
-            instrument_status = self.helper.update_instrument_status(instrument_type)
-
-            if not instrument_status.active_order and not instrument_status.position:
-                return
-
-            elif instrument_status.active_order and not instrument_status.position:
-                self.helper.delete_order()
-
-            elif not instrument_status.active_order and instrument_status.position:
-                self.helper.place_order(OrderType.SELL, instrument_type, custom_price)
-
-            elif instrument_status.active_order and instrument_status.position:
-                if instrument_status.active_order["price"] == custom_price:
-                    return
-
-                self.helper.update_order(OrderType.SELL, instrument_type, custom_price)
-
-                if custom_price is not None:
-                    break
-
-            time.sleep(10)
 
     def action_day(self) -> None:
         signal = self.signal.get()
@@ -271,27 +277,27 @@ class Day_Trading:
                     continue
 
                 if instrument_status.price_sell <= instrument_status.stop_loss:
-                    self._sell_instrument(instrument_type)
+                    self.helper.sell_instrument(instrument_type)
 
         else:
-            instrument_sell = self.signal.get_instrument(signal)[OrderType.SELL]
-            self._sell_instrument(instrument_sell)
+            instrument_sell = Instrument.from_signal(signal)[OrderType.SELL]
+            self.helper.sell_instrument(instrument_sell)
 
-            instrument_buy = self.signal.get_instrument(signal)[OrderType.BUY]
-            self._buy_instrument(instrument_buy)
+            instrument_buy = Instrument.from_signal(signal)[OrderType.BUY]
+            self.helper.buy_instrument(instrument_buy)
 
             self.helper.instrument_status[instrument_buy].update_limits(
                 self.signal.last_candle["ATR"]
             )
 
-            self._sell_instrument(
+            self.helper.sell_instrument(
                 instrument_buy,
                 self.helper.instrument_status[instrument_buy].take_profit,
             )
 
     def action_evening(self) -> None:
         for instrument_type in Instrument:
-            self._sell_instrument(instrument_type)
+            self.helper.sell_instrument(instrument_type)
 
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:

@@ -201,7 +201,7 @@ class PortfolioAnalysis:
     def run_analysis(self, accounts: dict, log_to_telegram: bool) -> None:
         log.info(f'Running analysis for account(s): {" & ".join(accounts)}')
 
-        self.ava.remove_active_orders(account_ids=list(accounts.values()))
+        self.ava.delete_active_orders(account_ids=list(accounts.values()))
 
         created_orders = {}
         created_orders[Signal.SELL], portfolio_tickers = self.create_sell_orders()
