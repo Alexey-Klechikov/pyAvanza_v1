@@ -73,7 +73,7 @@ class InstrumentStatus:
             self.acquired_price = self.position.get("acquiredPrice")
 
     def update_limits(self, atr) -> None:
-        if not self.position:
+        if not self.position or self.price_sell is None:
             return None
 
         self.stop_loss = round(
