@@ -93,9 +93,14 @@ class Signal:
             log.info(
                 f"Signal: {signal.name} | {str(self.last_candle.name)[11:-9]} | {self.last_candle['Close']} | "
                 + " & ".join(
-                    [str(i + 1) for i, s in enumerate(signals) if s is not None]
+                    [
+                        str(i + 1) + ("" if s == signal else f" ({signal.value})")
+                        for i, s in enumerate(signals)
+                        if s is not None
+                    ]
                 )
             )
+
         self.last_signal = signal
 
         return signal
