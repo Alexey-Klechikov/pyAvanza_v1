@@ -10,7 +10,7 @@ from module import run_day_trading_ta
 if __name__ == "__main__":
     log = Logger(
         logger_name="main",
-        file_prefix="auto_day_trading_ta",
+        file_prefix="auto_day_trading",
         console_log_level="INFO",
     )
 
