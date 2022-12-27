@@ -260,6 +260,10 @@ class Day_Trading:
                         self.signal.last_candle["ATR"]
                     )
 
+                    log.info(
+                        f"{instrument_type} limits are: SL {instrument_status.stop_loss}, TP {instrument_status.take_profit}"
+                    )
+
                 if (
                     not instrument_status.position
                     or instrument_status.price_sell is None
