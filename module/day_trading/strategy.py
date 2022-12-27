@@ -16,13 +16,13 @@ import pandas as pd
 import pandas_ta as ta
 from avanza import OrderType
 
-from module.day_trading_TA import Instrument
+from module.day_trading import Instrument
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.expand_frame_repr", False)
 
-log = logging.getLogger("main.strategy_dt_ta")
+log = logging.getLogger("main.strategy_dt")
 
 
 class Signal:

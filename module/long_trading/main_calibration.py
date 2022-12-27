@@ -8,10 +8,10 @@ It will import other modules to run the analysis on the stocks -> move it to the
 import logging
 import traceback
 
-from module.long_trading_TA import Strategy
+from module.long_trading import Strategy
 from module.utils import Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.long_trading_ta_calibration")
+log = logging.getLogger("main.long_trading_calibration")
 
 
 class Calibration:
@@ -114,7 +114,7 @@ class Calibration:
                     if target_watch_list_name != "skip":
                         self.record_strategies(ticker["ticker_yahoo"], strategy)
 
-        Strategy.dump("LT_TA", self.top_strategies_per_ticket)
+        Strategy.dump("LT", self.top_strategies_per_ticket)
 
         if log_to_telegram:
             TeleLog(watch_lists_analysis_log=self.logs)

@@ -9,7 +9,7 @@ import traceback
 import pandas as pd
 from avanza import OrderType as Signal
 
-from module.long_trading_TA import Strategy
+from module.long_trading import Strategy
 from module.utils import Context, History, Logger, Plot, Settings
 
 log = logging.getLogger("main")
@@ -66,7 +66,7 @@ class PortfolioAnalysis:
 
         for col in self.data.columns:
             for column_category, columns_merge in columns.items():
-                if col.startswith(column_category):
+                if col.startswith(column_category):  # type: ignore
                     columns_merge.append(col)
 
         for result_column, columns_to_merge in columns.items():
@@ -157,7 +157,7 @@ class PortfolioAnalysis:
             [
                 i
                 for i in self.data.columns
-                if (i.startswith("Close") or i.startswith("total"))
+                if (i.startswith("Close") or i.startswith("total"))  # type: ignore
             ]
         ]
 

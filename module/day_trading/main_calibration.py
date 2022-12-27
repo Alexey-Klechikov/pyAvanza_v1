@@ -8,10 +8,10 @@ import pandas as pd
 import pytz
 from avanza import OrderType
 
-from module.day_trading_TA import Instrument, Strategy
+from module.day_trading import Instrument, Strategy
 from module.utils import Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.day_trading_ta_calibration")
+log = logging.getLogger("main.day_trading_calibration")
 
 
 @dataclass
@@ -344,7 +344,7 @@ class Calibration:
         ]
 
         Strategy.dump(
-            "DT_TA",
+            "DT",
             {
                 "50-15d": self.strategies,
             },
@@ -365,7 +365,7 @@ class Calibration:
             extra_data=extra_data,
         )
 
-        strategies = Strategy.load("DT_TA")
+        strategies = Strategy.load("DT")
         strategies_dict = {
             i["strategy"]: i["points"] for i in strategies.get("50-15d", [])
         }
@@ -388,7 +388,7 @@ class Calibration:
         )
         strategies["use"] = [strategies_ordered[i][0] for i in range(3)]
 
-        Strategy.dump("DT_TA", strategies)
+        Strategy.dump("DT", strategies)
 
         return strategies["use"]
 

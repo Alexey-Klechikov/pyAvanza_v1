@@ -9,7 +9,7 @@ import pandas as pd
 from avanza import OrderType
 from requests import ReadTimeout
 
-from module.day_trading_TA import (
+from module.day_trading import (
     DayTime,
     Instrument,
     InstrumentStatus,
@@ -17,10 +17,10 @@ from module.day_trading_TA import (
     Strategy,
     TradingTime,
 )
-from module.day_trading_TA.main_calibration import run as run_day_trading_ta_calibration
+from module.day_trading.main_calibration import run as run_day_trading_ta_calibration
 from module.utils import Context, Settings, TeleLog
 
-log = logging.getLogger("main.day_trading_ta")
+log = logging.getLogger("main.day_trading")
 
 
 class Order:
@@ -143,7 +143,7 @@ class Helper:
             instrument: InstrumentStatus(self.settings["trading"])
             for instrument in Instrument
         }
-        self.strategy_names = Strategy.load("DT_TA").get("use", [])
+        self.strategy_names = Strategy.load("DT").get("use", [])
         self.ava = Context(user, accounts, skip_lists=True)
         self.order = Order(self.ava, settings, accounts)
 
@@ -346,6 +346,6 @@ def run() -> None:
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")
 
-                TeleLog(crash_report=f"DT_TA: script has crashed: {e}")
+                TeleLog(crash_report=f"DT: script has crashed: {e}")
 
             return

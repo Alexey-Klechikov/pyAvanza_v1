@@ -9,15 +9,15 @@ from typing import Tuple
 
 from avanza import OrderType as Signal
 
-from module.long_trading_TA import Strategy
+from module.long_trading import Strategy
 from module.utils import Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.long_trading_ta")
+log = logging.getLogger("main.long_trading")
 
 
 class PortfolioAnalysis:
     def __init__(self, **kwargs):
-        self.strategies = Strategy.load("LT_TA")
+        self.strategies = Strategy.load("LT")
         self.signals = kwargs.get("signals", {})
 
         self.ava = Context(kwargs["user"], kwargs["accounts"])
