@@ -91,7 +91,10 @@ class Signal:
 
         if signal is not None and self.last_candle is not None:
             log.info(
-                f"Signal: {signal.name} | {str(self.last_candle.name)[11:-9]} | {self.last_candle['Close']}"
+                f"Signal: {signal.name} | {str(self.last_candle.name)[11:-9]} | {self.last_candle['Close']} | "
+                + " & ".join(
+                    [str(i + 1) for i, s in enumerate(signals) if s is not None]
+                )
             )
         self.last_signal = signal
 
