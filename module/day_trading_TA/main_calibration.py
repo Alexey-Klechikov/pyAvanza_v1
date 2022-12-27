@@ -1,10 +1,11 @@
 import logging
 import traceback
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import pandas as pd
+import pytz
 from avanza import OrderType
 
 from module.day_trading_TA import Instrument, Strategy
@@ -319,11 +320,18 @@ class Calibration:
 
         history = History(
             self.settings["instruments"]["MONITORING"]["YAHOO"],
-            "50d",
+            "60d",
             "1m",
             cache="append",
             extra_data=extra_data,
         )
+
+        history.data = history.data[
+            history.data.index
+            <= (datetime.now() - timedelta(days=15)).astimezone(
+                pytz.timezone("Europe/Stockholm")
+            )
+        ]
 
         strategy = Strategy(history.data)
 
@@ -338,7 +346,7 @@ class Calibration:
         Strategy.dump(
             "DT_TA",
             {
-                "50d": self.strategies,
+                "50-15d": self.strategies,
             },
         )
 
@@ -359,7 +367,7 @@ class Calibration:
 
         strategies = Strategy.load("DT_TA")
         strategies_dict = {
-            i["strategy"]: i["points"] for i in strategies.get("50d", [])
+            i["strategy"]: i["points"] for i in strategies.get("50-15d", [])
         }
 
         strategy = Strategy(history.data, strategies=list(strategies_dict.keys()))
@@ -371,7 +379,7 @@ class Calibration:
         ]
 
         for s in strategies["14d"]:
-            strategies_dict[s["strategy"]] += s["points"]
+            strategies_dict[s["strategy"]] += 2 * s["points"]
 
         strategies_ordered = sorted(
             [(k, v) for k, v in strategies_dict.items()],
