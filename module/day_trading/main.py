@@ -1,8 +1,7 @@
 import logging
 import time
 import traceback
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date
 from typing import Optional
 
 import pandas as pd
@@ -159,10 +158,10 @@ class Helper:
 
         transactions = self.ava.ctx.get_transactions(
             account_id=str(self.accounts["DT"]),
-            transactions_from=(datetime.now()).date(),
+            transactions_from=date.today(),
         )
 
-        if transactions:
+        if transactions and transactions["transactions"]:
             transactions_result = sum([i["sum"] for i in transactions["transactions"]])
             self.log_data["balance_before"] += transactions_result
 
