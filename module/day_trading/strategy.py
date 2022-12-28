@@ -91,7 +91,7 @@ class Signal:
 
         if signal is not None and self.last_candle is not None:
             log.info(
-                f"Signal: {signal.name} | {str(self.last_candle.name)[11:-9]} | {self.last_candle['Close']} | "
+                f"Signal: {signal.name} | Candle: {str(self.last_candle.name)[11:-9]} | OMX: {self.last_candle['Close']} | ATR: {round(self.last_candle['ATR'], 2)} | Strategies: "
                 + " & ".join(
                     [
                         str(i + 1) + ("" if s == signal else f" ({signal.value})")
