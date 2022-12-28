@@ -2,7 +2,7 @@ import logging
 import time
 import traceback
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import pandas as pd
@@ -156,6 +156,15 @@ class Helper:
 
     def _update_budget(self) -> None:
         self.log_data["balance_before"] = self.ava.get_portfolio().total_own_capital
+
+        transactions = self.ava.ctx.get_transactions(
+            account_id=str(self.accounts["DT"]),
+            transactions_from=(datetime.now()).date(),
+        )
+
+        if transactions:
+            transactions_result = sum([i["sum"] for i in transactions["transactions"]])
+            self.log_data["balance_before"] += transactions_result
 
         log.info(f"Balance before: {round(self.log_data['balance_before'])}")
 
