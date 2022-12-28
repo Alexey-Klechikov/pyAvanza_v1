@@ -311,10 +311,6 @@ class Day_Trading:
 
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:
-        self.helper.log_data[
-            "balance_before"
-        ] = self.helper.ava.get_portfolio().total_own_capital
-
         while True:
             self.helper.trading_time.update_day_time()
 
