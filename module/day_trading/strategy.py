@@ -305,13 +305,13 @@ class Strategy:
 
         """ Momentum """
         # STC (Schaff Trend Cycle)
-        data.ta.stc(tclength=12, fast=14, slow=28, factor=0.6, append=True)
-        if _check_enough_data("STC_12_14_28_0.6", data):
+        data.ta.stc(tclength=10, fast=20, slow=35, factor=0.65, append=True)
+        if _check_enough_data("STC_10_20_35_0.65", data):
             conditions["Momentum"]["STC"] = {
-                OrderType.BUY: lambda x: x["STC_12_14_28_0.6"] < 75,
-                OrderType.SELL: lambda x: x["STC_12_14_28_0.6"] > 25,
+                OrderType.BUY: lambda x: x["STC_10_20_35_0.65"] < 70,
+                OrderType.SELL: lambda x: x["STC_10_20_35_0.65"] > 30,
             }
-            columns_needed += ["STC_12_14_28_0.6"]
+            columns_needed += ["STC_10_20_35_0.65"]
 
         # UO (Ultimate Oscillator)
         data.ta.uo(fast=10, medium=15, slow=30, append=True)

@@ -58,10 +58,10 @@ class InstrumentStatus:
     def get_status(self, certificate_info: dict) -> None:
         self.position = certificate_info["position"]
 
-        if self.acquired_price and not self.position:
+        if self.acquired_price and not self.position and self.price_sell:
             log.info(
-                f'=> {"Good" if self.acquired_price < self.active_order["price"] else "Bad"} '
-                + f'(acquired: {self.acquired_price}, sold: {self.active_order["price"]})'
+                f'=> {"Good" if self.acquired_price < self.price_sell else "Bad"} '
+                + f"(acquired: {self.acquired_price}, sold: {self.price_sell})"
             )
 
             self.acquired_price = None
