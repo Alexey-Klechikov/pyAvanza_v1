@@ -137,16 +137,21 @@ class Helper:
         }
 
     def get_balance_before(self) -> None:
-        self.log_data["balance_before"] = self.ava.get_portfolio().total_own_capital
-
         transactions = self.ava.ctx.get_transactions(
             account_id=str(self.accounts["DT"]),
             transactions_from=date.today(),
         )
 
         if transactions and transactions["transactions"]:
-            transactions_result = sum([i["sum"] for i in transactions["transactions"]])
-            self.log_data["balance_before"] += transactions_result
+            self.log_data["balance_before"] = sum(
+                [
+                    sum(self.ava.get_portfolio().buying_power.values()),
+                    sum([i["sum"] for i in transactions["transactions"]]),
+                ]
+            )
+
+        else:
+            self.log_data["balance_before"] = self.ava.get_portfolio().total_own_capital
 
         log.info(f"Balance before: {round(self.log_data['balance_before'])}")
 
