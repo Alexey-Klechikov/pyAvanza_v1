@@ -43,13 +43,6 @@ class Order:
         ):
             return
 
-        if instrument_status.spread is None or instrument_status.spread > 0.75:
-            log.error(
-                f"{instrument_type} - (place) HIGH SPREAD: {instrument_status.spread}"
-            )
-
-            return
-
         order_data = {
             "name": instrument_type,
             "signal": signal,
@@ -103,14 +96,6 @@ class Order:
         ):
             return
 
-        if instrument_status.spread > 0.75:
-            log.error(
-                f"{instrument_type} - (update) HIGH SPREAD: "
-                + f"{instrument_status.spread}"
-            )
-
-            return
-
         price = (
             instrument_status.price_buy
             if signal == OrderType.BUY
@@ -151,9 +136,7 @@ class Helper:
             for k in ["balance_before", "balance_after", "number_errors", "budget"]
         }
 
-        self._update_budget()
-
-    def _update_budget(self) -> None:
+    def get_balance_before(self) -> None:
         self.log_data["balance_before"] = self.ava.get_portfolio().total_own_capital
 
         transactions = self.ava.ctx.get_transactions(
@@ -167,10 +150,19 @@ class Helper:
 
         log.info(f"Balance before: {round(self.log_data['balance_before'])}")
 
+    def get_balance_after(self) -> None:
+        self.log_data["balance_after"] = sum(
+            self.ava.get_portfolio().buying_power.values()
+        )
+
+        log.info(f'Balance after: {round(self.log_data["balance_after"])}')
+
+    def update_budget(self) -> None:
         self.settings["trading"]["budget"] = max(
             (self.log_data["balance_before"] // 500 - 1) * 500,
             self.settings["trading"]["budget"],
         )
+
         self.log_data["budget"] = self.settings["trading"]["budget"]
 
         log.info(f'Trading budget: {self.settings["trading"]["budget"]}')
@@ -303,14 +295,11 @@ class Day_Trading:
         for instrument_type in Instrument:
             self.helper.sell_instrument(instrument_type)
 
-        self.helper.log_data["balance_after"] = sum(
-            self.helper.ava.get_portfolio().buying_power.values()
-        )
-
-        log.info(f'Balance after: {round(self.helper.log_data["balance_after"])}')
-
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:
+        self.helper.get_balance_before()
+        self.helper.update_budget()
+
         while True:
             self.helper.trading_time.update_day_time()
 
@@ -330,6 +319,8 @@ class Day_Trading:
                     break
 
             time.sleep(30)
+
+        self.helper.get_balance_after()
 
         if log_to_telegram:
             TeleLog(day_trading_stats=self.helper.log_data)

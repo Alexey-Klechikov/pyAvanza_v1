@@ -69,10 +69,17 @@ class InstrumentStatus:
         elif not self.acquired_price and self.position:
             self.acquired_price = self.position["acquiredPrice"]
 
-        self.price_buy = certificate_info[OrderType.BUY]
-        self.price_sell = certificate_info[OrderType.SELL]
         self.spread = certificate_info["spread"]
-        self.active_order = certificate_info["order"]
+        if self.spread is not None and self.spread >= 0.75:
+            log.error(f"High spread: {self.spread}")
+
+            self.price_buy = None
+            self.price_sell = None
+
+        else:
+            self.price_buy = certificate_info[OrderType.BUY]
+            self.price_sell = certificate_info[OrderType.SELL]
+            self.active_order = certificate_info["order"]
 
     def update_limits(self, atr) -> None:
         if not self.position or self.price_sell is None:
