@@ -52,7 +52,7 @@ class OneLineFormatter(logging.Formatter):
         if s.find("Done"):
             s = s.split("--")[0]
 
-        for (block, length) in zip(s.split("]")[:3], [8, 25, 30]):
+        for (block, length) in zip(s.split("]")[:3], [8, 17, 30]):
             s = s.replace(f"{block}]", f"{block}]" + (" " * (length - len(block))))
 
         return s
@@ -97,7 +97,8 @@ class Logger:
             )
             fh.setLevel(self.file_log_level)
             ff = OneLineFormatter(
-                "[%(levelname)s] [%(asctime)s] [%(name)s] - %(message)s"
+                "[%(levelname)s] [%(asctime)s] [%(name)s] - %(message)s",
+                datefmt="%m-%d, %H:%M:%S",
             )
             fh.setFormatter(ff)
             self.log.addHandler(fh)
