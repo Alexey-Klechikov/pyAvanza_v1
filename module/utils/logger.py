@@ -37,7 +37,7 @@ class ColoredFormatter(logging.Formatter):
         colored_record.levelname = colored_levelname
 
         s = logging.Formatter.format(self, colored_record)
-        s = s.replace("BULL", "🟢 BULL").replace("BEAR", "🔴 BEAR")
+        s = s.replace("main.", "").replace("BULL", "🟢 BULL").replace("BEAR", "🔴 BEAR")
 
         self.messages_counter += 1
 
@@ -47,12 +47,17 @@ class ColoredFormatter(logging.Formatter):
 class OneLineFormatter(logging.Formatter):
     def format(self, record) -> str:
         s = super(OneLineFormatter, self).format(record)
-        s = s.replace("\n", "").replace("BULL", "🟢 BULL").replace("BEAR", "🔴 BEAR")
+        s = (
+            s.replace("\n", "")
+            .replace("main.", "")
+            .replace("BULL", "🟢 BULL")
+            .replace("BEAR", "🔴 BEAR")
+        )
 
         if s.find("Done"):
             s = s.split("--")[0]
 
-        for (block, length) in zip(s.split("]")[:3], [8, 17, 25]):
+        for (block, length) in zip(s.split("]")[:3], [8, 9, 25]):
             s = s.replace(f"{block}]", f"{block}]" + (" " * (length - len(block))))
 
         return s
@@ -98,7 +103,7 @@ class Logger:
             fh.setLevel(self.file_log_level)
             ff = OneLineFormatter(
                 "[%(levelname)s] [%(asctime)s] [%(name)s] - %(message)s",
-                datefmt="%m-%d, %H:%M:%S",
+                datefmt="%H:%M:%S",
             )
             fh.setFormatter(ff)
             self.log.addHandler(fh)
