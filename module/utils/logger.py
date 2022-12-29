@@ -45,6 +45,14 @@ class ColoredFormatter(logging.Formatter):
 
 
 class OneLineFormatter(logging.Formatter):
+    def __init__(self, fmt=None, datefmt=None, style="%", validate=True):
+        super().__init__(fmt, datefmt, style, validate)
+        self.displacements = {
+            0: {"type": "time", "size": 8},
+            1: {"type": "logger", "size": 9},
+            2: {"type": "message", "size": 22},
+        }
+
     def format(self, record) -> str:
         s = super(OneLineFormatter, self).format(record)
         s = (
@@ -57,8 +65,16 @@ class OneLineFormatter(logging.Formatter):
         if s.find("Done"):
             s = s.split("--")[0]
 
-        for (block, length) in zip(s.split("]")[:3], [8, 9, 25]):
-            s = s.replace(f"{block}]", f"{block}]" + (" " * (length - len(block))))
+        for i, block in enumerate(s.split("]")[:3]):
+            s = s.replace(
+                f"{block}]",
+                f"{block}]" + (" " * (self.displacements[i]["size"] - len(block))),
+            )
+
+            if self.displacements[i]["type"] == "message":
+                self.displacements[i]["size"] = max(
+                    len(block), self.displacements[i]["size"]
+                )
 
         return s
 

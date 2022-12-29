@@ -12,7 +12,7 @@ from avanza import OrderType as Signal
 from module.long_trading import Strategy
 from module.utils import Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.long_trading")
+log = logging.getLogger("main.long_trading.main")
 
 
 class PortfolioAnalysis:

@@ -19,7 +19,7 @@ from module.day_trading import (
 from module.day_trading.main_calibration import run as run_day_trading_ta_calibration
 from module.utils import Context, Settings, TeleLog
 
-log = logging.getLogger("main.day_trading")
+log = logging.getLogger("main.day_trading.main")
 
 
 class Order:

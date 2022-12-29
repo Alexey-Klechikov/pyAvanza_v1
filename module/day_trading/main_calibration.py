@@ -11,7 +11,7 @@ from avanza import OrderType
 from module.day_trading import Instrument, Strategy
 from module.utils import Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.day_trading_calibration")
+log = logging.getLogger("main.day_trading.main_calibration")
 
 
 @dataclass

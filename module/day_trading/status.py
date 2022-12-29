@@ -10,7 +10,7 @@ from typing import Optional
 
 from avanza import OrderType
 
-log = logging.getLogger("main.status_dt")
+log = logging.getLogger("main.day_trading.status")
 
 
 class DayTime(str, Enum):
