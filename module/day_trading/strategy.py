@@ -201,15 +201,15 @@ class Strategy:
 
         """ Volatility """
         # DONCHAIN (Donchian Channel) ---
-        data.ta.donchian(lower_length=30, upper_length=30, append=True)
-        if _check_enough_data("DCM_30_30", data):
+        data.ta.donchian(lower_length=15, upper_length=15, append=True)
+        if _check_enough_data("DCM_15_15", data):
             conditions["Volatility"]["DONCHAIN"] = {
                 OrderType.BUY: lambda x: x["Close"]
-                > x["DCU_30_30"] - (x["DCU_30_30"] - x["DCM_30_30"]) * 0.4,
+                > x["DCU_15_15"] - (x["DCU_15_15"] - x["DCM_15_15"]) * 0.4,
                 OrderType.SELL: lambda x: x["Close"]
-                < x["DCL_30_30"] + (x["DCM_30_30"] - x["DCL_30_30"]) * 0.6,
+                < x["DCL_15_15"] + (x["DCM_15_15"] - x["DCL_15_15"]) * 0.6,
             }
-            columns_needed += ["DCM_30_30", "DCL_30_30", "DCU_30_30"]
+            columns_needed += ["DCM_15_15", "DCL_15_15", "DCU_15_15"]
 
         # MASSI (Mass Index)
         data.ta.massi(fast=12, slow=30, append=True)
@@ -240,14 +240,14 @@ class Strategy:
             }
             columns_needed += ["BBL_16_2.0", "BBU_16_2.0", "BBM_16_2.0"]
 
-        # RVI (Relative Volatility Index) ???
-        data.ta.rvi(length=30, append=True)
-        if _check_enough_data("RVI_30", data):
+        # RVI (Relative Volatility Index)
+        data.ta.rvi(length=20, append=True)
+        if _check_enough_data("RVI_20", data):
             conditions["Volatility"]["RVI"] = {
-                OrderType.BUY: lambda x: x["RVI_30"] > 50,
-                OrderType.SELL: lambda x: x["RVI_30"] < 50,
+                OrderType.BUY: lambda x: x["RVI_20"] > 60,
+                OrderType.SELL: lambda x: x["RVI_20"] < 40,
             }
-            columns_needed += ["RVI_30"]
+            columns_needed += ["RVI_20"]
 
         """ Trend """
         # ADX (Average Directional Movement Index)

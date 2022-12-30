@@ -235,7 +235,7 @@ class Day_Trading:
         self.signal = Signal(self.helper.ava, self.settings, self.helper.strategy_names)
 
         log.info("Strategies: ")
-        [log.info(f"> {i}") for i in self.helper.strategy_names]  # type: ignore
+        [log.info(f"> [{index + 1}] {i}") for index, i in enumerate(self.helper.strategy_names)]  # type: ignore
 
         while True:
             try:
