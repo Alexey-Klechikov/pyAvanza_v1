@@ -262,13 +262,13 @@ class Strategy:
             columns_needed += ["ADX_30", "DMP_30", "DMN_30"]
 
         # EMA (Trend direction by 100 EMA)
-        data.ta.ema(length=100, append=True)
-        if _check_enough_data("EMA_100", data):
+        data["EMA"] = data.ta.ema(length=min(len(data) - 1, 100))
+        if _check_enough_data("EMA", data):
             conditions["Trend"]["EMA"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["EMA_100"],
-                OrderType.SELL: lambda x: x["Close"] < x["EMA_100"],
+                OrderType.BUY: lambda x: x["Close"] > x["EMA"],
+                OrderType.SELL: lambda x: x["Close"] < x["EMA"],
             }
-            columns_needed += ["EMA_100"]
+            columns_needed += ["EMA"]
 
         # 2DEMA (Trend direction by Double EMA)
         data.ta.dema(length=15, append=True)
