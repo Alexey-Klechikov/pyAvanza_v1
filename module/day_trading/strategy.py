@@ -86,7 +86,10 @@ class Signal:
         )
 
         return " < ".join(
-            [round(i, 2) for i in [price_stop_loss, reference_price, price_take_profit]]
+            [
+                str(round(i, 2))
+                for i in [price_stop_loss, reference_price, price_take_profit]
+            ]
         )
 
     def get(self) -> Optional[OrderType]:
