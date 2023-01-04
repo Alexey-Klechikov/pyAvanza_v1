@@ -366,13 +366,13 @@ class Strategy:
 
         """ Overlap """
         # SUPERT (Supertrend)
-        data.ta.supertrend(length=16, multiplier=7, append=True)
-        if _check_enough_data("SUPERT_16_7.0", data):
+        data.ta.supertrend(length=7, multiplier=4, append=True)
+        if _check_enough_data("SUPERT_7_4.0", data):
             conditions["Overlap"]["SUPERT"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_16_7.0"],
-                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_16_7.0"],
+                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_7_4.0"],
+                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_7_4.0"],
             }
-            columns_needed += ["SUPERT_16_7.0"]
+            columns_needed += ["SUPERT_7_4.0"]
 
         # EMA (Trend direction by 100 EMA)
         data["EMA"] = data.ta.ema(length=min(len(data) - 1, 100))
