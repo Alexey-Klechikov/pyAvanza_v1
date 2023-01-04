@@ -121,6 +121,8 @@ class CalibrationOrder:
         self.time_buy = None
         self.time_sell = None
         self.verdict = None
+        self.price_stop_loss = None
+        self.price_take_profit = None
 
         return result
 
@@ -170,10 +172,43 @@ class Helper:
                 self.sell_order(index, row, instrument)
 
     def get_signal(self, strategy_logic: dict, row: pd.Series) -> Optional[OrderType]:
-
         for signal in [OrderType.BUY, OrderType.SELL]:
             if all([i(row) for i in strategy_logic[signal]]):
                 return signal
+
+        return None
+
+    def get_exit_instrument(self, row: pd.Series) -> Optional[Instrument]:
+        for instrument, calibration_order in self.orders.items():
+            if (
+                not calibration_order.on_balance
+                or calibration_order.price_buy is None
+                or calibration_order.price_sell is None
+            ):
+                continue
+
+            if (
+                instrument == Instrument.BULL
+                and row["RSI"] < 50
+                and (
+                    (calibration_order.price_sell - calibration_order.price_buy)
+                    / calibration_order.price_buy
+                )
+                * 100
+                * 20
+                > (self.settings["trading"]["exit"] - 1) * 100
+            ) or (
+                instrument == Instrument.BEAR
+                and row["RSI"] > 50
+                and (
+                    (calibration_order.price_buy - calibration_order.price_sell)
+                    / calibration_order.price_sell
+                )
+                * 100
+                * 20
+                > (self.settings["trading"]["exit"] - 1) * 100
+            ):
+                return instrument
 
         return None
 
@@ -258,6 +293,7 @@ class Calibration:
             strategy.strategies.items()
         ):
             helper = Helper(strategy_name, self.settings)
+            exit_instrument = None
             signal = None
 
             for index, row in history.data.iterrows():
@@ -274,7 +310,14 @@ class Calibration:
 
                     continue
 
-                if signal is not None:
+                if signal is None and exit_instrument is not None:
+                    helper.sell_order(
+                        time_index,
+                        row,
+                        exit_instrument,
+                    )
+
+                elif signal is not None:
                     helper.sell_order(
                         time_index,
                         row,
@@ -291,17 +334,14 @@ class Calibration:
 
                 signal = helper.get_signal(strategy_logic, row)
 
+                exit_instrument = helper.get_exit_instrument(row)
+
             strategy_summary = helper.get_orders_history_summary()
 
-            self.strategies.append(strategy_summary)
-
-            if strategy_summary["profit"] <= 0:
-                log.debug(
-                    f"[{i+1}/{len(strategy.strategies)}] > "
-                    + " | ".join([f"{k}: {v}" for k, v in strategy_summary.items()])
-                )
-
+            if strategy_summary["profit"] <= 0 or strategy_summary["points"] < -20:
                 continue
+
+            self.strategies.append(strategy_summary)
 
             log.info(
                 f"[{i+1}/{len(strategy.strategies)}] > "
@@ -320,33 +360,24 @@ class Calibration:
 
         history = History(
             self.settings["instruments"]["MONITORING"]["YAHOO"],
-            "60d",
+            "30d",
             "1m",
             cache="append",
             extra_data=extra_data,
         )
-
-        history.data = history.data[
-            history.data.index
-            <= (datetime.now() - timedelta(days=15)).astimezone(
-                pytz.timezone("Europe/Stockholm")
-            )
-        ]
 
         strategy = Strategy(history.data)
 
         self._walk_through_strategies(history, strategy, print_orders_history)
 
         self.strategies = [
-            s
-            for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
-            if s["profit"] > 0 and s["points"] > 0
+            s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
         ]
 
         Strategy.dump(
             "DT",
             {
-                "50-15d": self.strategies,
+                "30d": self.strategies,
             },
         )
 
@@ -359,7 +390,7 @@ class Calibration:
 
         history = History(
             self.settings["instruments"]["MONITORING"]["YAHOO"],
-            "14d",
+            "15d",
             "1m",
             cache="append",
             extra_data=extra_data,
@@ -367,26 +398,25 @@ class Calibration:
 
         strategies = Strategy.load("DT")
         strategies_dict = {
-            i["strategy"]: i["points"] for i in strategies.get("50-15d", [])
+            i["strategy"]: i["points"] for i in strategies.get("30d", [])
         }
 
         strategy = Strategy(history.data, strategies=list(strategies_dict.keys()))
 
         self._walk_through_strategies(history, strategy, print_orders_history)
 
-        strategies["14d"] = [
+        strategies["15d"] = [
             s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
         ]
 
-        for s in strategies["14d"]:
-            strategies_dict[s["strategy"]] += 2 * s["points"]
-
-        strategies_ordered = sorted(
-            [(k, v) for k, v in strategies_dict.items()],
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        strategies["use"] = [strategies_ordered[i][0] for i in range(3)]
+        strategies["use"] = [
+            i["strategy"]
+            for i in strategies["15d"]
+            if i["points"]
+            in sorted(
+                list(set([s["points"] for s in strategies["15d"]])), reverse=True
+            )[: min(3, len(strategies["15d"]))]
+        ]
 
         Strategy.dump("DT", strategies)
 

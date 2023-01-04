@@ -23,7 +23,8 @@
             "trading": {
                 "budget": 1200,
                 "stop_loss": 0.91,
-                "take_profit": 1.1
+                "take_profit": 1.1,
+                "exit": 1.03
             },
             "instruments": {
                 "TRADING": {

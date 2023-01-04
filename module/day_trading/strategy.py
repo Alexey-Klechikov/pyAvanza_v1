@@ -17,6 +17,7 @@ import pandas_ta as ta
 from avanza import OrderType
 
 from module.day_trading import Instrument
+from module.day_trading.status import InstrumentStatus
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
@@ -139,6 +140,43 @@ class Signal:
 
         return signal
 
+    def exit(
+        self,
+        instrument: Instrument,
+        instrument_status: InstrumentStatus,
+    ) -> bool:
+        if (
+            self.last_candle is None
+            or instrument_status.acquired_price is None
+            or instrument_status.price_sell is None
+        ):
+            return False
+
+        if (
+            instrument == Instrument.BULL
+            and self.last_candle["RSI"] < 50
+            and (
+                (instrument_status.price_sell - instrument_status.acquired_price)
+                / instrument_status.acquired_price
+            )
+            * 100
+            > (self.settings["trading"]["exit"] - 1) * 100
+        ) or (
+            instrument == Instrument.BEAR
+            and self.last_candle["RSI"] > 50
+            and (
+                (instrument_status.acquired_price - instrument_status.price_sell)
+                / instrument_status.price_sell
+            )
+            * 100
+            > (self.settings["trading"]["exit"] - 1) * 100
+        ):
+            log.info("Signal: Exit")
+
+            return True
+
+        return False
+
 
 class Strategy:
     def __init__(self, data: pd.DataFrame, **kwargs):
@@ -182,6 +220,10 @@ class Strategy:
         # ATR (Average True Range) - used for SL/TP calculation
         data["ATR"] = data.ta.atr(length=14)
         columns_needed += ["ATR"]
+
+        # RSI (Relative Strength Index) - used for the position exit
+        data["RSI"] = data.ta.rsi(length=14)
+        columns_needed += ["RSI"]
 
         """ Cycles """
         # EBSW (Even Better Sinewave)
@@ -245,15 +287,6 @@ class Strategy:
             }
             columns_needed += ["DCM_15_15", "DCL_15_15", "DCU_15_15"]
 
-        # MASSI (Mass Index)
-        data.ta.massi(fast=12, slow=30, append=True)
-        if _check_enough_data("MASSI_12_30", data):
-            conditions["Volatility"]["MASSI"] = {
-                OrderType.BUY: lambda x: 26 < x["MASSI_12_30"] < 27,
-                OrderType.SELL: lambda x: 26 < x["MASSI_12_30"] < 27,
-            }
-            columns_needed += ["MASSI_12_30"]
-
         # HWC (Holt-Winter Channel)
         data.ta.hwc(append=True)
         if _check_enough_data("HWM", data):
@@ -295,6 +328,52 @@ class Strategy:
             }
             columns_needed += ["ADX_30", "DMP_30", "DMN_30"]
 
+        # PSAR (Parabolic Stop and Reverse)
+        data.ta.psar(af=0.1, max_af=0.25, append=True)
+        if _check_enough_data("PSARl_0.1_0.25", data):
+            conditions["Trend"]["PSAR"] = {
+                OrderType.BUY: lambda x: x["Close"] > x["PSARl_0.1_0.25"],
+                OrderType.SELL: lambda x: x["Close"] < x["PSARs_0.1_0.25"],
+            }
+            columns_needed += ["PSARl_0.1_0.25", "PSARs_0.1_0.25"]
+
+        # TTM_TREND (Trend based on TTM Squeeze)
+        data.ta.ttm_trend(length=8, append=True)
+        if _check_enough_data("TTM_TRND_8", data):
+            conditions["Trend"]["TTM_TREND"] = {
+                OrderType.BUY: lambda x: x["TTM_TRND_8"] == 1,
+                OrderType.SELL: lambda x: x["TTM_TRND_8"] == -1,
+            }
+            columns_needed += ["TTM_TRND_8"]
+
+        # VHF (Vertical Horizontal Filter)
+        data["VHF_30"] = data.ta.ema(close=data.ta.vhf(length=30), length=10)
+        if _check_enough_data("VHF_30", data):
+            conditions["Trend"]["VHF"] = {
+                OrderType.BUY: lambda x: x["VHF_30"] > 0.45,
+                OrderType.SELL: lambda x: x["VHF_30"] > 0.45,
+            }
+            columns_needed += ["VHF_30"]
+
+        # VORTEX (Vortex Indicator)
+        data.ta.vortex(length=14, append=True)
+        if _check_enough_data("VTXP_14", data):
+            conditions["Trend"]["VORTEX"] = {
+                OrderType.BUY: lambda x: x["VTXP_14"] > x["VTXM_14"],
+                OrderType.SELL: lambda x: x["VTXM_14"] < x["VTXP_14"],
+            }
+            columns_needed += ["VTXP_14", "VTXM_14"]
+
+        """ Overlap """
+        # SUPERT (Supertrend)
+        data.ta.supertrend(length=16, multiplier=7, append=True)
+        if _check_enough_data("SUPERT_16_7.0", data):
+            conditions["Overlap"]["SUPERT"] = {
+                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_16_7.0"],
+                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_16_7.0"],
+            }
+            columns_needed += ["SUPERT_16_7.0"]
+
         # EMA (Trend direction by 100 EMA)
         data["EMA"] = data.ta.ema(length=min(len(data) - 1, 100))
         if _check_enough_data("EMA", data):
@@ -312,30 +391,11 @@ class Strategy:
             axis=1,
         )
         if _check_enough_data("2DEMA", data):
-            conditions["Trend"]["2DEMA"] = {
+            conditions["Overlap"]["2DEMA"] = {
                 OrderType.BUY: lambda x: x["2DEMA"] == 1,
                 OrderType.SELL: lambda x: x["2DEMA"] == -1,
             }
             columns_needed += ["2DEMA"]
-
-        # PSAR (Parabolic Stop and Reverse)
-        data.ta.psar(af=0.1, max_af=0.25, append=True)
-        if _check_enough_data("PSARl_0.1_0.25", data):
-            conditions["Trend"]["PSAR"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["PSARl_0.1_0.25"],
-                OrderType.SELL: lambda x: x["Close"] < x["PSARs_0.1_0.25"],
-            }
-            columns_needed += ["PSARl_0.1_0.25", "PSARs_0.1_0.25"]
-
-        """ Overlap """
-        # SUPERT (Supertrend)
-        data.ta.supertrend(length=16, multiplier=7, append=True)
-        if _check_enough_data("SUPERT_16_7.0", data):
-            conditions["Overlap"]["SUPERT"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_16_7.0"],
-                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_16_7.0"],
-            }
-            columns_needed += ["SUPERT_16_7.0"]
 
         """ Momentum """
         # STC (Schaff Trend Cycle)
@@ -367,15 +427,6 @@ class Strategy:
                 OrderType.SELL: lambda x: x["MACD_ma_diff"] == 0,
             }
             columns_needed += ["MACD_ma_diff"]
-
-        # BOP (Balance Of Power)
-        data.ta.bop(append=True)
-        if _check_enough_data("BOP", data):
-            conditions["Momentum"]["BOP"] = {
-                OrderType.BUY: lambda x: x["BOP"] < -0.25,
-                OrderType.SELL: lambda x: x["BOP"] > 0.25,
-            }
-            columns_needed += ["BOP"]
 
         return data, conditions, columns_needed
 

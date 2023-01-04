@@ -280,6 +280,9 @@ class Day_Trading:
                 if instrument_status.price_sell <= instrument_status.stop_loss:
                     self.helper.sell_instrument(instrument_type)
 
+                if self.signal.exit(instrument_type, instrument_status):
+                    self.helper.sell_instrument(instrument_type)
+
         else:
             instrument_sell = Instrument.from_signal(signal)[OrderType.SELL]
             self.helper.sell_instrument(instrument_sell)
