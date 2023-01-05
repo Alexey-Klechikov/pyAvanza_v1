@@ -59,8 +59,8 @@ class InstrumentStatus:
         self.position = certificate_info["position"]
 
         if self.acquired_price and not self.position and self.price_sell:
-            log.info(
-                f'=> {"Good" if self.acquired_price < self.price_sell else "Bad"} '
+            log.warning(
+                f'===> {"Good" if self.acquired_price < self.price_sell else "Bad"} '
                 + f"(acquired: {self.acquired_price}, sold: {self.price_sell})"
             )
 
