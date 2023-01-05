@@ -152,26 +152,21 @@ class Signal:
         ):
             return False
 
-        if (
-            instrument == Instrument.BULL
-            and self.last_candle["RSI"] < 50
-            and (
-                (instrument_status.price_sell - instrument_status.acquired_price)
-                / instrument_status.acquired_price
+        rsi_condition = (
+            instrument == Instrument.BULL and self.last_candle["RSI"] < 50
+        ) or (instrument == Instrument.BEAR and self.last_candle["RSI"] > 50)
+
+        price_condition = (
+            (instrument_status.price_sell - instrument_status.acquired_price)
+            / instrument_status.acquired_price
+        ) > (self.settings["trading"]["exit"] - 1)
+
+        if rsi_condition and price_condition:
+            log.info(
+                " | ".join(
+                    ["Signal: Exit", f'RSI: {round(self.last_candle["RSI"], 2)}']
+                )
             )
-            * 100
-            > (self.settings["trading"]["exit"] - 1) * 100
-        ) or (
-            instrument == Instrument.BEAR
-            and self.last_candle["RSI"] > 50
-            and (
-                (instrument_status.acquired_price - instrument_status.price_sell)
-                / instrument_status.price_sell
-            )
-            * 100
-            > (self.settings["trading"]["exit"] - 1) * 100
-        ):
-            log.info("Signal: Exit")
 
             return True
 

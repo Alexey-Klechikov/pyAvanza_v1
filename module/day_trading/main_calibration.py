@@ -187,27 +187,17 @@ class Helper:
             ):
                 continue
 
-            if (
-                instrument == Instrument.BULL
-                and row["RSI"] < 50
-                and (
-                    (calibration_order.price_sell - calibration_order.price_buy)
-                    / calibration_order.price_buy
-                )
-                * 100
-                * 20
-                > (self.settings["trading"]["exit"] - 1) * 100
-            ) or (
-                instrument == Instrument.BEAR
-                and row["RSI"] > 50
-                and (
-                    (calibration_order.price_buy - calibration_order.price_sell)
-                    / calibration_order.price_sell
-                )
-                * 100
-                * 20
-                > (self.settings["trading"]["exit"] - 1) * 100
-            ):
+            rsi_condition = (instrument == Instrument.BULL and row["RSI"] < 50) or (
+                instrument == Instrument.BEAR and row["RSI"] > 50
+            )
+
+            price_condition = (
+                (calibration_order.price_sell - calibration_order.price_buy)
+                * (1 if instrument == Instrument.BULL else -1)
+                / calibration_order.price_buy
+            ) * 20 > (self.settings["trading"]["exit"] - 1)
+
+            if rsi_condition and price_condition:
                 return instrument
 
         return None
