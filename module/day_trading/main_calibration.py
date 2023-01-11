@@ -1,11 +1,10 @@
 import logging
 import traceback
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
-import pytz
 from avanza import OrderType
 
 from module.day_trading import Instrument, Strategy
@@ -171,7 +170,8 @@ class Helper:
             if calibration_order.check_limits(row):
                 self.sell_order(index, row, instrument)
 
-    def get_signal(self, strategy_logic: dict, row: pd.Series) -> Optional[OrderType]:
+    @staticmethod
+    def get_signal(strategy_logic: dict, row: pd.Series) -> Optional[OrderType]:
         for signal in [OrderType.BUY, OrderType.SELL]:
             if all([i(row) for i in strategy_logic[signal]]):
                 return signal
@@ -254,6 +254,18 @@ class Helper:
 
         log.info(f"\n{df}")
 
+    @staticmethod
+    def print_strategy_results(log_data: tuple) -> None:
+        displace_spaces = (9, 58, 3, 4, 4, 0)
+        displace_log = lambda x: " | ".join(
+            map(
+                lambda y: str(y[0]) + (y[1] - len(str(y[0]))) * " ",
+                zip(x, displace_spaces),
+            )
+        )
+
+        log.info(displace_log(log_data))
+
 
 class Calibration:
     def __init__(self, settings: dict, user: str):
@@ -277,6 +289,10 @@ class Calibration:
             f"Dates range: {history.data.index[0].strftime('%Y.%m.%d')} - {history.data.index[-1].strftime('%Y.%m.%d')} "  # type: ignore
             + f"({history.data.shape[0]} rows) "
             + f"({len([i for i in daily_volumes if i > 0])} / {len(daily_volumes)} days with Volume)"
+        )
+
+        Helper.print_strategy_results(
+            ("Counter", "Strategy", "Pts", "Prft", "Effi", "Numbers per instrument"),
         )
 
         for i, (strategy_name, strategy_logic) in enumerate(
@@ -322,7 +338,7 @@ class Calibration:
 
                 helper.check_orders_for_limits(time_index, row)
 
-                signal = helper.get_signal(strategy_logic, row)
+                signal = Helper.get_signal(strategy_logic, row)
 
                 exit_instrument = helper.get_exit_instrument(row)
 
@@ -333,9 +349,11 @@ class Calibration:
 
             self.strategies.append(strategy_summary)
 
-            log.info(
-                f"[{i+1}/{len(strategy.strategies)}] > "
-                + " | ".join([f"{k}: {v}" for k, v in strategy_summary.items()])
+            Helper.print_strategy_results(
+                tuple(
+                    [f"[{i+1}/{len(strategy.strategies)}]"]
+                    + list(strategy_summary.values())
+                )
             )
 
             if print_orders_history:
