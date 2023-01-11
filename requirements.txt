@@ -6,6 +6,7 @@ mplfinance
 numpy
 yfinance
 telegram-send
+python-telegram-bot==13.13
 keyring
 pre-commit
 holidays
