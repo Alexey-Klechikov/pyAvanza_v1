@@ -67,32 +67,6 @@ class Signal:
 
         return None
 
-    def _get_index_price_limits(self, signal: OrderType) -> str:
-        if self.last_candle is None:
-            return "N/A"
-
-        atr_correction = self.last_candle["ATR"] / 20
-        direction = 1 if signal == OrderType.BUY else -1
-
-        reference_price = (
-            (self.last_candle["Open"] + self.last_candle["Close"]) / 2
-        ) * (1.00015 if signal == OrderType.BUY else 0.99985)
-
-        price_stop_loss = reference_price * (
-            1 - (1 - self.settings["trading"]["stop_loss"]) * atr_correction * direction
-        )
-        price_take_profit = reference_price * (
-            1
-            + (self.settings["trading"]["take_profit"] - 1) * atr_correction * direction
-        )
-
-        return " < ".join(
-            [
-                str(round(i, 2))
-                for i in [price_stop_loss, reference_price, price_take_profit]
-            ]
-        )
-
     def get(self) -> Optional[OrderType]:
         history = self.ava.get_today_history(
             self.settings["instruments"]["MONITORING"]["AVA"]
@@ -122,7 +96,7 @@ class Signal:
                     [
                         f"Signal: {signal.name}",
                         f"Candle: {str(self.last_candle.name)[11:-9]}",
-                        f"OMX: {self._get_index_price_limits(signal)}",
+                        f"OMX: {(self.last_candle['Open'] + self.last_candle['Close']) * (1.00015 if signal == OrderType.BUY else 0.99985) / 2}",
                         f"ATR: {round(self.last_candle['ATR'], 2)}",
                         "Strategies: ",
                     ]
