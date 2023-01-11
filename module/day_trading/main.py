@@ -164,7 +164,7 @@ class Helper:
 
     def update_budget(self) -> None:
         self.settings["trading"]["budget"] = max(
-            (self.log_data["balance_before"] // 500 - 1) * 500,
+            round((self.log_data["balance_before"] * 0.8 / 100)) * 100,
             self.settings["trading"]["budget"],
         )
 
