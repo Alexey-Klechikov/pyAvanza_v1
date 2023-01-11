@@ -1,11 +1,11 @@
 pandas
 pandas-ta
-avanza-api
+avanza-api==5.0.0
 matplotlib
 mplfinance
 numpy
 yfinance
 telegram-send
 keyring
-ta-lib
 pre-commit
+holidays
