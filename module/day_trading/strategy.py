@@ -129,7 +129,7 @@ class Signal:
                 )
                 + " & ".join(
                     [
-                        str(i + 1) + ("" if s == signal else f" ({s})")
+                        str(i + 1) + ("" if s == signal else f" ({s.name})")
                         for i, s in enumerate(signals)
                         if s is not None
                     ]
