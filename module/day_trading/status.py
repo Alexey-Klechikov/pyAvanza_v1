@@ -8,6 +8,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+import holidays
 from avanza import OrderType
 
 log = logging.getLogger("main.day_trading.status")
@@ -104,7 +105,10 @@ class TradingTime:
         if current_time <= current_time.replace(hour=10, minute=0):
             self.day_time = DayTime.MORNING
 
-        elif current_time >= current_time.replace(hour=17, minute=15):
+        elif (
+            current_time >= current_time.replace(hour=17, minute=15)
+            or current_time.date() in holidays.SE()
+        ):
             self.day_time = DayTime.EVENING
 
         else:
