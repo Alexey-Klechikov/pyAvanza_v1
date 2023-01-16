@@ -37,6 +37,24 @@ class Portfolio:
 
 
 class Avanza(AvanzaBase):
+    def _retry_call(self, path: str) -> dict:
+        response = {}
+        for _ in range(10):
+            try:
+                response = self.__call(
+                    constants.HttpMethod.GET,
+                    path,
+                )
+
+            except HTTPError:
+                time.sleep(5)
+
+            if response:
+                return response
+
+        log.error(f"Failed to get {path}")
+        return {}
+
     def get_chart_data(
         self,
         order_book_id: str,
@@ -60,9 +78,7 @@ class Avanza(AvanzaBase):
                     options,
                 )
 
-            except HTTPError as e:
-                log.error(e)
-
+            except HTTPError:
                 time.sleep(30)
 
     def get_instrument(
@@ -77,9 +93,8 @@ class Avanza(AvanzaBase):
             "/_api/market-guide/{}/{}",
             "/_api/market-guide/{}/{}/details",
         ]:
-            response = self.__call(
-                constants.HttpMethod.GET,
-                path.format(instrument_type.value, instrument_id),
+            response = self._retry_call(
+                path.format(instrument_type.value, instrument_id)
             )
 
             if response:
@@ -317,7 +332,7 @@ class Context:
             OrderType.SELL: stock_info.get("quote", {}).get("buy"),
         }
 
-        order_depth = pd.DataFrame(stock_info["orderDepthLevels"])
+        order_depth = pd.DataFrame(stock_info.get("orderDepthLevels"))
         if not order_depth.empty:
             stock_price[OrderType.SELL] = max(
                 order_depth["buySide"].apply(lambda x: x["price"])
