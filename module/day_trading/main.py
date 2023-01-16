@@ -78,7 +78,7 @@ class Order:
             signal,
         )
 
-        log.info(
+        log.debug(
             f'{instrument_type} - (SET {signal.name.upper()} order): {order_data["price"]}'
         )
 
@@ -105,7 +105,7 @@ class Order:
         if custom_price is not None:
             price = custom_price
 
-        log.info(
+        log.debug(
             f'{instrument_type} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price} '
         )
 

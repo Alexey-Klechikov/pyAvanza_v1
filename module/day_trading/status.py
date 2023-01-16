@@ -72,7 +72,7 @@ class InstrumentStatus:
 
         self.spread = certificate_info["spread"]
         if self.spread is not None and self.spread >= 0.75:
-            log.error(f"High spread: {self.spread}")
+            log.debug(f"High spread: {self.spread}")
 
             self.price_buy = None
             self.price_sell = None
