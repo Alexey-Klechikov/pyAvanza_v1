@@ -96,8 +96,8 @@ class Signal:
                     [
                         f"Signal: {signal.name}",
                         f"Candle: {str(self.last_candle.name)[11:-9]}",
-                        f"OMX: {round((self.last_candle['Open'] + self.last_candle['Close']) * (1.00015 if signal == OrderType.BUY else 0.99985) / 2, 2)}",
-                        f"ATR: {round(self.last_candle['ATR'], 2)}",
+                        f"OMX: {format((self.last_candle['Open'] + self.last_candle['Close']) * (1.00015 if signal == OrderType.BUY else 0.99985) / 2, '.2f')}",
+                        f"ATR: {format(self.last_candle['ATR'], '.2f')}",
                         "Strategies: ",
                     ]
                 )
