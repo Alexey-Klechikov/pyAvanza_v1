@@ -68,7 +68,7 @@ class Signal:
 
     @staticmethod
     def print_signal_details(log_data: tuple) -> None:
-        displace_spaces = (9, 58, 3, 4, 0)
+        displace_spaces = (12, 13, 12, 9, 0)
         displace_log = lambda x: " | ".join(
             map(
                 lambda y: str(y[0]) + (y[1] - len(str(y[0]))) * " ",
