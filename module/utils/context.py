@@ -108,6 +108,12 @@ class Avanza(AvanzaBase):
     def get_stock_info(self, stock_id: str) -> dict:
         return self.get_instrument(InstrumentType.STOCK, stock_id)
 
+    def get_account_overview(self, account_id: str) -> dict:
+        return self._retry_call(f"/_mobile/account/{account_id}/overview")
+
+    def get_positions(self):
+        return self._retry_call("/_mobile/account/positions")
+
 
 class Context:
     def __init__(self, user: str, accounts: dict, skip_lists: bool = False):
