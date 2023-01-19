@@ -95,7 +95,7 @@ class Signal:
             message = [
                 f"Signal: {self.last_signal.name}",
                 f"Candle: {str(self.last_candle.name)[11:-9]}",
-                f"OMX: {round((self.last_candle['Open'] + self.last_candle['Close']) / 2, 2)}",
+                f"OMX: {round(self.last_candle['Close'], 2)}",
                 f"ATR: {round(self.last_candle['ATR'], 2)}",
                 "Strategies: "
                 + " & ".join(
@@ -122,8 +122,8 @@ class Signal:
             return False
 
         rsi_condition = (
-            instrument == Instrument.BULL and self.last_candle["RSI"] < 50
-        ) or (instrument == Instrument.BEAR and self.last_candle["RSI"] > 50)
+            instrument == Instrument.BULL and self.last_candle["RSI"] < 60
+        ) or (instrument == Instrument.BEAR and self.last_candle["RSI"] > 40)
 
         price_condition = (
             (instrument_status.price_sell - instrument_status.acquired_price)

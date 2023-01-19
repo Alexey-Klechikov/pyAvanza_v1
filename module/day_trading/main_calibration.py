@@ -189,8 +189,8 @@ class Helper:
             ):
                 continue
 
-            rsi_condition = (instrument == Instrument.BULL and row["RSI"] < 50) or (
-                instrument == Instrument.BEAR and row["RSI"] > 50
+            rsi_condition = (instrument == Instrument.BULL and row["RSI"] < 60) or (
+                instrument == Instrument.BEAR and row["RSI"] > 40
             )
 
             price_condition = (

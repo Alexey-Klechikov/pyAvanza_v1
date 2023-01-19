@@ -66,7 +66,7 @@ class InstrumentStatus:
                         f'===> Verdict: {"good" if self.acquired_price < self.price_sell else "bad"}',
                         f"Acquired: {self.acquired_price}",
                         f"Sold: {self.price_sell}",
-                        f"Profit: {round((self.price_sell - self.acquired_price) / self.acquired_price * 100, 2)})",
+                        f"Profit: {round((self.price_sell - self.acquired_price) / self.acquired_price * 100, 2)}%",
                     ]
                 )
             )
