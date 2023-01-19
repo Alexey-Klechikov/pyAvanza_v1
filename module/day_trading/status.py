@@ -61,8 +61,14 @@ class InstrumentStatus:
 
         if self.acquired_price and not self.position and self.price_sell:
             log.warning(
-                f'===> {"Good" if self.acquired_price < self.price_sell else "Bad"} '
-                + f"(acquired: {self.acquired_price}, sold: {self.price_sell})"
+                ", ".join(
+                    [
+                        f'===> Verdict: {"good" if self.acquired_price < self.price_sell else "bad"}',
+                        f"Acquired: {self.acquired_price}",
+                        f"Sold: {self.price_sell}",
+                        f"Profit: {round((self.price_sell - self.acquired_price) / self.acquired_price * 100, 2)})",
+                    ]
+                )
             )
 
             self.acquired_price = None
