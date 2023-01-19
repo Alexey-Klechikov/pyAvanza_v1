@@ -93,6 +93,19 @@ class InstrumentStatus:
             self.price_sell * (1 + (self.stop_settings["take_profit"] - 1) * atr), 2
         )
 
+    def get_profit(self) -> float:
+        if (
+            not self.position
+            or self.acquired_price is None
+            or self.price_sell is None
+            or round(self.price_sell - self.acquired_price, 2) == 0
+        ):
+            return 0.0
+
+        return round(
+            ((self.price_sell - self.acquired_price) / self.acquired_price) * 100, 2
+        )
+
 
 @dataclass
 class TradingTime:

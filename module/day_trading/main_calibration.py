@@ -8,9 +8,11 @@ import pandas as pd
 from avanza import OrderType
 
 from module.day_trading import Instrument, Strategy
-from module.utils import Context, History, Settings, TeleLog
+from module.utils import Context, History, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.day_trading.main_calibration")
+
+DISPLACEMENTS = (9, 58, 3, 4, 4, 0)
 
 
 @dataclass
@@ -254,18 +256,6 @@ class Helper:
 
         log.info(f"\n{df}")
 
-    @staticmethod
-    def print_strategy_results(log_data: tuple) -> None:
-        displace_spaces = (9, 58, 3, 4, 4, 0)
-        displace_log = lambda x: " | ".join(
-            map(
-                lambda y: str(y[0]) + (y[1] - len(str(y[0]))) * " ",
-                zip(x, displace_spaces),
-            )
-        )
-
-        log.info(displace_log(log_data))
-
 
 class Calibration:
     def __init__(self, settings: dict, user: str):
@@ -291,8 +281,18 @@ class Calibration:
             + f"({len([i for i in daily_volumes if i > 0])} / {len(daily_volumes)} days with Volume)"
         )
 
-        Helper.print_strategy_results(
-            ("Counter", "Strategy", "Pts", "Prft", "Effi", "Numbers per instrument"),
+        log.info(
+            displace_message(
+                DISPLACEMENTS,
+                (
+                    "Counter",
+                    "Strategy",
+                    "Pts",
+                    "Prft",
+                    "Effi",
+                    "Numbers per instrument",
+                ),
+            )
         )
 
         for i, (strategy_name, strategy_logic) in enumerate(
@@ -349,10 +349,13 @@ class Calibration:
 
             self.strategies.append(strategy_summary)
 
-            Helper.print_strategy_results(
-                tuple(
-                    [f"[{i+1}/{len(strategy.strategies)}]"]
-                    + list(strategy_summary.values())
+            log.info(
+                displace_message(
+                    DISPLACEMENTS,
+                    tuple(
+                        [f"[{i+1}/{len(strategy.strategies)}]"]
+                        + list(strategy_summary.values())
+                    ),
                 )
             )
 

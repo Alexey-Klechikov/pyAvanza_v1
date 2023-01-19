@@ -66,62 +66,48 @@ class Signal:
 
         return None
 
-    @staticmethod
-    def print_signal_details(log_data: tuple) -> None:
-        displace_spaces = (12, 13, 12, 9, 0)
-        displace_log = lambda x: " | ".join(
-            map(
-                lambda y: str(y[0]) + (y[1] - len(str(y[0]))) * " ",
-                zip(x, displace_spaces),
-            )
-        )
-
-        log.info(displace_log(log_data))
-
-    def get(self) -> Optional[OrderType]:
+    def get(self) -> Tuple[Optional[OrderType], list]:
         history = self.ava.get_today_history(
             self.settings["instruments"]["MONITORING"]["AVA"]
         ).iloc[:-1]
 
         strategy = Strategy(history, strategies=self.strategy_names)
 
+        message: list = []
+
         # Case when I hit the same candle multiple times
         if self.last_candle is not None and self.last_candle.name == strategy.data.iloc[-1].name:  # type: ignore
-            return None
+            return None, message
 
         self.last_candle = strategy.data.iloc[-1]
 
         if (datetime.now() - self.last_candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
-            return self.last_signal
+            return self.last_signal, message
 
         signals = [
             self._get_last_signal_on_strategy(self.last_candle, strategy_logic)
             for strategy_logic in strategy.strategies.values()
         ]
 
-        signal = self._get_signal_from_list(signals)
+        self.last_signal = self._get_signal_from_list(signals)
 
-        if signal is not None and self.last_candle is not None:
-            Signal.print_signal_details(
-                (
-                    f"Signal: {signal.name}",
-                    f"Candle: {str(self.last_candle.name)[11:-9]}",
-                    f"OMX: {round((self.last_candle['Open'] + self.last_candle['Close']) / 2, 2)}",
-                    f"ATR: {round(self.last_candle['ATR'], 2)}",
-                    "Strategies: "
-                    + " & ".join(
-                        [
-                            str(i + 1) + ("" if s == signal else f" ({s.name})")
-                            for i, s in enumerate(signals)
-                            if s is not None
-                        ]
-                    ),
-                )
-            )
+        if self.last_signal is not None and self.last_candle is not None:
+            message = [
+                f"Signal: {self.last_signal.name}",
+                f"Candle: {str(self.last_candle.name)[11:-9]}",
+                f"OMX: {round((self.last_candle['Open'] + self.last_candle['Close']) / 2, 2)}",
+                f"ATR: {round(self.last_candle['ATR'], 2)}",
+                "Strategies: "
+                + " & ".join(
+                    [
+                        str(i + 1) + ("" if s == self.last_signal else f" ({s.name})")
+                        for i, s in enumerate(signals)
+                        if s is not None
+                    ]
+                ),
+            ]
 
-        self.last_signal = signal
-
-        return signal
+        return self.last_signal, message
 
     def exit(
         self,

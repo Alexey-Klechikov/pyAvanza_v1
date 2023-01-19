@@ -17,9 +17,11 @@ from module.day_trading import (
     TradingTime,
 )
 from module.day_trading.main_calibration import run as run_day_trading_ta_calibration
-from module.utils import Context, Settings, TeleLog
+from module.utils import Context, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.day_trading.main")
+
+DISPLACEMENTS = (12, 11, 13, 12, 9, 0)
 
 
 class Order:
@@ -250,12 +252,39 @@ class Day_Trading:
                 self.helper.ava.ctx = self.helper.ava.get_ctx(user)
 
     def action_day(self) -> None:
-        signal = self.signal.get()
+        signal, message = self.signal.get()
 
         if self.signal.last_candle is None:
             return
 
-        if signal is None:
+        if signal:
+            instrument_sell = Instrument.from_signal(signal)[OrderType.SELL]
+            self.helper.sell_instrument(instrument_sell)
+
+            instrument_buy = Instrument.from_signal(signal)[OrderType.BUY]
+            self.helper.buy_instrument(instrument_buy)
+
+            number_of_strategies_triggered = len(message[-1].split("&"))
+            instrument_status = self.helper.instrument_status[instrument_buy]
+
+            if not instrument_status.active_order or number_of_strategies_triggered > 1:
+                message.insert(
+                    1,
+                    f"Profit: {instrument_status.get_profit()}%",
+                )
+
+                log.info(
+                    displace_message(DISPLACEMENTS, tuple(message)),
+                )
+
+                instrument_status.update_limits(self.signal.last_candle["ATR"])
+
+                self.helper.sell_instrument(
+                    instrument_buy,
+                    instrument_status.take_profit,
+                )
+
+        else:
             for instrument_type in Instrument:
                 instrument_status = self.helper.update_instrument_status(
                     instrument_type
@@ -282,22 +311,6 @@ class Day_Trading:
 
                 if self.signal.exit(instrument_type, instrument_status):
                     self.helper.sell_instrument(instrument_type)
-
-        else:
-            instrument_sell = Instrument.from_signal(signal)[OrderType.SELL]
-            self.helper.sell_instrument(instrument_sell)
-
-            instrument_buy = Instrument.from_signal(signal)[OrderType.BUY]
-            self.helper.buy_instrument(instrument_buy)
-
-            self.helper.instrument_status[instrument_buy].update_limits(
-                self.signal.last_candle["ATR"]
-            )
-
-            self.helper.sell_instrument(
-                instrument_buy,
-                self.helper.instrument_status[instrument_buy].take_profit,
-            )
 
     def action_evening(self) -> None:
         for instrument_type in Instrument:

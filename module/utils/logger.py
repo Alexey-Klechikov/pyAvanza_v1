@@ -9,6 +9,15 @@ import logging
 import os
 
 
+def displace_message(displacements: tuple, messages: tuple) -> str:
+    return " | ".join(
+        map(
+            lambda y: str(y[0]) + (y[1] - len(str(y[0]))) * " ",
+            zip(messages, displacements),
+        )
+    )
+
+
 class ColoredFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors"""
 
