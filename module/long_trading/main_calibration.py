@@ -86,7 +86,11 @@ class Calibration:
 
                     try:
                         data = History(
-                            ticker["ticker_yahoo"], "18mo", "1d", cache="skip"
+                            ticker["ticker_yahoo"],
+                            "18mo",
+                            "1d",
+                            cache="skip",
+                            even=False,
                         ).data
 
                         if str(data.iloc[-1]["Close"]) == "nan":

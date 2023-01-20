@@ -24,6 +24,7 @@ class History:
         extra_data: pd.DataFrame = pd.DataFrame(
             columns=["Open", "High", "Low", "Close", "Volume"]
         ),
+        even: bool = True,
     ):
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.pickle_path = f"{current_dir}/cache/{ticker_yahoo}.pickle"
@@ -32,6 +33,7 @@ class History:
         self.interval = interval
         self.period = period
         self.cache = cache
+        self.even = even
 
         self.data = self.get_data()
 
@@ -39,6 +41,10 @@ class History:
         data: pd.DataFrame = pd.DataFrame(
             columns=["Open", "High", "Low", "Close", "Volume"]
         )
+
+        if self.even:
+            # If we want evenly distributed data, we need to get excessive data that we can later filter out
+            self.period = f"{int(self.period[:-1]) * 2}d"
 
         if self.cache == "reuse":
             data = self._read_cache(self.pickle_path)
@@ -67,6 +73,10 @@ class History:
 
             self._dump_cache(self.pickle_path, data)
 
+        if self.even:
+            data = self._get_evenly_distributed_history(data)
+
+        else:
             data = data[
                 lambda x: (
                     (datetime.today() - timedelta(days=int(self.period[:-1]))).strftime(
@@ -141,3 +151,30 @@ class History:
     def _dump_cache(self, pickle_path: str, data: pd.DataFrame) -> None:
         with open(pickle_path, "wb") as pcl:
             pickle.dump(data, pcl)
+
+    def _get_evenly_distributed_history(self, data: pd.DataFrame) -> pd.DataFrame:
+        strategy_target = int(self.period[:-1]) // 4
+
+        counters = {
+            "BULL": 0,
+            "BEAR": 0,
+        }
+
+        filtered_data = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
+
+        for _, group in reversed(tuple(data.groupby(data.index.date))):  # type: ignore
+            if len(group) < 500 or sum(group["Volume"]) == 0:
+                continue
+
+            day_direction = (
+                "BULL" if group["Close"].iloc[-1] > group["Close"].iloc[0] else "BEAR"
+            )
+
+            if counters[day_direction] >= strategy_target:
+                continue
+
+            counters[day_direction] += 1
+
+            filtered_data = pd.concat([filtered_data, group])
+
+        return filtered_data

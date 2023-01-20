@@ -4,7 +4,6 @@ import traceback
 from datetime import date
 from typing import Optional
 
-import pandas as pd
 from avanza import OrderType
 from requests import ReadTimeout
 

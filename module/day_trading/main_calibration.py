@@ -273,7 +273,7 @@ class Calibration:
     ) -> None:
         self.strategies = []
 
-        daily_volumes = history.data.groupby([history.data.index.date]).sum()["Volume"].values.tolist()  # type: ignore
+        daily_volumes = history.data.groupby([history.data.index.date])["Volume"].sum().values.tolist()  # type: ignore
 
         log.info(
             f"Dates range: {history.data.index[0].strftime('%Y.%m.%d')} - {history.data.index[-1].strftime('%Y.%m.%d')} "  # type: ignore
