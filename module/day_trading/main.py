@@ -20,7 +20,7 @@ from module.utils import Context, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.day_trading.main")
 
-DISPLACEMENTS = (12, 11, 13, 12, 9, 0)
+DISPLACEMENTS = (12, 14, 13, 12, 9, 0)
 
 
 class Order:
