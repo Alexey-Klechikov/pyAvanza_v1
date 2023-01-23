@@ -73,18 +73,18 @@ class History:
 
             self._dump_cache(self.pickle_path, data)
 
-        if self.even:
-            data = self._get_evenly_distributed_history(data)
+            if self.even:
+                data = self._get_evenly_distributed_history(data)
 
-        else:
-            data = data[
-                lambda x: (
-                    (datetime.today() - timedelta(days=int(self.period[:-1]))).strftime(
-                        "%Y-%m-%d"
+            else:
+                data = data[
+                    lambda x: (
+                        (
+                            datetime.today() - timedelta(days=int(self.period[:-1]))
+                        ).strftime("%Y-%m-%d")
+                        <= x.index
                     )
-                    <= x.index
-                )
-            ]  # type: ignore
+                ]  # type: ignore
 
         data.sort_index(inplace=True)
 
