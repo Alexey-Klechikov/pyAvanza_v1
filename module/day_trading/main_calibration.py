@@ -383,7 +383,7 @@ class Calibration:
 
         strategy = Strategy(history.data)
 
-        self._walk_through_strategies(history, strategy, False)
+        self._walk_through_strategies(history, strategy, True)
 
         self.strategies = [
             s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
@@ -418,7 +418,7 @@ class Calibration:
 
         strategy = Strategy(history.data, strategies=list(strategies_dict.keys()))
 
-        self._walk_through_strategies(history, strategy, False)
+        self._walk_through_strategies(history, strategy, True)
 
         strategies["15d"] = [
             s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
@@ -463,7 +463,7 @@ class Calibration:
 
         strategy = Strategy(history.data, strategies=strategies["use"])
 
-        self._walk_through_strategies(history, strategy, True)
+        self._walk_through_strategies(history, strategy, False)
 
         strategies["use"] = [
             s["strategy"]
