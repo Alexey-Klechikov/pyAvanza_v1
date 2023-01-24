@@ -232,10 +232,10 @@ class Day_Trading:
         self.settings = settings
 
         self.helper = Helper(user, accounts, settings)
-        self.signal = Signal(self.helper.ava, self.settings, self.helper.strategy_names)
+        self.signal = Signal(self.helper.ava, self.settings)
 
         log.info("Strategies: ")
-        [log.info(f"> [{index + 1}] {i}") for index, i in enumerate(self.helper.strategy_names)]  # type: ignore
+        [log.info(f"> [{index + 1}] {i}") for index, i in enumerate(Strategy.load("DT").get("use", []))]  # type: ignore
 
         while True:
             try:
@@ -250,7 +250,7 @@ class Day_Trading:
                 self.helper.ava.ctx = self.helper.ava.get_ctx(user)
 
     def action_day(self) -> None:
-        signal, message = self.signal.get()
+        signal, message = self.signal.get(Strategy.load("DT").get("use", []))
 
         if self.signal.last_candle is None:
             return
@@ -262,25 +262,23 @@ class Day_Trading:
             instrument_buy = Instrument.from_signal(signal)[OrderType.BUY]
             self.helper.buy_instrument(instrument_buy)
 
-            number_of_strategies_triggered = len(message[-1].split("&"))
             instrument_status = self.helper.instrument_status[instrument_buy]
 
-            if not instrument_status.active_order or number_of_strategies_triggered > 1:
-                message.insert(
-                    1,
-                    f"Profit: {instrument_status.get_profit()}%",
-                )
+            message.insert(
+                1,
+                f"Profit: {instrument_status.get_profit()}%",
+            )
 
-                log.info(
-                    displace_message(DISPLACEMENTS, tuple(message)),
-                )
+            log.info(
+                displace_message(DISPLACEMENTS, tuple(message)),
+            )
 
-                instrument_status.update_limits(self.signal.last_candle["ATR"])
+            instrument_status.update_limits(self.signal.last_candle["ATR"])
 
-                self.helper.sell_instrument(
-                    instrument_buy,
-                    instrument_status.take_profit,
-                )
+            self.helper.sell_instrument(
+                instrument_buy,
+                instrument_status.take_profit,
+            )
 
         else:
             for instrument_type in Instrument:

@@ -53,7 +53,11 @@ class History:
                 self.cache = "skip"
 
         if self.cache == "skip":
-            data = self._read_ticker(self.ticker_yahoo, self.period, self.interval)
+            data = (
+                self.extra_data
+                if not self.extra_data.empty
+                else self._read_ticker(self.ticker_yahoo, self.period, self.interval)
+            )
 
         if self.cache == "append":
             data = (

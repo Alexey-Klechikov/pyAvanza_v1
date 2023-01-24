@@ -1,4 +1,5 @@
 import logging
+import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
@@ -7,7 +8,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 from avanza import OrderType
 
-from module.day_trading import Instrument, Strategy
+from module.day_trading import DayTime, Instrument, Strategy, TradingTime
 from module.utils import Context, History, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.day_trading.main_calibration")
@@ -344,7 +345,7 @@ class Calibration:
 
             strategy_summary = helper.get_orders_history_summary()
 
-            if strategy_summary["profit"] <= 0 or strategy_summary["points"] < -20:
+            if strategy_summary["profit"] <= -500 or strategy_summary["points"] < -20:
                 continue
 
             self.strategies.append(strategy_summary)
@@ -433,25 +434,79 @@ class Calibration:
             i[0]
             for i in sorted(
                 most_profitable_strategies, key=lambda s: s[1], reverse=True
-            )[:3]
+            )
         ]
 
         Strategy.dump("DT", strategies)
 
         return strategies["use"]
 
+    def adjust(self) -> None:
+        log.info("Adjusting strategies")
 
-def run(update: bool = True, print_orders_history: bool = False) -> None:
+        extra_data = self.ava.get_today_history(
+            self.settings["instruments"]["MONITORING"]["AVA"]
+        )
+
+        history = History(
+            self.settings["instruments"]["MONITORING"]["YAHOO"],
+            "1d",
+            "1m",
+            cache="skip",
+            extra_data=extra_data,
+        )
+
+        strategies = Strategy.load("DT")
+
+        strategy = Strategy(history.data, strategies=strategies["use"])
+
+        self._walk_through_strategies(history, strategy, print_orders_history=False)
+
+        strategies["use"] = [
+            s["strategy"]
+            for s in sorted(self.strategies, key=lambda s: s["profit"], reverse=True)
+        ]
+
+        Strategy.dump("DT", strategies)
+
+
+def run(
+    update: bool = True, adjust: bool = True, print_orders_history: bool = False
+) -> None:
     settings = Settings().load()
+    trading_time = TradingTime()
 
     for user, settings_per_user in settings.items():
         for setting_per_setup in settings_per_user.values():
             if not setting_per_setup.get("run_day_trading", False):
                 continue
 
-            try:
-                calibration = Calibration(setting_per_setup, user)
+            calibration = Calibration(setting_per_setup, user)
 
+            # day run
+            while True:
+                if not adjust:
+                    break
+
+                try:
+                    trading_time.update_day_time()
+
+                    if trading_time.day_time == DayTime.MORNING:
+                        pass
+
+                    elif trading_time.day_time == DayTime.DAY:
+                        calibration.adjust()
+
+                    elif trading_time.day_time == DayTime.EVENING:
+                        break
+
+                    time.sleep(60 * 2)
+
+                except Exception as e:
+                    log.error(f">>> {e}: {traceback.format_exc()}")
+
+            # full calibration
+            try:
                 if update:
                     calibration.update(print_orders_history)
 

@@ -13,4 +13,4 @@ if __name__ == "__main__":
         console_log_level="INFO",
     )
 
-    run_day_trading_calibration(update=True, print_orders_history=False)
+    run_day_trading_calibration(update=True, adjust=True, print_orders_history=False)
