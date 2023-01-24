@@ -259,8 +259,9 @@ class Helper:
 
 
 class Calibration:
-    def __init__(self, settings: dict, user: str):
+    def __init__(self, settings: dict, user: str, print_orders_history: bool):
         self.settings = settings
+        self.print_orders_history = print_orders_history
 
         self.ava = Context(user, settings["accounts"], skip_lists=True)
 
@@ -270,7 +271,7 @@ class Calibration:
         self,
         history: History,
         strategy: Strategy,
-        print_orders_history: bool,
+        consider_efficiency: bool,
     ) -> None:
         self.strategies = []
 
@@ -345,7 +346,9 @@ class Calibration:
 
             strategy_summary = helper.get_orders_history_summary()
 
-            if strategy_summary["profit"] <= -500 or strategy_summary["points"] < -20:
+            if consider_efficiency and (
+                strategy_summary["profit"] <= 0 or strategy_summary["points"] < -20
+            ):
                 continue
 
             self.strategies.append(strategy_summary)
@@ -360,10 +363,10 @@ class Calibration:
                 )
             )
 
-            if print_orders_history:
+            if self.print_orders_history:
                 helper.print_orders_history()
 
-    def update(self, print_orders_history: bool) -> None:
+    def update(self) -> None:
         log.info("Updating strategies")
 
         extra_data = self.ava.get_today_history(
@@ -380,7 +383,7 @@ class Calibration:
 
         strategy = Strategy(history.data)
 
-        self._walk_through_strategies(history, strategy, print_orders_history)
+        self._walk_through_strategies(history, strategy, False)
 
         self.strategies = [
             s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
@@ -393,7 +396,7 @@ class Calibration:
             },
         )
 
-    def test(self, print_orders_history: bool) -> list:
+    def test(self) -> list:
         log.info("Testing strategies")
 
         extra_data = self.ava.get_today_history(
@@ -415,7 +418,7 @@ class Calibration:
 
         strategy = Strategy(history.data, strategies=list(strategies_dict.keys()))
 
-        self._walk_through_strategies(history, strategy, print_orders_history)
+        self._walk_through_strategies(history, strategy, False)
 
         strategies["15d"] = [
             s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
@@ -460,7 +463,7 @@ class Calibration:
 
         strategy = Strategy(history.data, strategies=strategies["use"])
 
-        self._walk_through_strategies(history, strategy, print_orders_history=False)
+        self._walk_through_strategies(history, strategy, True)
 
         strategies["use"] = [
             s["strategy"]
@@ -481,7 +484,7 @@ def run(
             if not setting_per_setup.get("run_day_trading", False):
                 continue
 
-            calibration = Calibration(setting_per_setup, user)
+            calibration = Calibration(setting_per_setup, user, print_orders_history)
 
             # day run
             while True:
@@ -508,9 +511,9 @@ def run(
             # full calibration
             try:
                 if update:
-                    calibration.update(print_orders_history)
+                    calibration.update()
 
-                strategy_use = calibration.test(print_orders_history)
+                strategy_use = calibration.test()
 
                 TeleLog(
                     message="DT calibration:\n"
