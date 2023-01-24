@@ -167,7 +167,7 @@ class History:
         filtered_data = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
 
         for _, group in reversed(tuple(data.groupby(data.index.date))):  # type: ignore
-            if len(group) < 500 or sum(group["Volume"]) == 0:
+            if len(group) < 470 or sum(group["Volume"]) == 0:
                 continue
 
             day_direction = (
