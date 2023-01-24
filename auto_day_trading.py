@@ -4,7 +4,7 @@ This module is used for automated runs (cron)
 
 
 from module.utils import Logger
-from module import run_day_trading_ta
+from module import run_day_trading
 
 
 if __name__ == "__main__":
@@ -14,4 +14,4 @@ if __name__ == "__main__":
         console_log_level="DEBUG",
     )
 
-    run_day_trading_ta()
+    run_day_trading()

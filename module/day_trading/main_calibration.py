@@ -420,13 +420,20 @@ class Calibration:
             s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
         ]
 
-        strategies["use"] = [
-            i["strategy"]
+        most_profitable_strategies = [
+            (i["strategy"], i["profit"])
             for i in strategies["15d"]
             if i["points"]
             in sorted(
                 list(set([s["points"] for s in strategies["15d"]])), reverse=True
             )[: min(3, len(strategies["15d"]))]
+        ]
+
+        strategies["use"] = [
+            i[0]
+            for i in sorted(
+                most_profitable_strategies, key=lambda s: s[1], reverse=True
+            )[:3]
         ]
 
         Strategy.dump("DT", strategies)

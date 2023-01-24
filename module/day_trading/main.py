@@ -15,7 +15,6 @@ from module.day_trading import (
     Strategy,
     TradingTime,
 )
-from module.day_trading.main_calibration import run as run_day_trading_ta_calibration
 from module.utils import Context, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.day_trading.main")
@@ -344,8 +343,6 @@ class Day_Trading:
 
         if log_to_telegram:
             TeleLog(day_trading_stats=self.helper.log_data)
-
-        run_day_trading_ta_calibration(print_orders_history=False)
 
 
 def run() -> None:
