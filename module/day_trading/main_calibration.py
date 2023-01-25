@@ -9,7 +9,7 @@ import pandas as pd
 from avanza import OrderType
 
 from module.day_trading import DayTime, Instrument, Strategy, TradingTime
-from module.utils import Context, History, Settings, TeleLog, displace_message
+from module.utils import Cache, Context, History, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.day_trading.main_calibration")
 
@@ -181,26 +181,50 @@ class Helper:
 
         return None
 
-    def get_exit_instrument(self, row: pd.Series) -> Optional[Instrument]:
+    def get_exit_instrument(
+        self, row: pd.Series, history: pd.DataFrame
+    ) -> Optional[Instrument]:
         for instrument, calibration_order in self.orders.items():
             if (
                 not calibration_order.on_balance
                 or calibration_order.price_buy is None
                 or calibration_order.price_sell is None
+                or calibration_order.time_buy is None
             ):
                 continue
 
-            rsi_condition = (instrument == Instrument.BULL and row["RSI"] < 60) or (
-                instrument == Instrument.BEAR and row["RSI"] > 40
-            )
+            history_slice = history.loc[calibration_order.time_buy : row.name]["Close"]  # type: ignore
 
-            price_condition = (
-                (calibration_order.price_sell - calibration_order.price_buy)
-                * (1 if instrument == Instrument.BULL else -1)
-                / calibration_order.price_buy
-            ) * 20 > (self.settings["trading"]["exit"] - 1)
+            if instrument == Instrument.BULL:
+                if row["RSI"] >= 60:
+                    continue
 
-            if rsi_condition and price_condition:
+                if (
+                    calibration_order.price_sell / calibration_order.price_buy - 1
+                ) * 20 <= (self.settings["trading"]["exit"] - 1):
+                    continue
+
+                if (1 - row["Close"] / history_slice.max()) * 20 <= (
+                    1 - self.settings["trading"]["pullback"]
+                ):
+                    continue
+
+                return instrument
+
+            if instrument == Instrument.BEAR:
+                if row["RSI"] <= 40:
+                    continue
+
+                if (
+                    1 - calibration_order.price_sell / calibration_order.price_buy
+                ) * 20 <= (self.settings["trading"]["exit"] - 1):
+                    continue
+
+                if (row["Close"] / history_slice.min() - 1) * 20 <= (
+                    1 - self.settings["trading"]["pullback"]
+                ):
+                    continue
+
                 return instrument
 
         return None
@@ -342,7 +366,7 @@ class Calibration:
 
                 signal = Helper.get_signal(strategy_logic, row)
 
-                exit_instrument = helper.get_exit_instrument(row)
+                exit_instrument = helper.get_exit_instrument(row, history.data)
 
             strategy_summary = helper.get_orders_history_summary()
 
@@ -377,7 +401,7 @@ class Calibration:
             self.settings["instruments"]["MONITORING"]["YAHOO"],
             "30d",
             "1m",
-            cache="append",
+            cache=Cache.APPEND,
             extra_data=extra_data,
         )
 
@@ -407,7 +431,7 @@ class Calibration:
             self.settings["instruments"]["MONITORING"]["YAHOO"],
             "15d",
             "1m",
-            cache="append",
+            cache=Cache.APPEND,
             extra_data=extra_data,
         )
 
@@ -455,7 +479,7 @@ class Calibration:
             self.settings["instruments"]["MONITORING"]["YAHOO"],
             "1d",
             "1m",
-            cache="skip",
+            cache=Cache.SKIP,
             extra_data=extra_data,
         )
 

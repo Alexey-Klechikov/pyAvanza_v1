@@ -6,6 +6,7 @@ import logging
 import os
 import pickle
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import List
 
 import pandas as pd
@@ -14,13 +15,19 @@ import yfinance as yf
 log = logging.getLogger("main.utils.history")
 
 
+class Cache(str, Enum):
+    REUSE = "REUSE"
+    SKIP = "SKIP"
+    APPEND = "APPEND"
+
+
 class History:
     def __init__(
         self,
         ticker_yahoo: str,
         period: str,
         interval: str,
-        cache: str = "append",
+        cache: str = Cache.APPEND,
         extra_data: pd.DataFrame = pd.DataFrame(
             columns=["Open", "High", "Low", "Close", "Volume"]
         ),
@@ -46,20 +53,20 @@ class History:
             # If we want evenly distributed data, we need to get excessive data that we can later filter out
             self.period = f"{int(self.period[:-1]) * 2}d"
 
-        if self.cache == "reuse":
+        if self.cache == Cache.REUSE:
             data = self._read_cache(self.pickle_path)
 
             if data.empty:
-                self.cache = "skip"
+                self.cache = Cache.SKIP
 
-        if self.cache == "skip":
+        if self.cache == Cache.SKIP:
             data = (
                 self.extra_data
                 if not self.extra_data.empty
                 else self._read_ticker(self.ticker_yahoo, self.period, self.interval)
             )
 
-        if self.cache == "append":
+        if self.cache == Cache.APPEND:
             data = (
                 self._read_cache(self.pickle_path)
                 .append(self.extra_data)

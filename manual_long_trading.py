@@ -10,7 +10,7 @@ import pandas as pd
 from avanza import OrderType as Signal
 
 from module.long_trading import Strategy
-from module.utils import Context, History, Logger, Plot, Settings
+from module.utils import Context, History, Logger, Plot, Settings, Cache
 
 log = logging.getLogger("main")
 
@@ -177,7 +177,7 @@ class PortfolioAnalysis:
 
         try:
             data = History(
-                ticker_yahoo, "18mo", "1d", cache="reuse" if cache else "skip"
+                ticker_yahoo, "18mo", "1d", cache=Cache.REUSE if cache else Cache.SKIP
             ).data
 
             strategy = Strategy(data, ticker_name=comment)

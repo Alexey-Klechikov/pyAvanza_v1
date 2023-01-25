@@ -9,7 +9,7 @@ import logging
 import traceback
 
 from module.long_trading import Strategy
-from module.utils import Context, History, Settings, TeleLog
+from module.utils import Cache, Context, History, Settings, TeleLog
 
 log = logging.getLogger("main.long_trading.main_calibration")
 
@@ -89,7 +89,7 @@ class Calibration:
                             ticker["ticker_yahoo"],
                             "18mo",
                             "1d",
-                            cache="skip",
+                            cache=Cache.SKIP,
                             even=False,
                         ).data
 

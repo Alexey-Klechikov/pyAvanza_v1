@@ -137,6 +137,7 @@ class Signal:
             self.last_candle is None
             or instrument_status.acquired_price is None
             or instrument_status.price_sell is None
+            or instrument_status.price_max is None
         ):
             return False
 
@@ -145,11 +146,16 @@ class Signal:
         ) or (instrument == Instrument.BEAR and self.last_candle["RSI"] > 40)
 
         price_condition = (
-            (instrument_status.price_sell - instrument_status.acquired_price)
-            / instrument_status.acquired_price
-        ) > (self.settings["trading"]["exit"] - 1)
+            instrument_status.price_sell / instrument_status.acquired_price
+            > self.settings["trading"]["exit"]
+        )
 
-        if rsi_condition and price_condition:
+        price_pullback_condition = (
+            instrument_status.price_sell / instrument_status.price_max
+            < self.settings["trading"]["pullback"]
+        )
+
+        if rsi_condition and price_condition and price_pullback_condition:
             log.info(
                 " | ".join(
                     ["Signal: Exit", f'RSI: {round(self.last_candle["RSI"], 2)}']
