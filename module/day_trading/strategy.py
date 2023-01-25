@@ -216,13 +216,13 @@ class Strategy:
 
         """ Cycles """
         # EBSW (Even Better Sinewave)
-        data.ta.ebsw(length=50, bars=15, append=True)
-        if _check_enough_data("EBSW_50_15", data):
+        data.ta.ebsw(length=40, bars=15, append=True)
+        if _check_enough_data("EBSW_40_15", data):
             conditions["Cycles"]["EBSW"] = {
-                OrderType.BUY: lambda x: x["EBSW_50_15"] > 0.5,
-                OrderType.SELL: lambda x: x["EBSW_50_15"] < -0.5,
+                OrderType.BUY: lambda x: x["EBSW_40_15"] > 0.5,
+                OrderType.SELL: lambda x: x["EBSW_40_15"] < -0.5,
             }
-            columns_needed += ["EBSW_50_15"]
+            columns_needed += ["EBSW_40_15"]
 
         """ Volume """
         # PVT (Price Volume Trend)
@@ -301,7 +301,7 @@ class Strategy:
         if _check_enough_data("RVI_20", data):
             conditions["Volatility"]["RVI"] = {
                 OrderType.BUY: lambda x: x["RVI_20"] > 60,
-                OrderType.SELL: lambda x: x["RVI_20"] < 40,
+                OrderType.SELL: lambda x: x["RVI_20"] < 45,
             }
             columns_needed += ["RVI_20"]
 
@@ -340,7 +340,7 @@ class Strategy:
         if _check_enough_data("VHF_30", data):
             conditions["Trend"]["VHF"] = {
                 OrderType.BUY: lambda x: x["VHF_30"] > 0.45,
-                OrderType.SELL: lambda x: x["VHF_30"] > 0.45,
+                OrderType.SELL: lambda x: x["VHF_30"] > 0.4,
             }
             columns_needed += ["VHF_30"]
 
@@ -392,7 +392,7 @@ class Strategy:
         if _check_enough_data("STC_10_20_35_0.65", data):
             conditions["Momentum"]["STC"] = {
                 OrderType.BUY: lambda x: x["STC_10_20_35_0.65"] < 70,
-                OrderType.SELL: lambda x: x["STC_10_20_35_0.65"] > 30,
+                OrderType.SELL: lambda x: x["STC_10_20_35_0.65"] > 25,
             }
             columns_needed += ["STC_10_20_35_0.65"]
 
@@ -401,7 +401,7 @@ class Strategy:
         if _check_enough_data("UO_10_15_30", data):
             conditions["Momentum"]["UO"] = {
                 OrderType.BUY: lambda x: x["UO_10_15_30"] < 30,
-                OrderType.SELL: lambda x: x["UO_10_15_30"] > 70,
+                OrderType.SELL: lambda x: x["UO_10_15_30"] > 65,
             }
             columns_needed += ["UO_10_15_30"]
 
