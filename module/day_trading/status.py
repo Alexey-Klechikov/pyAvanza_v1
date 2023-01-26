@@ -78,6 +78,7 @@ class InstrumentStatus:
                 )
             )
 
+            self.price_max = None
             self.acquired_price = None
 
         elif not self.acquired_price and self.position:
