@@ -362,7 +362,7 @@ class Context:
                 continue
 
         positions = certificate_info.get("holdings", {}).get(
-            "accountAndPositionsView", {}
+            "accountAndPositionsView", []
         )
 
         orders = [
@@ -370,12 +370,8 @@ class Context:
             for i in certificate_info.get("ordersAndDeals", {}).get("orders", [])
             if i["orderState"] == "ACTIVE"
         ]
-        if len(orders) == 0:
-            order = {}
-        else:
-            order = orders[0]
-            order["orderbookId"] = certificate_id
-            order["orderbookType"] = certificate_info.get("type", "CERTIFICATE")
+
+        deals = certificate_info.get("ordersAndDeals", {}).get("deals", [])
 
         return {
             OrderType.BUY: certificate_info.get("quote", {}).get("sell", None),
@@ -383,6 +379,7 @@ class Context:
             "spread": certificate_info.get("quote", {}).get("spread"),
             "position": {} if len(positions) == 0 else positions[0],
             "order": {} if len(orders) == 0 else orders[0],
+            "last_deal": {} if len(deals) == 0 else deals[0],
         }
 
     def delete_active_orders(self, account_ids: list[Union[str, int]]) -> None:

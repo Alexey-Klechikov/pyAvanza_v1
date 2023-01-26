@@ -50,6 +50,7 @@ class InstrumentStatus:
 
     position: dict = field(default_factory=dict)
     active_order: dict = field(default_factory=dict)
+    last_sell_deal: dict = field(default_factory=dict)
 
     acquired_price: Optional[float] = None
 
@@ -59,15 +60,20 @@ class InstrumentStatus:
 
     def get_status(self, certificate_info: dict) -> None:
         self.position = certificate_info["position"]
+        self.last_sell_deal = (
+            certificate_info["last_deal"]
+            if certificate_info["last_deal"].get("orderType") == OrderType.SELL
+            else {}
+        )
 
-        if self.acquired_price and not self.position and self.price_sell:
+        if self.acquired_price and not self.position and self.last_sell_deal:
             log.warning(
                 ", ".join(
                     [
-                        f'===> Verdict: {"good" if self.acquired_price < self.price_sell else "bad"}',
+                        f'===> Verdict: {"good" if self.acquired_price < self.last_sell_deal.get("price", 0) else "bad"}',
                         f"Acquired: {self.acquired_price}",
                         f"Sold: {self.price_sell}",
-                        f"Profit: {round((self.price_sell - self.acquired_price) / self.acquired_price * 100, 2)}%",
+                        f"Profit: {round((self.last_sell_deal.get('price', 0) / self.acquired_price - 1)* 100, 2)}%",
                     ]
                 )
             )
