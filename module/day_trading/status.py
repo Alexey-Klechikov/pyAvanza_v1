@@ -62,11 +62,11 @@ class InstrumentStatus:
         self.position = certificate_info["position"]
         self.last_sell_deal = (
             certificate_info["last_deal"]
-            if certificate_info["last_deal"].get("orderType") == OrderType.SELL
+            if certificate_info["last_deal"].get("orderType") == "SELL"
             else {}
         )
 
-        if self.acquired_price and not self.position and self.last_sell_deal:
+        if self.acquired_price and not self.position:
             log.warning(
                 ", ".join(
                     [
