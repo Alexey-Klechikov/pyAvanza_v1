@@ -301,23 +301,21 @@ class Context:
 
         return created_orders
 
-    def update_order(self, old_order: dict, price: float) -> None:
+    def update_order(
+        self, old_order: dict, price: float, order_book_id: int, instrument_type: str
+    ) -> None:
         log.debug("Updating order")
 
         order_attr = {
             "account_id": old_order["accountId"],
-            "order_book_id": old_order["orderbookId"],
+            "order_book_id": order_book_id,
             "order_type": OrderType[
                 "SELL" if old_order["orderType"] == "SELL" else "BUY"
             ],
             "price": price,
             "valid_until": (datetime.today() + timedelta(days=1)).date(),
             "volume": old_order["volume"],
-            "instrument_type": InstrumentType[
-                "CERTIFICATE"
-                if old_order["orderbookType"] == "CERTIFICATE"
-                else "STOCK"
-            ],
+            "instrument_type": InstrumentType[instrument_type],
             "order_id": old_order["orderId"],
         }
 

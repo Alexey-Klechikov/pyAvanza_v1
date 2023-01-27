@@ -109,7 +109,12 @@ class Order:
             f'{instrument_type} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price} '
         )
 
-        self.ava.update_order(instrument_status.active_order, price)
+        self.ava.update_order(
+            instrument_status.active_order,
+            price,
+            self.settings["instruments"]["TRADING"][instrument_type],
+            "CERTIFICATE",
+        )
 
     def delete(self) -> None:
         self.ava.delete_active_orders(account_ids=[self.settings["accounts"]["DT"]])
