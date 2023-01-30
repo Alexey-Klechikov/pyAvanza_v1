@@ -121,9 +121,10 @@ class Order:
 
 
 class Helper:
-    def __init__(self, user, accounts: dict, settings: dict):
+    def __init__(self, user, accounts: dict, settings: dict, dry: bool):
         self.settings = settings
         self.accounts = accounts
+        self.dry = dry
 
         self.trading_done = False
 
@@ -187,6 +188,9 @@ class Helper:
         return self.instrument_status[instrument_type]
 
     def buy_instrument(self, instrument_type: Instrument) -> None:
+        if self.dry:
+            return
+
         for _ in range(5):
             instrument_status = self.update_instrument_status(instrument_type)
 
@@ -204,6 +208,9 @@ class Helper:
     def sell_instrument(
         self, instrument_type: Instrument, custom_price: Optional[float] = None
     ) -> None:
+        if self.dry:
+            return
+
         for _ in range(5):
             instrument_status = self.update_instrument_status(instrument_type)
 
@@ -233,10 +240,13 @@ class Helper:
 
 
 class Day_Trading:
-    def __init__(self, user: str, accounts: dict, settings: dict):
+    def __init__(self, user: str, accounts: dict, settings: dict, dry: bool):
         self.settings = settings
 
-        self.helper = Helper(user, accounts, settings)
+        if dry:
+            log.warning("Dry run, no orders will be placed")
+
+        self.helper = Helper(user, accounts, settings, dry)
         self.signal = Signal(self.helper.ava, self.settings)
 
         log.info("Strategies: ")
@@ -348,7 +358,7 @@ class Day_Trading:
             TeleLog(day_trading_stats=self.helper.log_data)
 
 
-def run() -> None:
+def run(dry: bool) -> None:
     settings = Settings().load()
 
     for user, settings_per_user in settings.items():
@@ -357,7 +367,7 @@ def run() -> None:
                 continue
 
             try:
-                Day_Trading(user, setting_per_setup["accounts"], setting_per_setup)
+                Day_Trading(user, setting_per_setup["accounts"], setting_per_setup, dry)
 
             except Exception as e:
                 log.error(f">>> {e}: {traceback.format_exc()}")

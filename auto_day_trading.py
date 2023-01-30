@@ -14,4 +14,4 @@ if __name__ == "__main__":
         console_log_level="DEBUG",
     )
 
-    run_day_trading()
+    run_day_trading(dry=False)

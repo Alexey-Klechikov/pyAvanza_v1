@@ -2,7 +2,7 @@ import logging
 import time
 import traceback
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -482,6 +482,8 @@ class Calibration:
             cache=Cache.SKIP,
             extra_data=extra_data,
         )
+
+        history.data = history.data[datetime.now() - timedelta(hours=4) :]  # type: ignore
 
         strategies = Strategy.load("DT")
 
