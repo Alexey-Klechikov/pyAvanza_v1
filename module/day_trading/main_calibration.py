@@ -13,7 +13,7 @@ from module.utils import Cache, Context, History, Settings, TeleLog, displace_me
 
 log = logging.getLogger("main.day_trading.main_calibration")
 
-DISPLACEMENTS = (9, 58, 3, 4, 4, 0)
+DISPLACEMENTS = (9, 58, 3, 4, 4, 15, 15, 0)
 
 
 @dataclass
@@ -255,15 +255,15 @@ class Helper:
             "points": int(df.points.sum()),
             "profit": int(df.profit.sum() - len(df) * 1000),
             "efficiency": f"{round(100 * len(df[df.verdict == 'good']) / len(df))}%",
-            "numbers": (
+            "numbers_bull": (
                 ""
                 if numbers["BULL_trades"] == 0
-                else f"[BULL: {round(numbers['BULL_trades_good'] / numbers['BULL_trades'] * 100)}% - {numbers['BULL_trades_good']} / {numbers['BULL_trades']}] "
-            )
-            + (
+                else f"{round(numbers['BULL_trades_good'] / numbers['BULL_trades'] * 100)}% - {numbers['BULL_trades_good']} / {numbers['BULL_trades']}"
+            ),
+            "numbers_bear": (
                 ""
                 if numbers["BEAR_trades"] == 0
-                else f"[BEAR: {round(numbers['BEAR_trades_good'] / numbers['BEAR_trades'] * 100)}% - {numbers['BEAR_trades_good']} / {numbers['BEAR_trades']}]"
+                else f"{round(numbers['BEAR_trades_good'] / numbers['BEAR_trades'] * 100)}% - {numbers['BEAR_trades_good']} / {numbers['BEAR_trades']}"
             ),
         }
 
@@ -316,7 +316,7 @@ class Calibration:
                     "Pts",
                     "Prft",
                     "Effi",
-                    "Numbers per instrument",
+                    "Numbers BULL | Numbers BEAR | Signal",
                 ),
             )
         )
@@ -326,6 +326,7 @@ class Calibration:
         ):
             helper = Helper(strategy_name, self.settings)
             exit_instrument = None
+            last_signal = None
             signal = None
 
             for index, row in history.data.iterrows():
@@ -365,6 +366,7 @@ class Calibration:
                 helper.check_orders_for_limits(time_index, row)
 
                 signal = Helper.get_signal(strategy_logic, row)
+                last_signal = signal if signal else last_signal
 
                 exit_instrument = helper.get_exit_instrument(row, history.data)
 
@@ -383,6 +385,7 @@ class Calibration:
                     tuple(
                         [f"[{i+1}/{len(strategy.strategies)}]"]
                         + list(strategy_summary.values())
+                        + ["" if not last_signal else last_signal.value]
                     ),
                 )
             )
