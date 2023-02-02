@@ -316,7 +316,7 @@ class Calibration:
                     "Pts",
                     "Prft",
                     "Effi",
-                    "Numbers BULL | Numbers BEAR | Signal",
+                    "Numbers BULL | Numbers BEAR | Signal (at)",
                 ),
             )
         )
@@ -326,7 +326,7 @@ class Calibration:
         ):
             helper = Helper(strategy_name, self.settings)
             exit_instrument = None
-            last_signal = None
+            last_signal = {"signal": None, "time": ""}
             signal = None
 
             for index, row in history.data.iterrows():
@@ -338,6 +338,21 @@ class Calibration:
                 if (time_index.hour == 17 and time_index.minute >= 15) or (
                     history.data.iloc[-1].name == time_index
                 ):
+                    if any(
+                        [
+                            (
+                                last_signal["signal"] == OrderType.BUY
+                                and exit_instrument == Instrument.BULL
+                            ),
+                            (
+                                last_signal["signal"] == OrderType.SELL
+                                and exit_instrument == Instrument.BEAR
+                            ),
+                            not any([o.on_balance for o in helper.orders.values()]),
+                        ]
+                    ):
+                        last_signal["signal"] = None
+
                     for instrument in helper.orders:
                         helper.sell_order(time_index, row, instrument)
 
@@ -366,7 +381,11 @@ class Calibration:
                 helper.check_orders_for_limits(time_index, row)
 
                 signal = Helper.get_signal(strategy_logic, row)
-                last_signal = signal if signal else last_signal
+                if signal:
+                    last_signal = {
+                        "signal": signal,
+                        "time": time_index.strftime("%H:%M"),
+                    }
 
                 exit_instrument = helper.get_exit_instrument(row, history.data)
 
@@ -385,7 +404,11 @@ class Calibration:
                     tuple(
                         [f"[{i+1}/{len(strategy.strategies)}]"]
                         + list(strategy_summary.values())
-                        + ["" if not last_signal else last_signal.value]
+                        + [
+                            ""
+                            if not last_signal["signal"]
+                            else f"{last_signal['signal']} ({last_signal['time']})"
+                        ]
                     ),
                 )
             )
@@ -486,7 +509,7 @@ class Calibration:
             extra_data=extra_data,
         )
 
-        history.data = history.data[datetime.now() - timedelta(hours=4) :]  # type: ignore
+        history.data = history.data[datetime.now() - timedelta(hours=3) :]  # type: ignore
 
         strategies = Strategy.load("DT")
 
