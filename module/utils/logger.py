@@ -97,14 +97,17 @@ class Logger:
         file_log_level: str = "INFO",
         console_log_level: str = "INFO",
     ):
-        self.file_log_level = file_log_level
-        self.console_log_level = console_log_level
-        self.log_file_name = self.get_log_file_name(file_prefix)
         self.log = logging.getLogger(logger_name)
-        self.set_handlers(console_show=True, save_file=True)
+        self.set_handlers(
+            True,
+            True,
+            console_log_level,
+            self._get_log_file_name(file_prefix),
+            file_log_level,
+        )
         self.log.setLevel(os.environ.get("LOGLEVEL", log_level))
 
-    def get_log_file_name(self, file_prefix: str) -> str:
+    def _get_log_file_name(self, file_prefix: str) -> str:
         log_dir = os.path.join(
             "/".join(os.path.abspath(__file__).split("/")[:-3]), "logs"
         )
@@ -113,30 +116,38 @@ class Logger:
 
         return f"{log_dir}/{file_prefix}_"
 
-    def set_handlers(self, console_show: bool, save_file: bool) -> None:
+    def _create_console_handler(self, console_log_level) -> None:
+        ch = logging.StreamHandler()
+        ch.setLevel(console_log_level)
+        cf = ColoredFormatter("[%(levelname)s] [%(name)s] - %(message)s")
+        ch.setFormatter(cf)
+        self.log.addHandler(ch)
+
+    def _create_file_handler(self, file_name, log_level) -> None:
+        fh = logging.FileHandler(file_name)
+        fh.setLevel(log_level)
+        ff = OneLineFormatter(
+            "[%(levelname)s] [%(asctime)s] [%(name)s] - %(message)s",
+            datefmt="%H:%M:%S",
+        )
+        fh.setFormatter(ff)
+        self.log.addHandler(fh)
+
+    def set_handlers(
+        self,
+        console_show: bool,
+        save_file: bool,
+        console_log_level: str,
+        log_file_name: str,
+        file_log_level: str,
+    ) -> None:
         if console_show:
-            ch = logging.StreamHandler()
-            ch.setLevel(self.console_log_level)
-            cf = ColoredFormatter("[%(levelname)s] [%(name)s] - %(message)s")
-            ch.setFormatter(cf)
-            self.log.addHandler(ch)
+            self._create_console_handler(console_log_level)
 
         if save_file:
-            fh = logging.FileHandler(
-                f"{self.log_file_name}{datetime.datetime.now():%Y-%m-%d_%H.%M}.log"
+            self._create_file_handler(
+                f"{log_file_name}{datetime.datetime.now():%Y-%m-%d_%H.%M}.log",
+                file_log_level,
             )
-            fh.setLevel(self.file_log_level)
-            ff = OneLineFormatter(
-                "[%(levelname)s] [%(asctime)s] [%(name)s] - %(message)s",
-                datefmt="%H:%M:%S",
-            )
-            fh.setFormatter(ff)
-            self.log.addHandler(fh)
 
-    def reset_file_handler(self) -> None:
-        fh = [i for i in self.log.handlers if isinstance(i, logging.FileHandler)][0]
-
-        fh.close()
-        self.log.removeHandler(fh)
-
-        self.set_handlers(console_show=False, save_file=True)
+        self._create_file_handler(f"{log_file_name}DEBUG.log", "DEBUG")
