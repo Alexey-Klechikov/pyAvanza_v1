@@ -383,7 +383,7 @@ class Calibration:
                 signal = Helper.get_signal(strategy_logic, row)
                 if signal:
                     last_signal = {
-                        "signal": signal,
+                        "signal": signal.value,
                         "time": time_index.strftime("%H:%M"),
                     }
 
