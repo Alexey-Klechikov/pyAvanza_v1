@@ -57,7 +57,7 @@ class Signal:
         if self.last_strategy["name"] is None:
             return None
 
-        for i in range(1, 61):
+        for i in range(1, 16):
             signal = self._get_signal_on_strategy(data.iloc[-i])
 
             if signal is None:
