@@ -123,8 +123,8 @@ class Logger:
         ch.setFormatter(cf)
         self.log.addHandler(ch)
 
-    def _create_file_handler(self, file_name, log_level) -> None:
-        fh = logging.FileHandler(file_name)
+    def _create_file_handler(self, file_name, log_level, write_mode) -> None:
+        fh = logging.FileHandler(file_name, write_mode)
         fh.setLevel(log_level)
         ff = OneLineFormatter(
             "[%(levelname)s] [%(asctime)s] [%(name)s] - %(message)s",
@@ -146,8 +146,9 @@ class Logger:
 
         if save_file:
             self._create_file_handler(
-                f"{log_file_name}{datetime.datetime.now():%Y-%m-%d_%H.%M}.log",
+                f"{log_file_name}{datetime.datetime.now():%Y-%m-%d}.log",
                 file_log_level,
+                "a",
             )
 
-        self._create_file_handler(f"{log_file_name}DEBUG.log", "DEBUG")
+        self._create_file_handler(f"{log_file_name}DEBUG.log", "DEBUG", "w")
