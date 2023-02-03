@@ -318,6 +318,9 @@ class Day_Trading:
                     continue
 
                 if instrument_status.price_sell <= instrument_status.stop_loss:
+                    log.debug(
+                        f"{instrument_type} hit SL {instrument_status.price_sell} <= {instrument_status.stop_loss}"
+                    )
                     self.helper.sell_instrument(instrument_type)
 
                 if self.signal.exit(instrument_type, instrument_status):
