@@ -86,7 +86,10 @@ class InstrumentStatus:
             self.acquired_price = self.position["acquiredPrice"]
 
         self.spread = certificate_info["spread"]
-        if self.spread is not None and self.spread >= 0.75:
+        if (
+            self.spread is not None
+            and self.spread >= self.stop_settings["spread_limit"]
+        ):
             log.debug(f"{self.instrument.value} ===> High spread: {self.spread}")
 
             self.price_buy = None

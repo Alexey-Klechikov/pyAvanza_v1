@@ -25,11 +25,12 @@
                 "stop_loss": 0.93,
                 "take_profit": 1.11,
                 "exit": 1.025,
-                "pullback": 0.998
+                "pullback": 0.998,
+                "spread_limit": 1
             },
             "instruments": {
                 "TRADING": {
-                    "BEAR": 1498864,
+                    "BEAR": 1530716,
                     "BULL": 1456629
                 },
                 "MONITORING": {
