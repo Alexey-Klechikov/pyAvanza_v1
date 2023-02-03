@@ -55,9 +55,7 @@ class CalibrationOrder:
         atr_correction = row["ATR"] / 20
         direction = 1 if self.instrument == Instrument.BULL else -1
 
-        reference_price = ((row["Open"] + row["Close"]) / 2) * (
-            1.0004 if self.instrument == Instrument.BULL else 0.9996
-        )
+        reference_price = (row["Open"] + row["Close"]) / 2
 
         self.price_stop_loss = reference_price * (
             1 - (1 - settings_trading["stop_loss"]) * atr_correction * direction
