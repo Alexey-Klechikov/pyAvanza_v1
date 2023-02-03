@@ -130,7 +130,7 @@ class Helper:
 
         self.trading_time = TradingTime()
         self.instrument_status: dict = {
-            instrument: InstrumentStatus(self.settings["trading"])
+            instrument: InstrumentStatus(instrument, self.settings["trading"])
             for instrument in Instrument
         }
         self.strategy_names = Strategy.load("DT").get("use", [])

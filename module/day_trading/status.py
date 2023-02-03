@@ -42,6 +42,7 @@ class Instrument(str, Enum):
 
 @dataclass
 class InstrumentStatus:
+    instrument: Instrument
     stop_settings: dict
 
     price_sell: Optional[float] = None
@@ -70,7 +71,7 @@ class InstrumentStatus:
             log.warning(
                 ", ".join(
                     [
-                        f'===> Verdict: {"good" if self.acquired_price < self.last_sell_deal.get("price", 0) else "bad"}',
+                        f'{self.instrument.value} ===> Verdict: {"good" if self.acquired_price < self.last_sell_deal.get("price", 0) else "bad"}',
                         f"Acquired: {self.acquired_price}",
                         f"Sold: {self.price_sell}",
                         f"Profit: {round((self.last_sell_deal.get('price', 0) / self.acquired_price - 1)* 100, 2)}%",
@@ -86,7 +87,7 @@ class InstrumentStatus:
 
         self.spread = certificate_info["spread"]
         if self.spread is not None and self.spread >= 0.75:
-            log.debug(f"High spread: {self.spread}")
+            log.debug(f"{self.instrument.value} ===> High spread: {self.spread}")
 
             self.price_buy = None
             self.price_sell = None
