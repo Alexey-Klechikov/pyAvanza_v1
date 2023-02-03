@@ -35,7 +35,7 @@ class CalibrationOrder:
         self.on_balance = True
 
         self.price_buy = ((row["Open"] + row["Close"]) / 2) * (
-            1.00015 if self.instrument == Instrument.BULL else 0.99985
+            1.0004 if self.instrument == Instrument.BULL else 0.9996
         )
 
     def sell(self, row: pd.Series, index: datetime):
@@ -56,7 +56,7 @@ class CalibrationOrder:
         direction = 1 if self.instrument == Instrument.BULL else -1
 
         reference_price = ((row["Open"] + row["Close"]) / 2) * (
-            1.00015 if self.instrument == Instrument.BULL else 0.99985
+            1.0004 if self.instrument == Instrument.BULL else 0.9996
         )
 
         self.price_stop_loss = reference_price * (
