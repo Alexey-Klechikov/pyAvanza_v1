@@ -13,7 +13,7 @@ from module.utils import Cache, Context, History, Settings, TeleLog, displace_me
 
 log = logging.getLogger("main.day_trading.main_calibration")
 
-DISPLACEMENTS = (9, 58, 3, 4, 4, 15, 15, 0)
+DISPLACEMENTS = (9, 60, 3, 4, 4, 15, 15, 0)
 
 
 @dataclass

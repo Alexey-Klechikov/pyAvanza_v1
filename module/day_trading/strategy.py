@@ -11,6 +11,7 @@ from datetime import datetime
 from json import JSONDecodeError
 from typing import List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 import pandas_ta as ta
 from avanza import OrderType
@@ -411,6 +412,29 @@ class Strategy:
             data["MACD_ma_diff"] = (
                 data["MACDh_18_52_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
             )
+            conditions["Momentum"]["MACD"] = {
+                OrderType.BUY: lambda x: x["MACD_ma_diff"] == 1,
+                OrderType.SELL: lambda x: x["MACD_ma_diff"] == 0,
+            }
+            columns_needed += ["MACD_ma_diff"]
+
+        # Impulse MACD
+        if False:
+            master_ma, signal_ma = 34, 9
+            data["High MA"] = data["High"].rolling(master_ma).mean()
+            data["Low MA"] = data["Low"].rolling(master_ma).mean()
+            data["Weighted MA"] = data["Close"].rolling(master_ma).mean()
+            data["Impulse MACD"] = np.where(
+                data["Weighted MA"] > data["High MA"],
+                data["Weighted MA"] - data["High MA"],
+                np.where(
+                    data["Weighted MA"] < data["Low MA"],
+                    data["Weighted MA"] - data["Low MA"],
+                    0,
+                ),
+            )
+            data["Signal Line"] = data["Impulse MACD"].rolling(signal_ma).mean()
+
             conditions["Momentum"]["MACD"] = {
                 OrderType.BUY: lambda x: x["MACD_ma_diff"] == 1,
                 OrderType.SELL: lambda x: x["MACD_ma_diff"] == 0,
