@@ -100,11 +100,10 @@ class InstrumentStatus:
             self.price_sell = certificate_info[OrderType.SELL]
             self.active_order = certificate_info["order"]
 
-            self.price_max = (
-                self.price_sell
-                if not self.price_max
-                else max(self.price_max, self.price_sell)
-            )
+            if self.price_max and self.price_sell:
+                self.price_max = max(self.price_max, self.price_sell)
+            elif not self.price_max:
+                self.price_max = self.price_sell
 
     def update_limits(self, atr) -> None:
         if not self.position or self.price_sell is None:
