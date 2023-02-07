@@ -1,8 +1,3 @@
-"""
-This module contains all technical indicators and strategies generation routines
-"""
-
-
 import json
 import logging
 import os

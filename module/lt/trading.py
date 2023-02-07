@@ -1,15 +1,10 @@
-"""
-This module is the "frontend" meant for everyday run. It will perform analysis on stocks and trigger trades.
-It will import other modules to run the analysis on the stocks -> place orders -> dump log in Telegram.py
-"""
-
 import logging
 import traceback
 from typing import Tuple
 
 from avanza import OrderType as Signal
 
-from module.lt import Strategy
+from module.lt.strategy import Strategy
 from module.utils import Cache, Context, History, Settings, TeleLog
 
 log = logging.getLogger("main.lt.trading")

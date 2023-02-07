@@ -1,15 +1,10 @@
-"""
-This module is used for manual runs (checkups, improvements, tests)
-"""
-
-
 import logging
 import traceback
 
 import pandas as pd
 from avanza import OrderType as Signal
 
-from module.lt import Strategy
+from module.lt.strategy import Strategy
 from module.utils import Context, History, Logger, Plot, Settings, Cache
 
 log = logging.getLogger("main")

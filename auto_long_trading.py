@@ -1,7 +1,3 @@
-"""
-This module is used by crontab (for every day run)
-"""
-
 from module.utils import Logger
 from module import run_long_trading
 

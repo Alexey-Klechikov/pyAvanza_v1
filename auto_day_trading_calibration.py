@@ -1,8 +1,3 @@
-"""
-This module is used for automated runs (cron)
-"""
-
-
 from module import run_day_trading_calibration
 from module.utils import Logger
 

@@ -1,7 +1,3 @@
-"""
-This module contains a Status class for Day trading. Status of each instrument and time_of_day with their methods
-"""
-
 import logging
 from dataclasses import dataclass, field
 from typing import Optional

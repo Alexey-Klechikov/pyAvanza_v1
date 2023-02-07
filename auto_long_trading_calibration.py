@@ -1,7 +1,3 @@
-"""
-This module is used by crontab (for once per week run)
-"""
-
 from module.utils import Logger
 from module import run_long_trading_calibration
 
