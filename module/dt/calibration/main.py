@@ -9,7 +9,7 @@ from avanza import InstrumentType, OrderType
 
 from module.dt import DayTime, Strategy, TradingTime
 from module.dt.calibration.order import CalibrationOrder
-from module.dt.trading import Instrument
+from module.dt.common_types import Instrument
 from module.utils import Cache, Context, History, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.dt.calibration.main")

@@ -8,7 +8,10 @@ from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
 
 from module.dt import DayTime, Strategy, TradingTime
-from module.dt.trading import Instrument, InstrumentStatus, Order, Signal
+from module.dt.common_types import Instrument
+from module.dt.trading.order import Order
+from module.dt.trading.signal import Signal
+from module.dt.trading.status import InstrumentStatus
 from module.utils import Context, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.dt.trading.main")
