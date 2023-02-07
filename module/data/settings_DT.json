@@ -1,0 +1,46 @@
+{
+    "user": "ava_elbe",
+    "accounts": {
+        "DT": 5554179
+    },
+    "log_to_telegram": true,
+    "trading": {
+        "budget": 1200,
+        "stop_loss": 0.93,
+        "take_profit": 1.11,
+        "exit": 1.025,
+        "pullback": 0.998,
+        "spread_limit": 0.66
+    },
+    "instruments": {
+        "TRADING": {
+            "BEAR": 1216198,
+            "BULL": 1521066
+        },
+        "TRADING_POOL": {
+            "BEAR": [
+                1327793,
+                1522788,
+                1216198,
+                1210275,
+                1327425,
+                1521057,
+                1521080,
+                1182841
+            ],
+            "BULL": [
+                1531579,
+                1532068,
+                1521094,
+                1521091,
+                1527999,
+                1521062,
+                1521066
+            ]
+        },
+        "MONITORING": {
+            "AVA": 19002,
+            "YAHOO": "^OMX"
+        }
+    }
+}

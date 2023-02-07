@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.expand_frame_repr", False)
 
-log = logging.getLogger("main.long_trading.strategy")
+log = logging.getLogger("main.lt.strategy")
 
 
 @dataclass

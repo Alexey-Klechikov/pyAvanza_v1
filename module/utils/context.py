@@ -102,12 +102,6 @@ class Avanza(AvanzaBase):
 
         return result
 
-    def get_certificate_info(self, certificate_id: str) -> dict:
-        return self.get_instrument(InstrumentType.CERTIFICATE, certificate_id)
-
-    def get_stock_info(self, stock_id: str) -> dict:
-        return self.get_instrument(InstrumentType.STOCK, stock_id)
-
     def get_account_overview(self, account_id: str) -> dict:
         return self._retry_call(f"/_mobile/account/{account_id}/overview")
 
@@ -175,7 +169,7 @@ class Context:
 
             tickers_yahoo = []
             for orderbook_id in portfolio.positions.df["orderbookId"].tolist():
-                stock_info = self.ctx.get_stock_info(orderbook_id)
+                stock_info = self.ctx.get_instrument(InstrumentType.STOCK, orderbook_id)
 
                 tickers_yahoo.append(
                     f"{stock_info.get('listing', {}).get('tickerSymbol', '').replace(' ', '-')}.ST"
@@ -196,7 +190,9 @@ class Context:
                 tickers = []
 
                 for order_book_id in watch_list["orderbooks"]:
-                    stock_info = self.ctx.get_stock_info(order_book_id)
+                    stock_info = self.ctx.get_instrument(
+                        InstrumentType.STOCK, order_book_id
+                    )
                     if stock_info is None:
                         log.warning(f"{order_book_id} not found")
                         continue
@@ -326,7 +322,7 @@ class Context:
             log.error(f"Exception: {exc} - {order_attr}")
 
     def get_stock_price(self, stock_id: str) -> dict:
-        stock_info = self.ctx.get_stock_info(stock_id)
+        stock_info = self.ctx.get_instrument(InstrumentType.STOCK, stock_id)
 
         if not stock_info:
             raise Exception(f"Stock {stock_id} not found")
@@ -347,37 +343,42 @@ class Context:
 
         return stock_price
 
-    def get_certificate_info(self, certificate_id: str) -> dict:
-        certificate_info = {}
+    def get_instrument_info(
+        self, instrument_type: InstrumentType, instrument_id: str
+    ) -> dict:
+        instrument_info = {}
 
         for _ in range(5):
             try:
-                certificate_info = self.ctx.get_certificate_info(certificate_id)
+                instrument_info = self.ctx.get_instrument(
+                    instrument_type, instrument_id
+                )
                 break
 
             except HTTPError:
                 time.sleep(2)
                 continue
 
-        positions = certificate_info.get("holdings", {}).get(
+        positions = instrument_info.get("holdings", {}).get(
             "accountAndPositionsView", []
         )
 
         orders = [
             i
-            for i in certificate_info.get("ordersAndDeals", {}).get("orders", [])
+            for i in instrument_info.get("ordersAndDeals", {}).get("orders", [])
             if i["orderState"] == "ACTIVE"
         ]
 
-        deals = certificate_info.get("ordersAndDeals", {}).get("deals", [])
+        deals = instrument_info.get("ordersAndDeals", {}).get("deals", [])
 
         return {
-            OrderType.BUY: certificate_info.get("quote", {}).get("sell", None),
-            OrderType.SELL: certificate_info.get("quote", {}).get("buy", None),
-            "spread": certificate_info.get("quote", {}).get("spread"),
+            OrderType.BUY: instrument_info.get("quote", {}).get("sell", None),
+            OrderType.SELL: instrument_info.get("quote", {}).get("buy", None),
+            "spread": instrument_info.get("quote", {}).get("spread"),
             "position": {} if len(positions) == 0 else positions[0],
             "order": {} if len(orders) == 0 else orders[0],
             "last_deal": {} if len(deals) == 0 else deals[0],
+            "key_indicators": instrument_info.get("keyIndicators", {}),
         }
 
     def delete_active_orders(self, account_ids: list[Union[str, int]]) -> None:
@@ -406,7 +407,7 @@ class Context:
                 )
 
     def update_todays_ochl(self, data: pd.DataFrame, stock_id: str) -> pd.DataFrame:
-        stock_info = self.ctx.get_stock_info(stock_id)
+        stock_info = self.ctx.get_instrument(InstrumentType.STOCK, stock_id)
 
         if not stock_info:
             raise Exception(f"Stock {stock_id} not found")

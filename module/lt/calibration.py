@@ -8,19 +8,21 @@ It will import other modules to run the analysis on the stocks -> move it to the
 import logging
 import traceback
 
-from module.long_trading import Strategy
+from module.lt import Strategy
 from module.utils import Cache, Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.long_trading.main_calibration")
+log = logging.getLogger("main.lt.calibration")
 
 
 class Calibration:
-    def __init__(self, **kwargs):
-        self.ava = Context(kwargs["user"], kwargs["accounts"])
+    def __init__(self, settings: dict):
+        self.ava = Context(settings["user"], settings["accounts"])
         self.logs = ["LT calibration:\n"]
-        self.top_strategies_per_ticket = {}
+        self.top_strategies_per_ticket: dict = {}
 
-        self.run_analysis(kwargs["log_to_telegram"], kwargs["budget_list_thresholds"])
+        self.run_analysis(
+            settings["log_to_telegram"], settings["budget_list_thresholds"]
+        )
 
     def record_strategies(self, ticker: str, strategy: Strategy) -> None:
         log.info("Record strategies")
@@ -125,22 +127,12 @@ class Calibration:
 
 
 def run() -> None:
-    settings = Settings().load()
+    settings = Settings().load("LT")
 
-    for user, settings_per_user in settings.items():
-        for setting_per_setup in settings_per_user.values():
-            if not "budget_list_thresholds" in setting_per_setup:
-                continue
+    try:
+        Calibration(settings)
 
-            try:
-                Calibration(
-                    user=user,
-                    accounts=setting_per_setup["accounts"],
-                    log_to_telegram=setting_per_setup["log_to_telegram"],
-                    budget_list_thresholds=setting_per_setup["budget_list_thresholds"],
-                )
+    except Exception as e:
+        log.error(f">>> {e}: {traceback.format_exc()}")
 
-            except Exception as e:
-                log.error(f">>> {e}: {traceback.format_exc()}")
-
-                TeleLog(crash_report=f"LT calibration: script has crashed: {e}")
+        TeleLog(crash_report=f"LT calibration: script has crashed: {e}")

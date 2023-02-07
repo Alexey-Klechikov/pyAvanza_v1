@@ -9,19 +9,19 @@ from typing import Tuple
 
 from avanza import OrderType as Signal
 
-from module.long_trading import Strategy
+from module.lt import Strategy
 from module.utils import Cache, Context, History, Settings, TeleLog
 
-log = logging.getLogger("main.long_trading.main")
+log = logging.getLogger("main.lt.trading")
 
 
 class PortfolioAnalysis:
-    def __init__(self, **kwargs):
+    def __init__(self, signals: dict, settings: dict):
         self.strategies = Strategy.load("LT")
-        self.signals = kwargs.get("signals", {})
+        self.signals = signals
 
-        self.ava = Context(kwargs["user"], kwargs["accounts"])
-        self.run_analysis(kwargs["accounts"], kwargs["log_to_telegram"])
+        self.ava = Context(settings["user"], settings["accounts"])
+        self.run_analysis(settings["accounts"], settings["log_to_telegram"])
 
     def get_signal_on_ticker(self, ticker_yahoo: str, ticker_ava: str) -> dict:
         log.info("Getting signal")
@@ -217,27 +217,14 @@ class PortfolioAnalysis:
 
 
 def run() -> None:
-    settings: dict = Settings().load()
+    settings: dict = Settings().load("LT")
     signals: dict = {}
 
-    for user, settings_per_user in settings.items():
-        for setting_per_setup in settings_per_user.values():
-            if not setting_per_setup.get("run_long_trading", False):
-                continue
+    try:
+        walkthrough = PortfolioAnalysis(signals, settings)
+        signals = walkthrough.signals
 
-            try:
-                walkthrough = PortfolioAnalysis(
-                    user=user,
-                    accounts=setting_per_setup["accounts"],
-                    signals=signals,
-                    log_to_telegram=setting_per_setup.get("log_to_telegram", True),
-                    buy_delay_after_sell=setting_per_setup.get(
-                        "buy_delay_after_sell", 2
-                    ),
-                )
-                signals = walkthrough.signals
+    except Exception as e:
+        log.error(f">>> {e}: {traceback.format_exc()}")
 
-            except Exception as e:
-                log.error(f">>> {e}: {traceback.format_exc()}")
-
-                TeleLog(crash_report=f"LT: script has crashed: {e}")
+        TeleLog(crash_report=f"LT: script has crashed: {e}")

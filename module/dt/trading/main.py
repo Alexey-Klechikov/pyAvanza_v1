@@ -4,138 +4,33 @@ import traceback
 from datetime import date
 from typing import Optional
 
-from avanza import OrderType
+from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
 
-from module.day_trading import (
-    DayTime,
-    Instrument,
-    InstrumentStatus,
-    Signal,
-    Strategy,
-    TradingTime,
-)
+from module.dt import DayTime, Strategy, TradingTime
+from module.dt.trading import Instrument, InstrumentStatus, Order, Signal
 from module.utils import Context, Settings, TeleLog, displace_message
 
-log = logging.getLogger("main.day_trading.main")
+log = logging.getLogger("main.dt.trading.main")
 
 DISPLACEMENTS = (12, 14, 13, 12, 9, 0)
 
 
-class Order:
-    def __init__(self, ava: Context, settings: dict, accounts: dict):
-        self.ava = ava
-        self.settings = settings
-        self.accounts = accounts
-
-    def place(
-        self,
-        signal: OrderType,
-        instrument_type: Instrument,
-        instrument_status: InstrumentStatus,
-        custom_price: Optional[float] = None,
-    ) -> None:
-        if (
-            (signal == OrderType.BUY and instrument_status.position)
-            or (signal == OrderType.SELL and not instrument_status.position)
-            or instrument_status.price_buy is None
-            or instrument_status.price_sell is None
-        ):
-            return
-
-        order_data = {
-            "name": instrument_type,
-            "signal": signal,
-            "account_id": list(self.accounts.values())[0],
-            "order_book_id": self.settings["instruments"]["TRADING"][instrument_type],
-        }
-
-        if signal == OrderType.BUY:
-            order_data.update(
-                {
-                    "price": instrument_status.price_buy,
-                    "volume": int(
-                        self.settings["trading"]["budget"]
-                        // instrument_status.price_buy
-                    ),
-                    "budget": self.settings["trading"]["budget"],
-                }
-            )
-
-        elif signal == OrderType.SELL:
-            order_data.update(
-                {
-                    "price": instrument_status.price_sell,
-                    "volume": instrument_status.position["volume"],
-                }
-            )
-
-        if custom_price is not None:
-            order_data["price"] = custom_price
-
-        self.ava.create_orders(
-            [order_data],
-            signal,
-        )
-
-        log.debug(
-            f'{instrument_type} - (SET {signal.name.upper()} order): {order_data["price"]}'
-        )
-
-    def update(
-        self,
-        signal: OrderType,
-        instrument_type: Instrument,
-        instrument_status: InstrumentStatus,
-        custom_price: Optional[float] = None,
-    ) -> None:
-        if (
-            instrument_status.price_buy is None
-            or instrument_status.price_sell is None
-            or instrument_status.spread is None
-        ):
-            return
-
-        price = (
-            instrument_status.price_buy
-            if signal == OrderType.BUY
-            else instrument_status.price_sell
-        )
-
-        if custom_price is not None:
-            price = custom_price
-
-        log.debug(
-            f'{instrument_type} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price} '
-        )
-
-        self.ava.update_order(
-            instrument_status.active_order,
-            price,
-            self.settings["instruments"]["TRADING"][instrument_type],
-            "CERTIFICATE",
-        )
-
-    def delete(self) -> None:
-        self.ava.delete_active_orders(account_ids=[self.settings["accounts"]["DT"]])
-
-
 class Helper:
-    def __init__(self, user, accounts: dict, settings: dict, dry: bool):
+    def __init__(self, settings: dict, dry: bool):
         self.settings = settings
-        self.accounts = accounts
         self.dry = dry
 
         self.trading_done = False
 
         self.trading_time = TradingTime()
         self.instrument_status: dict = {
-            instrument: InstrumentStatus(instrument, self.settings["trading"])
+            instrument: InstrumentStatus(instrument, settings["trading"])
             for instrument in Instrument
         }
         self.strategy_names = Strategy.load("DT").get("use", [])
-        self.ava = Context(user, accounts, skip_lists=True)
-        self.order = Order(self.ava, settings, accounts)
+        self.ava = Context(settings["user"], settings["accounts"], skip_lists=True)
+        self.order = Order(self.ava, settings)
 
         self.log_data = {
             k: 0.0
@@ -144,7 +39,7 @@ class Helper:
 
     def get_balance_before(self) -> None:
         transactions = self.ava.ctx.get_transactions(
-            account_id=str(self.accounts["DT"]),
+            account_id=str(self.settings["accounts"]["DT"]),
             transactions_from=date.today(),
         )
 
@@ -181,9 +76,11 @@ class Helper:
     def update_instrument_status(self, instrument_type: Instrument) -> InstrumentStatus:
         instrument_id = str(self.settings["instruments"]["TRADING"][instrument_type])
 
-        certificate_info = self.ava.get_certificate_info(instrument_id)
+        instrument_info = self.ava.get_instrument_info(
+            InstrumentType.WARRANT, instrument_id
+        )
 
-        self.instrument_status[instrument_type].get_status(certificate_info)
+        self.instrument_status[instrument_type].extract(instrument_info)
 
         return self.instrument_status[instrument_type]
 
@@ -240,14 +137,12 @@ class Helper:
 
 
 class Day_Trading:
-    def __init__(self, user: str, accounts: dict, settings: dict, dry: bool):
-        self.settings = settings
-
+    def __init__(self, settings: dict, dry: bool):
         if dry:
             log.warning("Dry run, no orders will be placed")
 
-        self.helper = Helper(user, accounts, settings, dry)
-        self.signal = Signal(self.helper.ava, self.settings)
+        self.helper = Helper(settings, dry)
+        self.signal = Signal(self.helper.ava, settings)
 
         log.info("Strategies: ")
         [log.info(f"> [{index + 1}] {i}") for index, i in enumerate(Strategy.load("DT").get("use", []))]  # type: ignore
@@ -262,10 +157,11 @@ class Day_Trading:
                 log.error("AVA Connection error, retrying in 5 seconds")
                 self.helper.log_data["number_errors"] += 1
 
-                self.helper.ava.ctx = self.helper.ava.get_ctx(user)
+                self.helper.ava.ctx = self.helper.ava.get_ctx(settings["user"])
 
     def action_day(self) -> None:
         signal, message = self.signal.get(Strategy.load("DT").get("use", []))
+        self.helper.settings = Settings().load("DT")
 
         if self.signal.last_candle is None:
             return
@@ -362,19 +258,12 @@ class Day_Trading:
 
 
 def run(dry: bool) -> None:
-    settings = Settings().load()
+    settings = Settings().load("DT")
 
-    for user, settings_per_user in settings.items():
-        for setting_per_setup in settings_per_user.values():
-            if not setting_per_setup.get("run_day_trading", False):
-                continue
+    try:
+        Day_Trading(settings, dry)
 
-            try:
-                Day_Trading(user, setting_per_setup["accounts"], setting_per_setup, dry)
+    except Exception as e:
+        log.error(f">>> {e}: {traceback.format_exc()}")
 
-            except Exception as e:
-                log.error(f">>> {e}: {traceback.format_exc()}")
-
-                TeleLog(crash_report=f"DT: script has crashed: {e}")
-
-            return
+        TeleLog(crash_report=f"DT: script has crashed: {e}")

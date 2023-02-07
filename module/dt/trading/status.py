@@ -4,40 +4,13 @@ This module contains a Status class for Day trading. Status of each instrument a
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 from typing import Optional
 
-import holidays
 from avanza import OrderType
 
-log = logging.getLogger("main.day_trading.status")
+from module.dt.common_types import Instrument
 
-
-class DayTime(str, Enum):
-    MORNING = "morning"  # No trading
-    DAY = "day"  # Trading is on
-    EVENING = "evening"  #  Market is closing. Sell all.
-
-
-class Instrument(str, Enum):
-    BULL = "BULL"
-    BEAR = "BEAR"
-
-    @classmethod
-    def generate_empty_counters(cls) -> dict:
-        return {i: 0 for i in cls}
-
-    @classmethod
-    def from_signal(cls, signal: OrderType) -> dict:
-        return {
-            OrderType.BUY: Instrument.BULL
-            if signal == OrderType.BUY
-            else Instrument.BEAR,
-            OrderType.SELL: Instrument.BEAR
-            if signal == OrderType.BUY
-            else Instrument.BULL,
-        }
+log = logging.getLogger("main.dt.trading.status")
 
 
 @dataclass
@@ -59,11 +32,11 @@ class InstrumentStatus:
     take_profit: Optional[float] = None
     price_max: Optional[float] = None
 
-    def get_status(self, certificate_info: dict) -> None:
-        self.position = certificate_info["position"]
+    def extract(self, instrument_info: dict) -> None:
+        self.position = instrument_info["position"]
         self.last_sell_deal = (
-            certificate_info["last_deal"]
-            if certificate_info["last_deal"].get("orderType") == "SELL"
+            instrument_info["last_deal"]
+            if instrument_info["last_deal"].get("orderType") == "SELL"
             else {}
         )
 
@@ -85,7 +58,7 @@ class InstrumentStatus:
         elif not self.acquired_price and self.position:
             self.acquired_price = self.position["acquiredPrice"]
 
-        self.spread = certificate_info["spread"]
+        self.spread = instrument_info["spread"]
         if (
             self.spread is not None
             and self.spread >= self.stop_settings["spread_limit"]
@@ -96,9 +69,9 @@ class InstrumentStatus:
             self.price_sell = None
 
         else:
-            self.price_buy = certificate_info[OrderType.BUY]
-            self.price_sell = certificate_info[OrderType.SELL]
-            self.active_order = certificate_info["order"]
+            self.price_buy = instrument_info[OrderType.BUY]
+            self.price_sell = instrument_info[OrderType.SELL]
+            self.active_order = instrument_info["order"]
 
             if self.price_max and self.price_sell:
                 self.price_max = max(self.price_max, self.price_sell)
@@ -110,10 +83,10 @@ class InstrumentStatus:
             return None
 
         self.stop_loss = round(
-            self.price_sell * (1 - (1 - self.stop_settings["stop_loss"]) * atr), 2
+            self.acquired_price * (1 - (1 - self.stop_settings["stop_loss"]) * atr), 2
         )
         self.take_profit = round(
-            self.price_sell * (1 + (self.stop_settings["take_profit"] - 1) * atr), 2
+            self.acquired_price * (1 + (self.stop_settings["take_profit"] - 1) * atr), 2
         )
 
     def get_profit(self) -> float:
@@ -128,29 +101,3 @@ class InstrumentStatus:
         return round(
             ((self.price_sell - self.acquired_price) / self.acquired_price) * 100, 2
         )
-
-
-@dataclass
-class TradingTime:
-    day_time: DayTime = DayTime.MORNING
-    _old_day_time: DayTime = DayTime.MORNING
-
-    def update_day_time(self) -> None:
-        current_time = datetime.now()
-
-        if current_time <= current_time.replace(hour=10, minute=0):
-            self.day_time = DayTime.MORNING
-
-        elif (
-            current_time >= current_time.replace(hour=17, minute=15)
-            or current_time.date() in holidays.SE()
-        ):
-            self.day_time = DayTime.EVENING
-
-        else:
-            self.day_time = DayTime.DAY
-
-        if self._old_day_time != self.day_time:
-            log.warning(f"Day time: {self._old_day_time} -> {self.day_time}")
-
-            self._old_day_time = self.day_time

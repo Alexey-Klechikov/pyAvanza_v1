@@ -14,41 +14,16 @@ class Settings:
     def __init__(self):
         self.current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    def load(self) -> dict:
-        log.info("Loading settings.json")
+    def load(self, script_type: str) -> dict:
+        log.debug(f"Loading settings_{script_type}.json")
 
-        with open(f"{self.current_dir}/data/settings.json", "r") as f:
+        with open(f"{self.current_dir}/data/settings_{script_type}.json", "r") as f:
             settings = json.load(f)
 
         return settings
 
-    def dump(self, settings: dict) -> None:
-        log.info("Dump settings.json")
+    def dump(self, settings: dict, script_type: str) -> None:
+        log.debug(f"Dump settings_{script_type}.json")
 
-        with open(f"{self.current_dir}/data/settings.json", "w") as f:
+        with open(f"{self.current_dir}/data/settings_{script_type}.json", "w") as f:
             json.dump(settings, f, indent=4)
-
-    def read(self, account: str) -> str:
-        log.info("Read settings.json")
-
-        settings = self.load()[account]
-
-        messages = []
-
-        def _traverse_dict(value, level):
-            if isinstance(value, dict):
-                for k, v in value.items():
-                    messages.append(f'{">" * level} {k}')
-                    _traverse_dict(v, level + 1)
-            elif isinstance(value, list):
-                for i, item in enumerate(value):
-                    messages.append(f'\n{">" * level} {i}')
-                    _traverse_dict(item, level + 1)
-            else:
-                messages.append(f'{">" * level} [{value}]')
-
-        for key in settings.keys():
-            messages.append(f"> {key}")
-            _traverse_dict(settings[key], level=2)
-
-        return "\n".join(messages)

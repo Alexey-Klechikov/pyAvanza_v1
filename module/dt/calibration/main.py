@@ -1,130 +1,20 @@
 import logging
 import time
 import traceback
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import pandas as pd
-from avanza import OrderType
+from avanza import InstrumentType, OrderType
 
-from module.day_trading import DayTime, Instrument, Strategy, TradingTime
+from module.dt import DayTime, Strategy, TradingTime
+from module.dt.calibration.order import CalibrationOrder
+from module.dt.trading import Instrument
 from module.utils import Cache, Context, History, Settings, TeleLog, displace_message
 
-log = logging.getLogger("main.day_trading.main_calibration")
+log = logging.getLogger("main.dt.calibration.main")
 
 DISPLACEMENTS = (9, 58, 3, 4, 4, 15, 15, 0)
-
-
-@dataclass
-class CalibrationOrder:
-    instrument: Instrument
-
-    on_balance: bool = False
-    price_buy: Optional[float] = None
-    price_sell: Optional[float] = None
-    price_stop_loss: Optional[float] = None
-    price_take_profit: Optional[float] = None
-    time_buy: Optional[datetime] = None
-    time_sell: Optional[datetime] = None
-    verdict: Optional[str] = None
-
-    def buy(self, row: pd.Series, index: datetime) -> None:
-        self.time_buy = index
-
-        self.on_balance = True
-
-        self.price_buy = ((row["Open"] + row["Close"]) / 2) * (
-            1.0004 if self.instrument == Instrument.BULL else 0.9996
-        )
-
-    def sell(self, row: pd.Series, index: datetime):
-        self.time_sell = index
-
-        self.price_sell = (row["Close"] + row["Open"]) / 2
-
-        if (
-            self.price_sell <= self.price_buy and self.instrument == Instrument.BULL
-        ) or (self.price_sell >= self.price_buy and self.instrument == Instrument.BEAR):
-            self.verdict = "bad"
-
-        else:
-            self.verdict = "good"
-
-    def set_limits(self, row: pd.Series, settings_trading: dict) -> None:
-        atr_correction = row["ATR"] / 20
-        direction = 1 if self.instrument == Instrument.BULL else -1
-
-        reference_price = (row["Open"] + row["Close"]) / 2
-
-        self.price_stop_loss = reference_price * (
-            1 - (1 - settings_trading["stop_loss"]) * atr_correction * direction
-        )
-        self.price_take_profit = reference_price * (
-            1 + (settings_trading["take_profit"] - 1) * atr_correction * direction
-        )
-
-    def check_limits(self, row: pd.Series) -> bool:
-        self.price_sell = (row["Close"] + row["Open"]) / 2
-
-        if self.price_stop_loss is None or self.price_take_profit is None:
-            return False
-
-        if (
-            self.instrument == Instrument.BULL
-            and (
-                self.price_sell <= self.price_stop_loss
-                or self.price_sell >= self.price_take_profit
-            )
-        ) or (
-            self.instrument == Instrument.BEAR
-            and (
-                self.price_sell <= self.price_take_profit
-                or self.price_sell >= self.price_stop_loss
-            )
-        ):
-            return True
-
-        return False
-
-    def pop_result(self) -> dict:
-        profit: Optional[float] = None
-
-        if self.price_sell is not None and self.price_buy is not None:
-            profit = round(
-                20
-                * (self.price_sell - self.price_buy)
-                * (1 if self.instrument == Instrument.BULL else -1)
-                + 1000
-            )
-
-        points_bin = 0.0
-        if profit is not None:
-            points = 1 if (profit - 1000) > 0 else -1
-            multiplier = min([1 + abs(profit - 1000) // 100, 4])
-            points_bin = points * multiplier
-
-        result = {
-            "instrument": self.instrument,
-            "price_buy": self.price_buy,
-            "price_sell": self.price_sell,
-            "time_buy": self.time_buy,
-            "time_sell": self.time_sell,
-            "verdict": self.verdict,
-            "profit": profit,
-            "points": points_bin,
-        }
-
-        self.on_balance = False
-        self.price_buy = None
-        self.price_sell = None
-        self.time_buy = None
-        self.time_sell = None
-        self.verdict = None
-        self.price_stop_loss = None
-        self.price_take_profit = None
-
-        return result
 
 
 class Helper:
@@ -281,11 +171,11 @@ class Helper:
 
 
 class Calibration:
-    def __init__(self, settings: dict, user: str, print_orders_history: bool):
+    def __init__(self, settings: dict, print_orders_history: bool):
         self.settings = settings
         self.print_orders_history = print_orders_history
 
-        self.ava = Context(user, settings["accounts"], skip_lists=True)
+        self.ava = Context(settings["user"], settings["accounts"], skip_lists=True)
 
         self.strategies: List[dict] = []
 
@@ -414,6 +304,95 @@ class Calibration:
             if self.print_orders_history:
                 helper.print_orders_history()
 
+    def _update_trading_settings(self) -> None:
+        settings = Settings().load("DT")
+
+        instruments_info: dict = {}
+        spreads = []
+
+        for instrument_type in Instrument:
+            instruments_info[instrument_type] = []
+
+            for instrument_id in settings["instruments"]["TRADING_POOL"][
+                instrument_type
+            ]:
+                instrument_info = self.ava.get_instrument_info(
+                    InstrumentType.WARRANT, str(instrument_id)
+                )
+
+                if (
+                    instrument_type == Instrument.BULL
+                    and instrument_info["key_indicators"]["direction"] != "Lång"
+                ) or (
+                    instrument_type == Instrument.BEAR
+                    and instrument_info["key_indicators"]["direction"] != "Kort"
+                ):
+                    log.warning(f"Instrument {instrument_id} is not {instrument_type}")
+
+                    continue
+
+                if instrument_info[OrderType.BUY] > 280:
+                    log.warning(f"Instrument {instrument_id} is too expensive")
+
+                    continue
+
+                if not isinstance(instrument_info["spread"], float) or not isinstance(
+                    instrument_info["key_indicators"].get("leverage"), float
+                ):
+                    log.warning(
+                        f"Instrument {instrument_id} is not valid: {instrument_info['spread']} / {instrument_info['key_indicators'].get('leverage')}"
+                    )
+
+                    continue
+
+                instruments_info[instrument_type].append(
+                    (
+                        instrument_id,
+                        {
+                            "spread": instrument_info["spread"],
+                            "leverage": instrument_info["key_indicators"]["leverage"],
+                            "score": round(
+                                instrument_info["key_indicators"]["leverage"]
+                                / instrument_info["spread"],
+                                2,
+                            ),
+                        },
+                    )
+                )
+
+                if instrument_info["position"]:
+                    log.debug(
+                        f"Instrument {instrument_type} -> {instrument_id} is in use"
+                    )
+
+                    instruments_info[instrument_type] = [
+                        instruments_info[instrument_type].pop()
+                    ]
+
+                    break
+
+            top_instrument = sorted(
+                instruments_info[instrument_type], key=lambda x: x[1]["score"]
+            ).pop()
+
+            if (
+                settings["instruments"]["TRADING"].get(instrument_type)
+                != top_instrument[0]
+            ):
+                log.info(
+                    f"Change instrument {instrument_type} -> {top_instrument[0]} ({top_instrument[1]})"
+                )
+
+                settings["instruments"]["TRADING"][instrument_type] = top_instrument[0]
+
+            spreads.append(top_instrument[1]["spread"])
+
+        settings["trading"]["spread_limit"] = min(round(max(spreads) * 3, 2), 0.8)
+
+        log.debug(f"Spread limit: {settings['trading']['spread_limit']}")
+
+        Settings().dump(settings, "DT")
+
     def update(self) -> None:
         log.info("Updating strategies")
 
@@ -522,59 +501,53 @@ class Calibration:
 
         Strategy.dump("DT", strategies)
 
+        self._update_trading_settings()
+
 
 def run(
     update: bool = True, adjust: bool = True, print_orders_history: bool = False
 ) -> None:
-    settings = Settings().load()
     trading_time = TradingTime()
+    settings = Settings().load("DT")
+    calibration = Calibration(settings, print_orders_history)
 
-    for user, settings_per_user in settings.items():
-        for setting_per_setup in settings_per_user.values():
-            if not setting_per_setup.get("run_day_trading", False):
-                continue
+    # day run
+    while True:
+        if not adjust:
+            break
 
-            calibration = Calibration(setting_per_setup, user, print_orders_history)
+        try:
+            trading_time.update_day_time()
 
-            # day run
-            while True:
-                if not adjust:
-                    break
+            if trading_time.day_time == DayTime.MORNING:
+                pass
 
-                try:
-                    trading_time.update_day_time()
+            elif trading_time.day_time == DayTime.DAY:
+                calibration.adjust()
 
-                    if trading_time.day_time == DayTime.MORNING:
-                        pass
+            elif trading_time.day_time == DayTime.EVENING:
+                break
 
-                    elif trading_time.day_time == DayTime.DAY:
-                        calibration.adjust()
+            time.sleep(60 * 5)
 
-                    elif trading_time.day_time == DayTime.EVENING:
-                        break
+        except Exception as e:
+            log.error(f">>> {e}: {traceback.format_exc()}")
 
-                    time.sleep(60 * 5)
+    # full calibration
+    try:
+        if update:
+            calibration.update()
 
-                except Exception as e:
-                    log.error(f">>> {e}: {traceback.format_exc()}")
+        strategy_use = calibration.test()
 
-            # full calibration
-            try:
-                if update:
-                    calibration.update()
+        TeleLog(
+            message="DT calibration:\n"
+            + "\n".join(["\n> " + "\n> ".join(s.split(" + ")) for s in strategy_use])
+        )
 
-                strategy_use = calibration.test()
+    except Exception as e:
+        log.error(f">>> {e}: {traceback.format_exc()}")
 
-                TeleLog(
-                    message="DT calibration:\n"
-                    + "\n".join(
-                        ["\n> " + "\n> ".join(s.split(" + ")) for s in strategy_use]
-                    )
-                )
+        TeleLog(crash_report=f"DT_Calibration: script has crashed: {e}")
 
-            except Exception as e:
-                log.error(f">>> {e}: {traceback.format_exc()}")
-
-                TeleLog(crash_report=f"DT_Calibration: script has crashed: {e}")
-
-            return
+    return

@@ -9,7 +9,7 @@ import traceback
 import pandas as pd
 from avanza import OrderType as Signal
 
-from module.long_trading import Strategy
+from module.lt import Strategy
 from module.utils import Context, History, Logger, Plot, Settings, Cache
 
 log = logging.getLogger("main")
