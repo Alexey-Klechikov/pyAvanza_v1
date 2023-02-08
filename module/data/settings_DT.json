@@ -10,11 +10,11 @@
         "take_profit": 1.11,
         "exit": 1.025,
         "pullback": 0.998,
-        "spread_limit": 0.8
+        "spread_limit": 0.85
     },
     "instruments": {
         "TRADING": {
-            "BEAR": 1521057,
+            "BEAR": 1216198,
             "BULL": 1521066
         },
         "TRADING_POOL": {

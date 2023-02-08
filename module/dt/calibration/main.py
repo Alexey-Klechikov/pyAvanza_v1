@@ -179,15 +179,13 @@ class Calibration:
             self.settings["user"], self.settings["accounts"], skip_lists=True
         )
 
-        self.strategies: List[dict] = []
-
     def _walk_through_strategies(
         self,
         history: History,
         strategy: Strategy,
         consider_efficiency: bool,
-    ) -> None:
-        self.strategies = []
+    ) -> List[dict]:
+        strategies = []
 
         daily_volumes = history.data.groupby([history.data.index.date])["Volume"].sum().values.tolist()  # type: ignore
 
@@ -286,7 +284,7 @@ class Calibration:
             ):
                 continue
 
-            self.strategies.append(strategy_summary)
+            strategies.append(strategy_summary)
 
             log.info(
                 displace_message(
@@ -306,11 +304,14 @@ class Calibration:
             if self.print_orders_history:
                 helper.print_orders_history()
 
+        strategies.sort(key=lambda s: s["points"], reverse=True)
+
+        return strategies
+
     def _update_trading_settings(self) -> None:
         settings = Settings().load("DT")
 
         instruments_info: dict = {}
-        spreads = []
 
         for instrument_type in Instrument:
             instruments_info[instrument_type] = []
@@ -393,13 +394,25 @@ class Calibration:
 
                 settings["instruments"]["TRADING"][instrument_type] = top_instrument[0]
 
-            spreads.append(top_instrument[1]["spread"])
-
-        settings["trading"]["spread_limit"] = min(round(max(spreads) * 3, 2), 0.8)
-
-        log.debug(f"Spread limit: {settings['trading']['spread_limit']}")
-
         Settings().dump(settings, "DT")
+
+    def _count_indicators_usage(self, strategies: List[dict], conditions: dict) -> list:
+        used_indicators: str = " + ".join([i["strategy"] for i in strategies])
+
+        conditions_counter = {}
+        for category, indicators in conditions.items():
+            for indicator in indicators:
+                complete_indicator_name = f"({category}) {indicator}"
+                conditions_counter[complete_indicator_name] = used_indicators.count(
+                    complete_indicator_name
+                )
+
+        return [
+            f"{i[0]} - {i[1]}"
+            for i in sorted(
+                conditions_counter.items(), key=lambda x: x[1], reverse=True
+            )
+        ]
 
     def update(self) -> None:
         log.info("Updating strategies")
@@ -418,17 +431,15 @@ class Calibration:
 
         strategy = Strategy(history.data)
 
-        self._walk_through_strategies(history, strategy, True)
+        profitable_strategies = self._walk_through_strategies(history, strategy, True)
 
-        self.strategies = [
-            s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
-        ]
+        indicators_counter = self._count_indicators_usage(
+            profitable_strategies, strategy.conditions
+        )
 
         Strategy.dump(
             "DT",
-            {
-                "30d": self.strategies,
-            },
+            {"30d": profitable_strategies, "indicators_stats": indicators_counter},
         )
 
     def test(self) -> list:
@@ -446,38 +457,34 @@ class Calibration:
             extra_data=extra_data,
         )
 
-        strategies = Strategy.load("DT")
-        strategies_dict = {
-            i["strategy"]: i["points"] for i in strategies.get("30d", [])
-        }
+        stored_strategies = Strategy.load("DT")
 
-        strategy = Strategy(history.data, strategies=list(strategies_dict.keys()))
+        strategy = Strategy(
+            history.data,
+            strategies=[i["strategy"] for i in stored_strategies.get("30d", [])],
+        )
 
-        self._walk_through_strategies(history, strategy, True)
+        profitable_strategies = self._walk_through_strategies(history, strategy, True)
 
-        strategies["15d"] = [
-            s for s in sorted(self.strategies, key=lambda s: s["points"], reverse=True)
-        ]
-
-        most_profitable_strategies = [
-            (i["strategy"], i["profit"])
-            for i in strategies["15d"]
+        top_strategies = [
+            i["strategy"]
+            for i in profitable_strategies
             if i["points"]
             in sorted(
-                list(set([s["points"] for s in strategies["15d"]])), reverse=True
-            )[: min(3, len(strategies["15d"]))]
+                list(set([s["points"] for s in profitable_strategies])), reverse=True
+            )[: min(3, len(profitable_strategies))]
         ]
 
-        strategies["use"] = [
-            i[0]
-            for i in sorted(
-                most_profitable_strategies, key=lambda s: s[1], reverse=True
-            )
-        ]
+        Strategy.dump(
+            "DT",
+            {
+                **stored_strategies,
+                **{"15d": profitable_strategies},
+                **{"use": top_strategies},
+            },
+        )
 
-        Strategy.dump("DT", strategies)
-
-        return strategies["use"]
+        return top_strategies
 
     def adjust(self) -> None:
         log.info("Adjusting strategies")
@@ -498,18 +505,15 @@ class Calibration:
 
         self._update_trading_settings()
 
-        strategies = Strategy.load("DT")
+        stored_strategies = Strategy.load("DT")
 
-        strategy = Strategy(history.data, strategies=strategies["use"])
+        strategy = Strategy(history.data, strategies=stored_strategies["use"])
 
-        self._walk_through_strategies(history, strategy, False)
+        profitable_strategies = self._walk_through_strategies(history, strategy, False)
 
-        strategies["use"] = [
-            s["strategy"]
-            for s in sorted(self.strategies, key=lambda s: s["profit"], reverse=True)
-        ]
+        stored_strategies["use"] = [s["strategy"] for s in profitable_strategies]
 
-        Strategy.dump("DT", strategies)
+        Strategy.dump("DT", stored_strategies)
 
 
 def run(
