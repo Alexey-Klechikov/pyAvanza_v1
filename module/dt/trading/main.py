@@ -162,6 +162,22 @@ class Day_Trading:
 
                 self.helper.ava.ctx = self.helper.ava.get_ctx(settings["user"])
 
+    def action_morning(self) -> None:
+        for instrument_type in Instrument:
+            instrument_status = self.helper.update_instrument_status(instrument_type)
+
+            if instrument_status.position:
+                log.info(
+                    " ".join(
+                        [
+                            f"{instrument_type} ({self.helper.settings['instruments']['TRADING'][instrument_type]}) has position.",
+                            f"Acquired price: {instrument_status.acquired_price},",
+                            f"Current price: {instrument_status.price_sell},",
+                            f"Profit: {instrument_status.get_profit()}%",
+                        ]
+                    )
+                )
+
     def action_day(self) -> None:
         signal, message = self.signal.get(Strategy.load("DT").get("use", []))
         self.helper.settings = Settings().load("DT")
@@ -205,16 +221,19 @@ class Day_Trading:
                         self.signal.last_candle["ATR"]
                     )
 
-                    log.info(
-                        f"{instrument_type} limits are: SL {instrument_status.stop_loss}, TP {instrument_status.take_profit}"
-                    )
-
                 if (
                     not instrument_status.position
                     or instrument_status.price_sell is None
                     or instrument_status.stop_loss is None
+                    or instrument_status.take_profit is None
                 ):
                     continue
+
+                if instrument_status.position and not instrument_status.active_order:
+                    self.helper.sell_instrument(
+                        instrument_type,
+                        instrument_status.take_profit,
+                    )
 
                 if instrument_status.price_sell <= instrument_status.stop_loss:
                     log.debug(
@@ -235,12 +254,13 @@ class Day_Trading:
         self.helper.update_budget()
 
         while True:
-            self.helper.trading_time.update_day_time()
 
             if self.helper.trading_time.day_time == DayTime.MORNING:
-                pass
+                self.action_morning()
 
-            elif self.helper.trading_time.day_time == DayTime.DAY:
+            self.helper.trading_time.update_day_time()
+
+            if self.helper.trading_time.day_time == DayTime.DAY:
                 self.action_day()
 
             elif self.helper.trading_time.day_time == DayTime.EVENING:

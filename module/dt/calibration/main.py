@@ -354,7 +354,8 @@ class Calibration:
                             "score": round(
                                 instrument_info["key_indicators"]["leverage"]
                                 / instrument_info["spread"]
-                            ),
+                            )
+                            // 3,
                         },
                     )
                 )

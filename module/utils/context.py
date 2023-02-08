@@ -218,7 +218,7 @@ class Context:
         return budget_rules, watch_lists
 
     def create_orders(self, orders: list[dict], order_type: OrderType) -> list[dict]:
-        log.debug(f"Creating {order_type} order(s)")
+        log.debug(f"Creating {order_type.value} order(s)")
 
         created_orders = []
 
