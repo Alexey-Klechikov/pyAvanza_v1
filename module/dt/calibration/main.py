@@ -360,7 +360,7 @@ class Calibration:
                     )
                 )
 
-                if instrument_info["position"] or instrument_info["orders"]:
+                if instrument_info["position"] or instrument_info["order"]:
                     log.debug(
                         f"Instrument {instrument_type} -> {instrument_id} is in use"
                     )
