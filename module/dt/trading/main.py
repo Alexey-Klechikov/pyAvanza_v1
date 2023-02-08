@@ -97,7 +97,12 @@ class Helper:
             if instrument_status.position:
                 return
 
-            elif not instrument_status.active_order:
+            """ DEBUG """
+            log.debug(
+                f'{instrument_type} ({self.settings["instruments"]["TRADING"][instrument_type]} vs {Settings().load("DT")["instruments"]["TRADING"][instrument_type]}) => {instrument_status.price_buy}'
+            )
+
+            if not instrument_status.active_order:
                 self.order.place(OrderType.BUY, instrument_type, instrument_status)
 
             else:
