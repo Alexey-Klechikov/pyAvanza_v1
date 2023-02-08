@@ -360,7 +360,7 @@ class Calibration:
                     )
                 )
 
-                if instrument_info["position"]:
+                if instrument_info["position"] or instrument_info["orders"]:
                     log.debug(
                         f"Instrument {instrument_type} -> {instrument_id} is in use"
                     )
@@ -488,6 +488,8 @@ class Calibration:
 
         history.data = history.data[datetime.now() - timedelta(hours=3) :]  # type: ignore
 
+        self._update_trading_settings()
+
         strategies = Strategy.load("DT")
 
         strategy = Strategy(history.data, strategies=strategies["use"])
@@ -500,8 +502,6 @@ class Calibration:
         ]
 
         Strategy.dump("DT", strategies)
-
-        self._update_trading_settings()
 
 
 def run(
