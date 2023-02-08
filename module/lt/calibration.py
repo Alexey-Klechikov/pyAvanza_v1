@@ -8,7 +8,9 @@ log = logging.getLogger("main.lt.calibration")
 
 
 class Calibration:
-    def __init__(self, settings: dict):
+    def __init__(self):
+        settings = Settings().load("LT")
+
         self.ava = Context(settings["user"], settings["accounts"])
         self.logs = ["LT calibration:\n"]
         self.top_strategies_per_ticket: dict = {}
@@ -120,10 +122,8 @@ class Calibration:
 
 
 def run() -> None:
-    settings = Settings().load("LT")
-
     try:
-        Calibration(settings)
+        Calibration()
 
     except Exception as e:
         log.error(f">>> {e}: {traceback.format_exc()}")

@@ -11,7 +11,9 @@ log = logging.getLogger("main.lt.trading")
 
 
 class PortfolioAnalysis:
-    def __init__(self, signals: dict, settings: dict):
+    def __init__(self, signals: dict):
+        settings = Settings().load("LT")
+
         self.strategies = Strategy.load("LT")
         self.signals = signals
 
@@ -212,11 +214,10 @@ class PortfolioAnalysis:
 
 
 def run() -> None:
-    settings: dict = Settings().load("LT")
     signals: dict = {}
 
     try:
-        walkthrough = PortfolioAnalysis(signals, settings)
+        walkthrough = PortfolioAnalysis(signals)
         signals = walkthrough.signals
 
     except Exception as e:
