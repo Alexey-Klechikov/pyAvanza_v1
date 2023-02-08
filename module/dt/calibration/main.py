@@ -171,11 +171,13 @@ class Helper:
 
 
 class Calibration:
-    def __init__(self, settings: dict, print_orders_history: bool):
-        self.settings = settings
+    def __init__(self, print_orders_history: bool):
+        self.settings = Settings().load("DT")
         self.print_orders_history = print_orders_history
 
-        self.ava = Context(settings["user"], settings["accounts"], skip_lists=True)
+        self.ava = Context(
+            self.settings["user"], self.settings["accounts"], skip_lists=True
+        )
 
         self.strategies: List[dict] = []
 
@@ -514,8 +516,7 @@ def run(
     update: bool = True, adjust: bool = True, print_orders_history: bool = False
 ) -> None:
     trading_time = TradingTime()
-    settings = Settings().load("DT")
-    calibration = Calibration(settings, print_orders_history)
+    calibration = Calibration(print_orders_history)
 
     # day run
     while True:

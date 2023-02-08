@@ -97,11 +97,6 @@ class Helper:
             if instrument_status.position:
                 return
 
-            """ DEBUG """
-            log.debug(
-                f'{instrument_type} ({self.settings["instruments"]["TRADING"][instrument_type]} vs {Settings().load("DT")["instruments"]["TRADING"][instrument_type]}) => {instrument_status.price_buy}'
-            )
-
             if not instrument_status.active_order:
                 self.order.place(OrderType.BUY, instrument_type, instrument_status)
 
@@ -145,10 +140,11 @@ class Helper:
 
 
 class Day_Trading:
-    def __init__(self, settings: dict, dry: bool):
+    def __init__(self, dry: bool):
         if dry:
             log.warning("Dry run, no orders will be placed")
 
+        settings = Settings().load("DT")
         self.helper = Helper(settings, dry)
         self.signal = Signal(self.helper.ava, settings)
 
@@ -185,7 +181,7 @@ class Day_Trading:
 
     def action_day(self) -> None:
         signal, message = self.signal.get(Strategy.load("DT").get("use", []))
-        self.helper.settings = Settings().load("DT")
+        self.helper.order.settings = self.helper.settings = Settings().load("DT")
 
         if self.signal.last_candle is None:
             return
@@ -286,10 +282,8 @@ class Day_Trading:
 
 
 def run(dry: bool) -> None:
-    settings = Settings().load("DT")
-
     try:
-        Day_Trading(settings, dry)
+        Day_Trading(dry)
 
     except Exception as e:
         log.error(f">>> {e}: {traceback.format_exc()}")
