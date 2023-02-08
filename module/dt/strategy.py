@@ -5,6 +5,7 @@ import warnings
 from json import JSONDecodeError
 from typing import List, Tuple
 
+import numpy as np
 import pandas as pd
 import pandas_ta as ta
 from avanza import OrderType
@@ -14,6 +15,50 @@ pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.expand_frame_repr", False)
 
 log = logging.getLogger("main.dt.strategy")
+
+
+class CustomIndicators:
+    @staticmethod
+    def impulse_macd(
+        data: pd.DataFrame, length_ma: int, length_signal: int
+    ) -> pd.DataFrame:
+        """https://www.tradingview.com/script/qt6xLfLi-Impulse-MACD-LazyBear/"""
+
+        make_name = lambda x: f"{x}_{length_ma}_{length_signal}"
+
+        def _smooth_simple_moving_average(src, length):
+            ssma = np.full(len(src), np.nan)
+            ssma[0] = src[:length].mean()
+
+            for i in range(1, len(src)):
+                ssma[i] = (ssma[i - 1] * (length - 1) + src[i]) / length
+
+            return ssma
+
+        def _zero_lag_exponential_moving_average(src, length):
+            ema1 = pd.Series(src).ewm(span=length).mean()
+            ema2 = ema1.ewm(span=length).mean()
+            d = ema1 - ema2
+
+            return ema1 + d
+
+        high_smooth = _smooth_simple_moving_average(data["High"], length_ma)
+        low_smooth = _smooth_simple_moving_average(data["Low"], length_ma)
+
+        mean_price = data[["High", "Low", "Close"]].mean(axis=1)
+        mean_zlema = _zero_lag_exponential_moving_average(mean_price, length_ma)
+
+        data[make_name("IMPULSE")] = np.where(
+            mean_zlema > high_smooth,
+            mean_zlema - high_smooth,
+            np.where(mean_zlema < low_smooth, mean_zlema - low_smooth, 0),
+        )
+
+        data[make_name("SIGNAL")] = (
+            pd.Series(data[make_name("IMPULSE")]).rolling(length_signal).mean()
+        )
+
+        return data
 
 
 class Strategy:
@@ -265,6 +310,15 @@ class Strategy:
                 OrderType.SELL: lambda x: x["MACD_ma_diff"] == 0,
             }
             columns_needed += ["MACD_ma_diff"]
+
+        # IMPULSE (Impulse MACD)
+        data = CustomIndicators.impulse_macd(data, 36, 9)
+        if _check_enough_data("IMPULSE_36_9", data):
+            conditions["Momentum"]["IMPULSE"] = {
+                OrderType.BUY: lambda x: x["IMPULSE_36_9"] > x["SIGNAL_36_9"] >= 0,
+                OrderType.SELL: lambda x: x["IMPULSE_36_9"] < x["SIGNAL_36_9"] <= 0,
+            }
+            columns_needed += ["SIGNAL_36_9", "IMPULSE_36_9"]
 
         return data, conditions, columns_needed
 

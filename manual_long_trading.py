@@ -265,11 +265,11 @@ class PortfolioAnalysis:
     def get_settings_and_context(self) -> Context:
         log.info("Getting settings and context")
 
-        settings = Settings().load()
+        settings = Settings().load('LT')
 
         return Context(
-            user=list(settings.keys())[0],
-            accounts=list(settings.values())[0]["1"]["accounts"],
+            user=settings['user'],
+            accounts=settings["accounts"],
         )
 
     def run_analysis(self, check_only_watch_list: bool, cache: str) -> None:

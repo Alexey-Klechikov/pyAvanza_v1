@@ -11,12 +11,15 @@
         "DONCHAIN",
         "donchian",
         "effi",
+        "imacd",
         "Keltner",
         "Lång",
         "prft",
+        "ssma",
         "tclength",
         "TRND",
         "VTXM",
-        "VTXP"
+        "VTXP",
+        "zlema"
     ]
 }
