@@ -66,7 +66,7 @@ class Order:
         )
 
         log.debug(
-            f'{instrument_type} - (SET {signal.name.upper()} order): {order_data["price"]}'
+            f'{instrument_type} - (SET {signal.name.upper()} order): {order_data["price"]} for {self.settings["instruments"]["TRADING"][instrument_type]}'
         )
 
     def update(

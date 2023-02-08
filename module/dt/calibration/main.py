@@ -353,8 +353,7 @@ class Calibration:
                             "leverage": instrument_info["key_indicators"]["leverage"],
                             "score": round(
                                 instrument_info["key_indicators"]["leverage"]
-                                / instrument_info["spread"],
-                                2,
+                                / instrument_info["spread"]
                             ),
                         },
                     )
@@ -371,14 +370,20 @@ class Calibration:
 
                     break
 
-            top_instrument = sorted(
-                instruments_info[instrument_type], key=lambda x: x[1]["score"]
-            ).pop()
+            top_instruments = sorted(
+                filter(
+                    lambda x: x[1]["score"]
+                    == max([i[1]["score"] for i in instruments_info[instrument_type]]),
+                    instruments_info[instrument_type],
+                ),
+                key=lambda x: x[0],
+            )
 
-            if (
-                settings["instruments"]["TRADING"].get(instrument_type)
-                != top_instrument[0]
-            ):
+            top_instrument = top_instruments[0]
+
+            if settings["instruments"]["TRADING"].get(instrument_type) not in [
+                i[0] for i in top_instruments
+            ]:
                 log.info(
                     f"Change instrument {instrument_type} -> {top_instrument[0]} ({top_instrument[1]})"
                 )
