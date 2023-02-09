@@ -304,7 +304,7 @@ class Calibration:
             if self.print_orders_history:
                 helper.print_orders_history()
 
-        strategies.sort(key=lambda s: s["points"], reverse=True)
+        strategies.sort(key=lambda s: (s["points"], s["profit"]), reverse=True)
 
         return strategies
 
@@ -511,9 +511,13 @@ class Calibration:
 
         profitable_strategies = self._walk_through_strategies(history, strategy, False)
 
-        stored_strategies["use"] = [s["strategy"] for s in profitable_strategies]
-
-        Strategy.dump("DT", stored_strategies)
+        Strategy.dump(
+            "DT",
+            {
+                **stored_strategies,
+                **{"use": [s["strategy"] for s in profitable_strategies]},
+            },
+        )
 
 
 def run(
