@@ -34,7 +34,9 @@ class Order:
             "name": instrument_type,
             "signal": signal,
             "account_id": list(self.settings["accounts"].values())[0],
-            "order_book_id": self.settings["instruments"]["TRADING"][instrument_type],
+            "order_book_id": self.settings["instruments"]["TRADING"][instrument_type][
+                1
+            ],
         }
 
         if signal == OrderType.BUY:
@@ -99,8 +101,8 @@ class Order:
         self.ava.update_order(
             instrument_status.active_order,
             price,
-            self.settings["instruments"]["TRADING"][instrument_type],
-            "WARRANT",
+            self.settings["instruments"]["TRADING"][instrument_type][1],
+            self.settings["instruments"]["TRADING"][instrument_type][0],
         )
 
     def delete(self) -> None:

@@ -316,11 +316,12 @@ class Calibration:
         for instrument_type in Instrument:
             instruments_info[instrument_type] = []
 
-            for instrument_id in settings["instruments"]["TRADING_POOL"][
+            for instrument_identifier in settings["instruments"]["TRADING_POOL"][
                 instrument_type
             ]:
                 instrument_info = self.ava.get_instrument_info(
-                    InstrumentType.WARRANT, str(instrument_id)
+                    InstrumentType[instrument_identifier[0]],
+                    str(instrument_identifier[1]),
                 )
 
                 if (
@@ -330,32 +331,55 @@ class Calibration:
                     instrument_type == Instrument.BEAR
                     and instrument_info["key_indicators"]["direction"] != "Kort"
                 ):
-                    log.warning(f"Instrument {instrument_id} is not {instrument_type}")
+                    log.warning(
+                        f"Instrument {instrument_identifier} is not {instrument_type}"
+                    )
 
                     continue
 
                 if instrument_info["spread"] is None:
-                    log.warning(f"Instrument {instrument_id} has no spread")
+                    log.warning(
+                        f"Instrument {instrument_type} ({instrument_identifier}) has no spread"
+                    )
+
+                    continue
+
+                if instrument_info["spread"] > 0.85:
+                    log.warning(
+                        f"Instrument {instrument_type} ({instrument_identifier}) has too high spread: {instrument_info['spread']}"
+                    )
 
                     continue
 
                 if instrument_info[OrderType.BUY] > 280:
-                    log.warning(f"Instrument {instrument_id} is too expensive")
+                    log.warning(
+                        f"Instrument {instrument_type} ({instrument_identifier}) is too expensive"
+                    )
 
                     continue
 
                 if not isinstance(instrument_info["spread"], float) or not isinstance(
                     instrument_info["key_indicators"].get("leverage"), float
                 ):
+                    print(
+                        instrument_info["spread"],
+                        isinstance(instrument_info["spread"], float),
+                    )
+                    print(
+                        instrument_info["key_indicators"].get("leverage"),
+                        isinstance(
+                            instrument_info["key_indicators"].get("leverage"), float
+                        ),
+                    )
                     log.warning(
-                        f"Instrument {instrument_id} is not valid: {instrument_info['spread']} / {instrument_info['key_indicators'].get('leverage')}"
+                        f"Instrument {instrument_type} ({instrument_identifier}) is not valid: {instrument_info['spread']} / {instrument_info['key_indicators'].get('leverage')}"
                     )
 
                     continue
 
                 instruments_info[instrument_type].append(
                     (
-                        instrument_id,
+                        instrument_identifier,
                         {
                             "spread": instrument_info["spread"],
                             "leverage": instrument_info["key_indicators"]["leverage"],
@@ -370,7 +394,7 @@ class Calibration:
 
                 if instrument_info["position"] or instrument_info["order"]:
                     log.debug(
-                        f"Instrument {instrument_type} -> {instrument_id} is in use"
+                        f"Instrument {instrument_type} -> {instrument_identifier} is in use"
                     )
 
                     instruments_info[instrument_type] = [

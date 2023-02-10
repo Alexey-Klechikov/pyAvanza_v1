@@ -77,10 +77,12 @@ class Helper:
         log.info(f'Trading budget: {self.settings["trading"]["budget"]}')
 
     def update_instrument_status(self, instrument_type: Instrument) -> InstrumentStatus:
-        instrument_id = str(self.settings["instruments"]["TRADING"][instrument_type])
+        instrument_identifier = str(
+            self.settings["instruments"]["TRADING"][instrument_type]
+        )
 
         instrument_info = self.ava.get_instrument_info(
-            InstrumentType.WARRANT, instrument_id
+            InstrumentType[instrument_identifier[0]], instrument_identifier[1]
         )
 
         self.instrument_status[instrument_type].extract(instrument_info)

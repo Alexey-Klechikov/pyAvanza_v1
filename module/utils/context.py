@@ -371,6 +371,17 @@ class Context:
 
         deals = instrument_info.get("ordersAndDeals", {}).get("deals", [])
 
+        key_indicators = instrument_info.get("keyIndicators", {})
+        if instrument_info["type"] == "CERTIFICATE":
+            key_indicators.update(
+                {
+                    "direction": instrument_info["direction"],
+                    "leverage": None
+                    if not instrument_info.get("leverage")
+                    else float(instrument_info["leverage"]),
+                }
+            )
+
         return {
             OrderType.BUY: instrument_info.get("quote", {}).get("sell", None),
             OrderType.SELL: instrument_info.get("quote", {}).get("buy", None),
@@ -378,7 +389,7 @@ class Context:
             "position": {} if len(positions) == 0 else positions[0],
             "order": {} if len(orders) == 0 else orders[0],
             "last_deal": {} if len(deals) == 0 else deals[0],
-            "key_indicators": instrument_info.get("keyIndicators", {}),
+            "key_indicators": key_indicators,
         }
 
     def delete_active_orders(self, account_ids: list[Union[str, int]]) -> None:
