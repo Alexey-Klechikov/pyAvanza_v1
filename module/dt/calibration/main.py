@@ -331,28 +331,28 @@ class Calibration:
                     instrument_type == Instrument.BEAR
                     and instrument_info["key_indicators"]["direction"] != "Kort"
                 ):
-                    log.warning(
+                    log.debug(
                         f"Instrument {instrument_identifier} is not {instrument_type}"
                     )
 
                     continue
 
                 if instrument_info["spread"] is None:
-                    log.warning(
+                    log.debug(
                         f"Instrument {instrument_type} ({instrument_identifier}) has no spread"
                     )
 
                     continue
 
                 if instrument_info["spread"] > 0.85:
-                    log.warning(
+                    log.debug(
                         f"Instrument {instrument_type} ({instrument_identifier}) has too high spread: {instrument_info['spread']}"
                     )
 
                     continue
 
                 if instrument_info[OrderType.BUY] > 280:
-                    log.warning(
+                    log.debug(
                         f"Instrument {instrument_type} ({instrument_identifier}) is too expensive"
                     )
 
@@ -361,17 +361,7 @@ class Calibration:
                 if not isinstance(instrument_info["spread"], float) or not isinstance(
                     instrument_info["key_indicators"].get("leverage"), float
                 ):
-                    print(
-                        instrument_info["spread"],
-                        isinstance(instrument_info["spread"], float),
-                    )
-                    print(
-                        instrument_info["key_indicators"].get("leverage"),
-                        isinstance(
-                            instrument_info["key_indicators"].get("leverage"), float
-                        ),
-                    )
-                    log.warning(
+                    log.debug(
                         f"Instrument {instrument_type} ({instrument_identifier}) is not valid: {instrument_info['spread']} / {instrument_info['key_indicators'].get('leverage')}"
                     )
 
