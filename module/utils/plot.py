@@ -65,7 +65,9 @@ class Plot:
 
     def create_extra_panels(self) -> None:
         get_data_columns = lambda x: {
-            i.split("_")[0]: i for i in sorted(self.data.columns) if i.startswith(x)
+            str(i).split("_")[0]: i
+            for i in sorted(self.data.columns)
+            if str(i).startswith(x)
         }
 
         """ Plotted on top of the main plot """

@@ -334,6 +334,11 @@ class Calibration:
 
                     continue
 
+                if instrument_info["spread"] is None:
+                    log.warning(f"Instrument {instrument_id} has no spread")
+
+                    continue
+
                 if instrument_info[OrderType.BUY] > 280:
                     log.warning(f"Instrument {instrument_id} is too expensive")
 
