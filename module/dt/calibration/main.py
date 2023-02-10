@@ -344,9 +344,9 @@ class Calibration:
 
                     continue
 
-                if instrument_info["spread"] > 0.85:
+                if 0.1 > instrument_info["spread"] > 0.85:
                     log.debug(
-                        f"Instrument {instrument_type} ({instrument_identifier}) has too high spread: {instrument_info['spread']}"
+                        f"Instrument {instrument_type} ({instrument_identifier}) has bad spread: {instrument_info['spread']}"
                     )
 
                     continue
