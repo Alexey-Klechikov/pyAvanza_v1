@@ -62,290 +62,299 @@ class Balance:
     sell_signal: float = np.nan
 
 
-class Strategy:
-    def __init__(self, data: pd.DataFrame, **kwargs):
-        skip_points = kwargs.get("skip_points", 100)
-        self.data, self.conditions, columns_needed = self.prepare_conditions(
-            data, skip_points
-        )
+class Components:
+    def __init__(self, data: pd.DataFrame, skip_points: int) -> None:
+        self.data = data
 
-        self.drop_columns(columns_needed)
-
-        if kwargs.get("strategies", []) != []:
-            strategies_component_names = self.parse_strategies_names(
-                kwargs["strategies"]
-            )
-        else:
-            strategies_component_names = self.generate_strategies_names()
-
-        strategies = self.generate_strategies(strategies_component_names)
-        self.summary = self.get_signal(kwargs.get("ticker_name", False), strategies)
-
-    def prepare_conditions(
-        self, data: pd.DataFrame, skip_points: int
-    ) -> Tuple[pd.DataFrame, dict, List[str]]:
-        log.debug("Preparing conditions")
-
-        _check_enough_data = (
-            lambda column, data: True if column in data.columns else False
-        )
-
-        condition_types_list = (
-            "Blank",
-            "Volatility",
-            "Trend",
-            "Candle",
-            "Overlap",
-            "Momentum",
-            "Volume",
-            "Cycles",
-        )
-        conditions: dict = {ct: {} for ct in condition_types_list}
-
-        """ Blank """
-        conditions["Blank"]["HOLD"] = {
-            OrderType.BUY: lambda x: True,
-            OrderType.SELL: lambda x: False,
+        self.conditions: dict = {
+            "Blank": {
+                "HOLD": {
+                    OrderType.BUY: lambda x: True,
+                    OrderType.SELL: lambda x: False,
+                }
+            }
         }
-        columns_needed = ["Open", "High", "Low", "Close", "Volume"]
 
-        """ Cycles """
+        self.columns_needed = ["Open", "High", "Low", "Close", "Volume"]
+
+        self.generate_conditions_cycles()
+        self.generate_conditions_volume()
+        self.generate_conditions_volatility()
+        self.generate_conditions_candle()
+        self.generate_conditions_trend()
+        self.generate_conditions_overlap()
+        self.generate_conditions_momentum()
+
+        self.data = self.clean_up_data(skip_points)
+
+    def generate_conditions_cycles(self) -> None:
+        self.conditions["Cycles"] = {}
+
         # EBSW (Even Better Sinewave)
-        data.ta.ebsw(append=True)
-        if _check_enough_data("EBSW_40_10", data):
-            conditions["Cycles"]["EBSW"] = {
+        self.data.ta.ebsw(append=True)
+        if "EBSW_40_10" in self.data.columns:
+            self.conditions["Cycles"]["EBSW"] = {
                 OrderType.BUY: lambda x: x["EBSW_40_10"] > 0.5,
                 OrderType.SELL: lambda x: x["EBSW_40_10"] < -0.5,
             }
-            columns_needed += ["EBSW_40_10"]
+            self.columns_needed += ["EBSW_40_10"]
 
-        """ Volume """
+    def generate_conditions_volume(self) -> None:
+        self.conditions["Volume"] = {}
+
         # PVT (Price Volume Trend)
-        data.ta.pvt(append=True)
-        if _check_enough_data("PVT", data):
-            data.ta.sma(close="PVT", length=9, append=True)
-            conditions["Volume"]["PVT"] = {
+        self.data.ta.pvt(append=True)
+        if "PVT" in self.data.columns:
+            self.data.ta.sma(close="PVT", length=9, append=True)
+            self.conditions["Volume"]["PVT"] = {
                 OrderType.BUY: lambda x: x["SMA_9"] < x["PVT"],
                 OrderType.SELL: lambda x: x["SMA_9"] > x["PVT"],
             }
-            columns_needed += ["SMA_9", "PVT"]
+            self.columns_needed += ["SMA_9", "PVT"]
 
         # CMF (Chaikin Money Flow)
-        data.ta.cmf(append=True)
-        if _check_enough_data("CMF_20", data):
-            cmf = {"max": data["CMF_20"].max(), "min": data["CMF_20"].min()}
-            conditions["Volume"]["CMF"] = {
+        self.data.ta.cmf(append=True)
+        if "CMF_20" in self.data.columns:
+            cmf = {"max": self.data["CMF_20"].max(), "min": self.data["CMF_20"].min()}
+            self.conditions["Volume"]["CMF"] = {
                 OrderType.BUY: lambda x: x["CMF_20"] > cmf["max"] * 0.2,
                 OrderType.SELL: lambda x: x["CMF_20"] < cmf["min"] * 0.2,
             }
-            columns_needed += ["CMF_20"]
+            self.columns_needed += ["CMF_20"]
 
         # EFI (Elder's Force Index)
-        data.ta.cmf(append=True)
-        if _check_enough_data("EFI_13", data):
-            conditions["Volume"]["EFI"] = {
+        self.data.ta.cmf(append=True)
+        if "EFI_13" in self.data.columns:
+            self.conditions["Volume"]["EFI"] = {
                 OrderType.BUY: lambda x: x["EFI_13"] < 0,
                 OrderType.SELL: lambda x: x["EFI_13"] > 0,
             }
-            columns_needed += ["EFI_13"]
+            self.columns_needed += ["EFI_13"]
 
         # KVO (Klinger Volume Oscillator)
         try:
-            data.ta.kvo(append=True)
-            if _check_enough_data("KVO_34_55_13", data):
-                conditions["Volume"]["KVO"] = {
+            self.data.ta.kvo(append=True)
+            if "KVO_34_55_13" in self.data.columns:
+                self.conditions["Volume"]["KVO"] = {
                     OrderType.BUY: lambda x: x["KVO_34_55_13"] > x["KVOs_34_55_13"],
                     OrderType.SELL: lambda x: x["KVO_34_55_13"] < x["KVOs_34_55_13"],
                 }
-                columns_needed += ["KVO_34_55_13", "KVOs_34_55_13"]
+                self.columns_needed += ["KVO_34_55_13", "KVOs_34_55_13"]
+
         except Exception as exc:
             log.warning(f"KVO not available: {exc}")
 
-        """ Volatility """
+    def generate_conditions_volatility(self) -> None:
+        self.conditions["Volatility"] = {}
+
         # MASSI (Mass Index)
-        data.ta.massi(append=True)
-        if _check_enough_data("MASSI_9_25", data):
-            conditions["Volatility"]["MASSI"] = {
+        self.data.ta.massi(append=True)
+        if "MASSI_9_25" in self.data.columns:
+            self.conditions["Volatility"]["MASSI"] = {
                 OrderType.BUY: lambda x: 26 < x["MASSI_9_25"] < 27,
                 OrderType.SELL: lambda x: 26 < x["MASSI_9_25"] < 27,
             }
-            columns_needed += ["MASSI_9_25"]
+            self.columns_needed += ["MASSI_9_25"]
 
         # HWC (Holt-Winter Channel)
-        data.ta.hwc(append=True)
-        if _check_enough_data("HWM", data):
-            conditions["Volatility"]["HWC"] = {
+        self.data.ta.hwc(append=True)
+        if "HWM" in self.data.columns:
+            self.conditions["Volatility"]["HWC"] = {
                 OrderType.BUY: lambda x: x["Close"] > x["HWM"],
                 OrderType.SELL: lambda x: x["Close"] < x["HWM"],
             }
-            columns_needed += ["HWM"]
+            self.columns_needed += ["HWM"]
 
         # BBANDS (Bollinger Bands)
-        data.ta.bbands(length=20, std=2, append=True)
-        if _check_enough_data("BBL_20_2.0", data):
-            conditions["Volatility"]["BBANDS"] = {
+        self.data.ta.bbands(length=20, std=2, append=True)
+        if "BBL_20_2.0" in self.data.columns:
+            self.conditions["Volatility"]["BBANDS"] = {
                 OrderType.BUY: lambda x: x["Close"] > x["BBL_20_2.0"],
                 OrderType.SELL: lambda x: x["Close"] < x["BBU_20_2.0"],
             }
-            columns_needed += ["BBL_20_2.0", "BBU_20_2.0"]
+            self.columns_needed += ["BBL_20_2.0", "BBU_20_2.0"]
 
         # ACCBANDS (Acceleration Bands)
-        data.ta.accbands(append=True)
-        if _check_enough_data("ACCBU_20", data):
-            conditions["Volatility"]["ACCBANDS"] = {
+        self.data.ta.accbands(append=True)
+        if "ACCBU_20" in self.data.columns:
+            self.conditions["Volatility"]["ACCBANDS"] = {
                 OrderType.BUY: lambda x: x["Close"] > x["ACCBU_20"],
                 OrderType.SELL: lambda x: x["Close"] < x["ACCBU_20"],
             }
-            columns_needed += ["ACCBU_20"]
+            self.columns_needed += ["ACCBU_20"]
 
-        """ Candle """
+    def generate_conditions_candle(self) -> None:
+        self.conditions["Candle"] = {}
+
         # HA (Heikin-Ashi)
-        data.ta.ha(append=True)
-        if _check_enough_data("HA_open", data):
-            conditions["Candle"]["HA"] = {
+        self.data.ta.ha(append=True)
+        if "HA_open" in self.data.columns:
+            self.conditions["Candle"]["HA"] = {
                 OrderType.BUY: lambda x: (x["HA_open"] < x["HA_close"])
                 and (x["HA_low"] == x["HA_open"]),
                 OrderType.SELL: lambda x: (x["HA_open"] > x["HA_close"])
                 and (x["HA_high"] == x["HA_open"]),
             }
-            columns_needed += ["HA_open", "HA_close", "HA_low", "HA_high"]
+            self.columns_needed += ["HA_open", "HA_close", "HA_low", "HA_high"]
 
-        """ Trend """
+    def generate_conditions_trend(self) -> None:
+        self.conditions["Trend"] = {}
+
         # PSAR (Parabolic Stop and Reverse)
-        data.ta.psar(append=True)
-        if _check_enough_data("PSARl_0.02_0.2", data):
-            conditions["Trend"]["PSAR"] = {
+        self.data.ta.psar(append=True)
+        if "PSARl_0.02_0.2" in self.data.columns:
+            self.conditions["Trend"]["PSAR"] = {
                 OrderType.BUY: lambda x: x["Close"] > x["PSARl_0.02_0.2"],
                 OrderType.SELL: lambda x: x["Close"] < x["PSARs_0.02_0.2"],
             }
-            columns_needed += ["PSARl_0.02_0.2", "PSARs_0.02_0.2"]
+            self.columns_needed += ["PSARl_0.02_0.2", "PSARs_0.02_0.2"]
 
         # CHOP (Choppiness Index)
-        data.ta.chop(append=True)
-        if _check_enough_data("CHOP_14_1_100", data):
-            conditions["Trend"]["CHOP"] = {
+        self.data.ta.chop(append=True)
+        if "CHOP_14_1_100" in self.data.columns:
+            self.conditions["Trend"]["CHOP"] = {
                 OrderType.BUY: lambda x: x["CHOP_14_1_100"] < 61.8,
                 OrderType.SELL: lambda x: x["CHOP_14_1_100"] > 61.8,
             }
-            columns_needed += ["CHOP_14_1_100"]
+            self.columns_needed += ["CHOP_14_1_100"]
 
         # CKSP (Chande Kroll Stop)
-        data.ta.cksp(append=True)
-        if _check_enough_data("CKSPl_10_3_20", data):
-            conditions["Trend"]["CKSP"] = {
+        self.data.ta.cksp(append=True)
+        if "CKSPl_10_3_20" in self.data.columns:
+            self.conditions["Trend"]["CKSP"] = {
                 OrderType.BUY: lambda x: x["CKSPl_10_3_20"] > x["CKSPs_10_3_20"],
                 OrderType.SELL: lambda x: x["CKSPl_10_3_20"] < x["CKSPs_10_3_20"],
             }
-            columns_needed += ["CKSPl_10_3_20", "CKSPs_10_3_20"]
+            self.columns_needed += ["CKSPl_10_3_20", "CKSPs_10_3_20"]
 
-        """ Overlap """
+    def generate_conditions_overlap(self) -> None:
+        self.conditions["Overlap"] = {}
+
         # GHLA (Gann High-Low Activator)
-        data.ta.hilo(append=True)
-        if _check_enough_data("HILO_13_21", data):
-            conditions["Overlap"]["GHLA"] = {
+        self.data.ta.hilo(append=True)
+        if "HILO_13_21" in self.data.columns:
+            self.conditions["Overlap"]["GHLA"] = {
                 OrderType.BUY: lambda x: x["Close"] > x["HILO_13_21"],
                 OrderType.SELL: lambda x: x["Close"] < x["HILO_13_21"],
             }
-            columns_needed += ["HILO_13_21"]
+            self.columns_needed += ["HILO_13_21"]
 
         # SUPERT (Supertrend)
-        data.ta.supertrend(append=True)
-        if _check_enough_data("SUPERT_7_3.0", data):
-            conditions["Overlap"]["SUPERT"] = {
+        self.data.ta.supertrend(append=True)
+        if "SUPERT_7_3.0" in self.data.columns:
+            self.conditions["Overlap"]["SUPERT"] = {
                 OrderType.BUY: lambda x: x["Close"] > x["SUPERT_7_3.0"],
                 OrderType.SELL: lambda x: x["Close"] < x["SUPERT_7_3.0"],
             }
-            columns_needed += ["SUPERT_7_3.0"]
+            self.columns_needed += ["SUPERT_7_3.0"]
 
         # LINREG (Linear Regression)
-        data.ta.linreg(append=True, r=True)
-        if _check_enough_data("LRr_14", data):
-            data["LRr_direction"] = (
-                data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+        self.data.ta.linreg(append=True, r=True)
+        if "LRr_14" in self.data.columns:
+            self.data["LRr_direction"] = (
+                self.data["LRr_14"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
             )
-            conditions["Overlap"]["LINREG"] = {
+            self.conditions["Overlap"]["LINREG"] = {
                 OrderType.BUY: lambda x: x["LRr_direction"] == 1,
                 OrderType.SELL: lambda x: x["LRr_direction"] == 0,
             }
-            columns_needed += ["LRr_direction"]
+            self.columns_needed += ["LRr_direction"]
 
-        """ Momentum """
+    def generate_conditions_momentum(self) -> None:
+        self.conditions["Momentum"] = {}
+
         # STC (Schaff Trend Cycle)
-        data.ta.stc(append=True)
-        if _check_enough_data("STC_10_12_26_0.5", data):
-            conditions["Momentum"]["STC"] = {
+        self.data.ta.stc(append=True)
+        if "STC_10_12_26_0.5" in self.data.columns:
+            self.conditions["Momentum"]["STC"] = {
                 OrderType.BUY: lambda x: x["STC_10_12_26_0.5"] < 75,
                 OrderType.SELL: lambda x: x["STC_10_12_26_0.5"] > 25,
             }
-            columns_needed += ["STC_10_12_26_0.5"]
+            self.columns_needed += ["STC_10_12_26_0.5"]
 
         # CCI (Commodity Channel Index)
-        data.ta.cci(length=20, append=True, offset=1)
-        if _check_enough_data("CCI_20_0.015", data):
-            data["CCI_direction"] = (
-                data["CCI_20_0.015"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+        self.data.ta.cci(length=20, append=True, offset=1)
+        if "CCI_20_0.015" in self.data.columns:
+            self.data["CCI_direction"] = (
+                self.data["CCI_20_0.015"]
+                .rolling(2)
+                .apply(lambda x: x.iloc[1] > x.iloc[0])
             )
-            conditions["Overlap"]["LINREG"] = {
+            self.conditions["Overlap"]["LINREG"] = {
                 OrderType.BUY: lambda x: x["CCI_20_0.015"] < -100
                 and x["CCI_direction"] == 1,
                 OrderType.SELL: lambda x: x["CCI_20_0.015"] > 100
                 and x["CCI_direction"] == 0,
             }
-            columns_needed += ["CCI_20_0.015", "CCI_direction"]
+            self.columns_needed += ["CCI_20_0.015", "CCI_direction"]
 
         # RVGI (Relative Vigor Index)
-        data.ta.rvgi(append=True)
-        if _check_enough_data("RVGI_14_4", data):
-            conditions["Momentum"]["RVGI"] = {
+        self.data.ta.rvgi(append=True)
+        if "RVGI_14_4" in self.data.columns:
+            self.conditions["Momentum"]["RVGI"] = {
                 OrderType.BUY: lambda x: x["RVGI_14_4"] > x["RVGIs_14_4"],
                 OrderType.SELL: lambda x: x["RVGI_14_4"] < x["RVGIs_14_4"],
             }
-            columns_needed += ["RVGI_14_4", "RVGIs_14_4"]
+            self.columns_needed += ["RVGI_14_4", "RVGIs_14_4"]
 
         # MACD (Moving Average Convergence Divergence)
-        data.ta.macd(fast=8, slow=21, signal=5, append=True)
-        if _check_enough_data("MACD_8_21_5", data):
-            data["MACD_ma_diff"] = (
-                data["MACDh_8_21_5"].rolling(2).apply(lambda x: x.iloc[1] > x.iloc[0])
+        self.data.ta.macd(fast=8, slow=21, signal=5, append=True)
+        if "MACD_8_21_5" in self.data.columns:
+            self.data["MACD_ma_diff"] = (
+                self.data["MACDh_8_21_5"]
+                .rolling(2)
+                .apply(lambda x: x.iloc[1] > x.iloc[0])
             )
-            conditions["Momentum"]["MACD"] = {
+            self.conditions["Momentum"]["MACD"] = {
                 OrderType.BUY: lambda x: x["MACD_ma_diff"] == 1,
                 OrderType.SELL: lambda x: x["MACD_ma_diff"] == 0,
             }
-            columns_needed += ["MACD_ma_diff"]
+            self.columns_needed += ["MACD_ma_diff"]
 
         # STOCH (Stochastic Oscillator)
-        data.ta.stoch(k=14, d=3, append=True)
-        if _check_enough_data("STOCHd_14_3_3", data):
-            conditions["Momentum"]["STOCH"] = {
+        self.data.ta.stoch(k=14, d=3, append=True)
+        if "STOCHd_14_3_3" in self.data.columns:
+            self.conditions["Momentum"]["STOCH"] = {
                 OrderType.BUY: lambda x: x["STOCHd_14_3_3"] < 80
                 and x["STOCHk_14_3_3"] < 80,
                 OrderType.SELL: lambda x: x["STOCHd_14_3_3"] > 20
                 and x["STOCHk_14_3_3"] > 20,
             }
-            columns_needed += ["STOCHd_14_3_3", "STOCHk_14_3_3"]
+            self.columns_needed += ["STOCHd_14_3_3", "STOCHk_14_3_3"]
 
-        return data.iloc[skip_points:], conditions, columns_needed
+    def clean_up_data(self, skip_points: int) -> pd.DataFrame:
+        return self.data.iloc[skip_points:].drop(
+            columns=list(set(self.data.columns) - (set(self.columns_needed))),
+        )
 
-    def drop_columns(self, columns_needed: list) -> None:
-        columns_drop = list(set(self.data.columns) - (set(columns_needed)))
 
-        self.data.drop(columns=columns_drop, inplace=True)
+class Strategy:
+    def __init__(self, data: pd.DataFrame, **kwargs):
+        self.components = Components(data, kwargs.get("skip_points", 100))
+        self.data = self.components.data
 
-    def generate_strategies_names(self) -> list:
-        # + Triple indicator strategies (try every combination of different types)
+        strategies = self.generate_functions(
+            self.parse_names(kwargs["strategies"])
+            if kwargs.get("strategies", []) != []
+            else self.generate_names()
+        )
 
-        log.debug("Generating strategies list")
+        self.summary = self.get_signal(kwargs.get("ticker_name", False), strategies)
+
+    def generate_names(self) -> list:
+        """
+        Triple indicator strategies (try every combination of different types)
+        format: [[('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')], ...]
+        """
+
+        log.debug("Generating strategy names")
 
         strategies_component_names = [[("Blank", "HOLD")]]
         indicators_names = []
-        special_case_indicators_names = "HOLD"
 
-        for indicator_type, indicators_dict in self.conditions.items():
+        for category, indicators in self.components.conditions.items():
             indicators_names += [
-                (indicator_type, indicator)
-                for indicator in indicators_dict.keys()
-                if indicator not in special_case_indicators_names
+                (category, indicator) for indicator in indicators if indicator != "HOLD"
             ]
 
         for i_1, indicator_1 in enumerate(indicators_names):
@@ -365,47 +374,40 @@ class Strategy:
 
         return strategies_component_names
 
-    def parse_strategies_names(
-        self, strategies_names: list[str]
-    ) -> list[list[tuple[str, str]]]:
-        log.debug("Parsing strategies list")
+    def parse_names(self, strategies_names: list[str]) -> list:
+        log.debug("Parsing strategy names")
 
-        strategies_component_names = [[("Blank", "HOLD")]]
-
-        for strategy in strategies_names:
-            # "(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH"
-            strategy_components_v1 = [i.strip().split(" ") for i in strategy.split("+")]
-
-            # [['(Trend)', 'CKSP'], ['(Overlap)', 'SUPERT'], ['(Momentum)', 'STOCH']]
-            strategy_components_v2 = [
-                (i[0][1:-1], i[1]) for i in strategy_components_v1
+        """
+        before: ["(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH", ...]
+        after: [[('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')], ...]
+        """
+        return [
+            [
+                tuple(i.strip().replace("(", "").replace(")", "").split(" "))
+                for i in s.split("+")
             ]
+            for s in strategies_names
+        ] + [[("Blank", "HOLD")]]
 
-            # [('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')]
-            strategies_component_names += [strategy_components_v2]
-
-        return strategies_component_names
-
-    def generate_strategies(
+    def generate_functions(
         self, strategies_component_names: list[list[tuple[str, str]]]
     ) -> dict:
-        log.debug("Generating strategies dict")
+        log.debug("Generating strategies functions")
 
         strategies = {}
-        for strategy_components_names in strategies_component_names:
-            strategy = {}
 
-            for order_type in OrderType:
-                strategy[order_type] = [
-                    self.conditions[strategy_component_name[0]][
+        for strategy_components_names in strategies_component_names:
+            strategies[
+                " + ".join([f"({i[0]}) {i[1]}" for i in strategy_components_names])
+            ] = {
+                order_type: [
+                    self.components.conditions[strategy_component_name[0]][
                         strategy_component_name[1]
                     ][order_type]
                     for strategy_component_name in strategy_components_names
                 ]
-
-            strategies[
-                " + ".join([f"({i[0]}) {i[1]}" for i in strategy_components_names])
-            ] = strategy
+                for order_type in OrderType
+            }
 
         return strategies
 
@@ -476,6 +478,7 @@ class Strategy:
             summary.strategies[strategy].transactions_counter = len(
                 summary.strategies[strategy].transactions
             )
+
             if balance.total > summary.max_output.result and strategy != "(Blank) HOLD":
                 for col in ["total", "buy_signal", "sell_signal"]:
                     self.data.loc[:, col] = [getattr(i, col) for i in balance_sequence]  # type: ignore

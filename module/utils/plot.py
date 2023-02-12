@@ -65,7 +65,7 @@ class Plot:
 
     def create_extra_panels(self) -> None:
         get_data_columns = lambda x: {
-            str(i).split("_")[0]: i
+            str(i).split("_")[0]: str(i)
             for i in sorted(self.data.columns)
             if str(i).startswith(x)
         }
@@ -348,7 +348,7 @@ class Plot:
             df = self.data[["HA_open", "HA_high", "HA_low", "HA_close"]]
 
             for col in df.columns:
-                df[col.replace("HA_", "").capitalize()] = df[col]
+                df[str(col).replace("HA_", "").capitalize()] = df[col]
 
             self.plots += [
                 mpf.make_addplot(df, type="candle", panel=panel_num, ylabel="HA")

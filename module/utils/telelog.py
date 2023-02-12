@@ -57,9 +57,6 @@ class TeleLog:
             else f'> Trades: {day_trading_stats["number_trades"]}',
         ]
 
-        if day_trading_stats["number_errors"] > 0:
-            messages.append(f'> Errors: {day_trading_stats["number_errors"]}')
-
         self.message += "\n".join(messages)
 
     def parse_portfolio(self, portfolio: Portfolio) -> None:

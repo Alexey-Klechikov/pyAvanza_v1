@@ -178,7 +178,7 @@ class History:
                 continue
 
             day_direction = (
-                "BULL" if group["Close"].iloc[-1] > group["Close"].iloc[0] else "BEAR"
+                "BULL" if group["Close"].iloc[-10] > group["Close"].iloc[60] else "BEAR"
             )
 
             if counters[day_direction] >= strategy_target:

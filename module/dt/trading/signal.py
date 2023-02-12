@@ -59,15 +59,21 @@ class Signal:
             self.target_candle = data.iloc[-i]
             break
 
-        if self.last_candle is None or self.target_candle is None:
-            return None
-
         if (
-            signal == OrderType.BUY
-            and self.last_candle["Close"] > self.target_candle["Close"]
-        ) or (
-            signal == OrderType.SELL
-            and self.last_candle["Close"] < self.target_candle["Close"]
+            self.last_candle
+            and self.target_candle
+            and any(
+                [
+                    (
+                        signal == OrderType.BUY
+                        and self.last_candle["Close"] > self.target_candle["Close"]
+                    ),
+                    (
+                        signal == OrderType.SELL
+                        and self.last_candle["Close"] < self.target_candle["Close"]
+                    ),
+                ]
+            )
         ):
             self.last_candle = self.target_candle
 
@@ -76,25 +82,23 @@ class Signal:
         return None
 
     def get(self, strategy_names: list) -> Tuple[Optional[OrderType], list]:
-        history = self.ava.get_today_history(
-            self.settings["instruments"]["MONITORING"]["AVA"]
-        ).iloc[:-1]
-
-        strategy = Strategy(history, strategies=strategy_names)
+        strategy = Strategy(
+            self.ava.get_today_history(
+                self.settings["instruments"]["MONITORING"]["AVA"]
+            ).iloc[:-1],
+            strategies=strategy_names,
+        )
 
         self.target_candle = strategy.data.iloc[-1]
 
         message: list = []
 
-        # Case when I hit the same candle multiple times
-        if (
-            self.target_candle is not None
-            and self.last_candle is not None
-            and self.last_candle.name == self.target_candle.name
-        ):
+        if self.last_candle and self.last_candle.name == self.target_candle.name:
+            # if I hit the same candle multiple times
             return None, message
 
         if (datetime.now() - self.target_candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
+            # if last candle is too old
             return self.signal, message
 
         self.last_candle = self.target_candle
@@ -110,7 +114,7 @@ class Signal:
 
             self.signal = self._get_last_signal_on_strategy(strategy.data)
 
-        if self.signal is not None and self.last_candle is not None:
+        if self.signal and self.last_candle:
             message = [
                 f"Signal: {self.signal.name}",
                 f"Candle: {str(self.last_candle.name)[11:-9]}",
@@ -148,7 +152,7 @@ class Signal:
             < self.settings["trading"]["pullback"]
         )
 
-        if rsi_condition and price_condition and price_pullback_condition:
+        if all([rsi_condition, price_condition, price_pullback_condition]):
             log.info(
                 " | ".join(
                     ["Signal: Exit", f'RSI: {round(self.last_candle["RSI"], 2)}']

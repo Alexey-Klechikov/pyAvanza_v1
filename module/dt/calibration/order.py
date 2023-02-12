@@ -23,8 +23,8 @@ class CalibrationOrder:
     time_sell: Optional[datetime] = None
     verdict: Optional[str] = None
 
-    def buy(self, row: pd.Series, index: datetime) -> None:
-        self.time_buy = index
+    def buy(self, row: pd.Series) -> None:
+        self.time_buy = row.name  # type: ignore
 
         self.on_balance = True
 
@@ -32,23 +32,31 @@ class CalibrationOrder:
             1.00015 if self.instrument == Instrument.BULL else 0.99985
         )
 
-    def sell(self, row: pd.Series, index: datetime):
-        self.time_sell = index
+    def sell(self, row: pd.Series):
+        self.time_sell = row.name  # type: ignore
 
         self.price_sell = (row["Close"] + row["Open"]) / 2
 
-        if (
-            self.price_sell <= self.price_buy and self.instrument == Instrument.BULL
-        ) or (self.price_sell >= self.price_buy and self.instrument == Instrument.BEAR):
-            self.verdict = "bad"
-
-        else:
-            self.verdict = "good"
+        self.verdict = (
+            "good"
+            if any(
+                [
+                    (
+                        self.instrument == Instrument.BULL
+                        and self.price_sell >= self.price_buy
+                    ),
+                    (
+                        self.instrument == Instrument.BEAR
+                        and self.price_sell <= self.price_buy
+                    ),
+                ]
+            )
+            else "bad"
+        )
 
     def set_limits(self, row: pd.Series, settings_trading: dict) -> None:
         atr_correction = row["ATR"] / 20
         direction = 1 if self.instrument == Instrument.BULL else -1
-
         reference_price = (row["Open"] + row["Close"]) / 2
 
         self.price_stop_loss = reference_price * (
@@ -59,27 +67,33 @@ class CalibrationOrder:
         )
 
     def check_limits(self, row: pd.Series) -> bool:
-        self.price_sell = (row["Close"] + row["Open"]) / 2
+        self.price_sell = row["Close"]
 
-        if self.price_stop_loss is None or self.price_take_profit is None:
+        if not self.price_stop_loss or not self.price_take_profit:
             return False
 
-        if (
-            self.instrument == Instrument.BULL
-            and (
-                self.price_sell <= self.price_stop_loss
-                or self.price_sell >= self.price_take_profit
+        return (
+            True
+            if any(
+                [
+                    (
+                        self.instrument == Instrument.BULL
+                        and (
+                            self.price_sell <= self.price_stop_loss
+                            or self.price_sell >= self.price_take_profit
+                        )
+                    ),
+                    (
+                        self.instrument == Instrument.BEAR
+                        and (
+                            self.price_sell <= self.price_take_profit
+                            or self.price_sell >= self.price_stop_loss
+                        )
+                    ),
+                ]
             )
-        ) or (
-            self.instrument == Instrument.BEAR
-            and (
-                self.price_sell <= self.price_take_profit
-                or self.price_sell >= self.price_stop_loss
-            )
-        ):
-            return True
-
-        return False
+            else False
+        )
 
     def pop_result(self) -> dict:
         profit: Optional[float] = None

@@ -18,28 +18,24 @@ class Order:
     def place(
         self,
         signal: OrderType,
-        instrument_type: Instrument,
+        market_direction: Instrument,
         instrument_status: InstrumentStatus,
         custom_price: Optional[float] = None,
     ) -> None:
-        if (
-            (signal == OrderType.BUY and instrument_status.position)
-            or (signal == OrderType.SELL and not instrument_status.position)
-            or instrument_status.price_buy is None
-            or instrument_status.price_sell is None
-        ):
-            return
-
         order_data = {
-            "name": instrument_type,
+            "name": market_direction,
             "signal": signal,
             "account_id": list(self.settings["accounts"].values())[0],
-            "order_book_id": self.settings["instruments"]["TRADING"][instrument_type][
+            "order_book_id": self.settings["instruments"]["TRADING"][market_direction][
                 1
             ],
         }
 
-        if signal == OrderType.BUY:
+        if (
+            signal == OrderType.BUY
+            and instrument_status.price_buy
+            and not instrument_status.position
+        ):
             order_data.update(
                 {
                     "price": instrument_status.price_buy,
@@ -51,7 +47,11 @@ class Order:
                 }
             )
 
-        elif signal == OrderType.SELL:
+        elif (
+            signal == OrderType.SELL
+            and instrument_status.price_sell
+            and instrument_status.position
+        ):
             order_data.update(
                 {
                     "price": instrument_status.price_sell,
@@ -59,7 +59,10 @@ class Order:
                 }
             )
 
-        if custom_price is not None:
+        else:
+            return
+
+        if custom_price:
             order_data["price"] = custom_price
 
         self.ava.create_orders(
@@ -68,41 +71,39 @@ class Order:
         )
 
         log.debug(
-            f'{instrument_type} - (SET {signal.name.upper()} order): {order_data["price"]} for {self.settings["instruments"]["TRADING"][instrument_type]}'
+            f'{market_direction} - (SET {signal.name.upper()} order): {order_data["price"]} for {self.settings["instruments"]["TRADING"][market_direction]}'
         )
 
     def update(
         self,
         signal: OrderType,
-        instrument_type: Instrument,
+        market_direction: Instrument,
         instrument_status: InstrumentStatus,
         custom_price: Optional[float] = None,
     ) -> None:
-        if (
-            instrument_status.price_buy is None
-            or instrument_status.price_sell is None
-            or instrument_status.spread is None
-        ):
-            return
+        price = None
 
-        price = (
-            instrument_status.price_buy
-            if signal == OrderType.BUY
-            else instrument_status.price_sell
-        )
-
-        if custom_price is not None:
+        if custom_price:
             price = custom_price
 
+        elif signal == OrderType.BUY and instrument_status.price_buy:
+            price = instrument_status.price_buy
+
+        elif signal == OrderType.SELL and instrument_status.price_sell:
+            price = instrument_status.price_sell
+
+        if not price or not instrument_status.spread:
+            return
+
         log.debug(
-            f'{instrument_type} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price} '
+            f'{market_direction} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price} '
         )
 
         self.ava.update_order(
             instrument_status.active_order,
             price,
-            self.settings["instruments"]["TRADING"][instrument_type][1],
-            self.settings["instruments"]["TRADING"][instrument_type][0],
+            self.settings["instruments"]["TRADING"][market_direction][1],
+            self.settings["instruments"]["TRADING"][market_direction][0],
         )
 
     def delete(self) -> None:

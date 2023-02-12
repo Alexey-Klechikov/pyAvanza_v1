@@ -110,12 +110,12 @@ class Avanza(AvanzaBase):
 
 
 class Context:
-    def __init__(self, user: str, accounts: dict, skip_lists: bool = False):
+    def __init__(self, user: str, accounts: dict, process_lists: bool = True):
         self.ctx = self.get_ctx(user)
         self.accounts = accounts
+        self.portfolio = self.get_portfolio()
 
-        if not skip_lists:
-            self.portfolio = self.get_portfolio()
+        if process_lists:
             self.budget_rules, self.watch_lists = self.process_watch_lists()
 
     def get_ctx(self, user: str) -> Avanza:
@@ -168,8 +168,10 @@ class Context:
             portfolio.positions = Positions(positions)
 
             tickers_yahoo = []
-            for orderbook_id in portfolio.positions.df["orderbookId"].tolist():
-                stock_info = self.ctx.get_instrument(InstrumentType.STOCK, orderbook_id)
+            for order_book_id in portfolio.positions.df["orderbookId"].tolist():
+                stock_info = self.ctx.get_instrument(
+                    InstrumentType.STOCK, order_book_id
+                )
 
                 tickers_yahoo.append(
                     f"{stock_info.get('listing', {}).get('tickerSymbol', '').replace(' ', '-')}.ST"

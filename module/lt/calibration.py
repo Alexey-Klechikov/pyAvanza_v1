@@ -60,7 +60,7 @@ class Calibration:
 
             message = f'"{initial_watch_list_name}" -> "{target_watch_list_name}" ({ticker["name"]}) [{max_output}]'
 
-            log.info(f"> {message}")
+            log.warning(f"> {message}")
 
             self.logs.append(message)
 

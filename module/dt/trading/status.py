@@ -55,24 +55,25 @@ class InstrumentStatus:
             self.acquired_price = self.position["acquiredPrice"]
 
         self.spread = instrument_info["spread"]
-        if (
-            self.spread is not None
-            and self.spread >= self.stop_settings["spread_limit"]
-        ):
-            log.debug(f"{self.instrument.value} ===> High spread: {self.spread}")
+        self.active_order = instrument_info["order"]
+        self.price_sell = instrument_info[OrderType.SELL]
 
+        if self.price_max and self.price_sell:
+            self.price_max = max(self.price_max, self.price_sell)
+
+        elif not self.price_max:
+            self.price_max = self.price_sell
+
+        if self.spread and self.spread >= self.stop_settings["spread_limit"]:
             self.price_buy = None
-            self.price_sell = None
+
+            if not self.position:
+                log.debug(
+                    f"{self.instrument.value} ===> High spread for BUY: {self.spread}"
+                )
 
         else:
             self.price_buy = instrument_info[OrderType.BUY]
-            self.price_sell = instrument_info[OrderType.SELL]
-            self.active_order = instrument_info["order"]
-
-            if self.price_max and self.price_sell:
-                self.price_max = max(self.price_max, self.price_sell)
-            elif not self.price_max:
-                self.price_max = self.price_sell
 
     def update_limits(self, atr) -> None:
         if not self.position or self.price_sell is None:
@@ -86,14 +87,15 @@ class InstrumentStatus:
         )
 
     def get_profit(self) -> float:
-        if (
-            not self.position
-            or self.acquired_price is None
-            or self.price_sell is None
-            or round(self.price_sell - self.acquired_price, 2) == 0
-        ):
-            return 0.0
-
-        return round(
-            ((self.price_sell - self.acquired_price) / self.acquired_price) * 100, 2
+        return (
+            0.0
+            if (
+                not self.position
+                or not self.acquired_price
+                or not self.price_sell
+                or round(self.price_sell - self.acquired_price, 2) == 0
+            )
+            else round(
+                ((self.price_sell - self.acquired_price) / self.acquired_price) * 100, 2
+            )
         )
