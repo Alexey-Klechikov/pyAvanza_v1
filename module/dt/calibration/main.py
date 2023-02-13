@@ -309,6 +309,75 @@ class Calibration:
 
         return strategies
 
+    def _traverse_instruments(
+        self, market_direction: Instrument, settings: dict
+    ) -> list:
+        instruments = []
+
+        for instrument_type, instrument_id in settings["instruments"]["TRADING_POOL"][
+            market_direction
+        ]:
+            instrument_info = self.ava.get_instrument_info(
+                InstrumentType[instrument_type],
+                str(instrument_id),
+            )
+
+            log_prefix = (
+                f"Instrument {market_direction} ({instrument_type} - {instrument_id})"
+            )
+
+            if instrument_info["position"] or instrument_info["order"]:
+                log.debug(f"{log_prefix} is in use")
+
+                return [
+                    {
+                        "identifier": [instrument_type, instrument_id],
+                        "numbers": {
+                            "score": 0,
+                        },
+                    }
+                ]
+
+            elif market_direction != {
+                "Lång": Instrument.BULL,
+                "Kort": Instrument.BEAR,
+            }.get(instrument_info["key_indicators"]["direction"]):
+                log.debug(f"{log_prefix} is in wrong category")
+
+            elif instrument_info["spread"] is None:
+                log.debug(f"{log_prefix} has no spread")
+
+            elif 0.1 > instrument_info["spread"] > 0.85:
+                log.debug(f"{log_prefix} has bad spread: {instrument_info['spread']}")
+
+            elif instrument_info[OrderType.BUY] > 280:
+                log.debug(f"{log_prefix} is too expensive")
+
+            elif not isinstance(instrument_info["spread"], float) or not isinstance(
+                instrument_info["key_indicators"].get("leverage"), float
+            ):
+                log.debug(
+                    f"{log_prefix} is not valid: {instrument_info['spread']} / {instrument_info['key_indicators'].get('leverage')}"
+                )
+
+            else:
+                instruments.append(
+                    {
+                        "identifier": [instrument_type, instrument_id],
+                        "numbers": {
+                            "spread": instrument_info["spread"],
+                            "leverage": instrument_info["key_indicators"]["leverage"],
+                            "score": round(
+                                instrument_info["key_indicators"]["leverage"]
+                                / instrument_info["spread"]
+                            )
+                            // 3,
+                        },
+                    }
+                )
+
+        return instruments
+
     def _update_trading_settings(self) -> None:
         settings = Settings().load("DT")
 
@@ -317,66 +386,9 @@ class Calibration:
         for market_direction in Instrument:
             instruments_info[market_direction] = []
 
-            for instrument_identifier in settings["instruments"]["TRADING_POOL"][
-                market_direction
-            ]:
-                instrument_info = self.ava.get_instrument_info(
-                    InstrumentType[instrument_identifier[0]],
-                    str(instrument_identifier[1]),
-                )
-
-                log_prefix = f"Instrument {market_direction} ({instrument_identifier})"
-
-                if market_direction != {
-                    "Lång": Instrument.BULL,
-                    "Kort": Instrument.BEAR,
-                }.get(instrument_info["key_indicators"]["direction"]):
-                    log.debug(f"{log_prefix} is in wrong category")
-
-                elif instrument_info["spread"] is None:
-                    log.debug(f"{log_prefix} has no spread")
-
-                elif 0.1 > instrument_info["spread"] > 0.85:
-                    log.debug(
-                        f"{log_prefix} has bad spread: {instrument_info['spread']}"
-                    )
-
-                elif instrument_info[OrderType.BUY] > 280:
-                    log.debug(f"{log_prefix} is too expensive")
-
-                elif not isinstance(instrument_info["spread"], float) or not isinstance(
-                    instrument_info["key_indicators"].get("leverage"), float
-                ):
-                    log.debug(
-                        f"{log_prefix} is not valid: {instrument_info['spread']} / {instrument_info['key_indicators'].get('leverage')}"
-                    )
-
-                elif instrument_info["position"] or instrument_info["order"]:
-                    log.debug(f"{log_prefix} is in use")
-
-                    instruments_info[market_direction] = [
-                        instruments_info[market_direction].pop()
-                    ]
-
-                    break
-
-                else:
-                    instruments_info[market_direction].append(
-                        {
-                            "identifier": instrument_identifier,
-                            "numbers": {
-                                "spread": instrument_info["spread"],
-                                "leverage": instrument_info["key_indicators"][
-                                    "leverage"
-                                ],
-                                "score": round(
-                                    instrument_info["key_indicators"]["leverage"]
-                                    / instrument_info["spread"]
-                                )
-                                // 3,
-                            },
-                        }
-                    )
+            instruments_info[market_direction] = self._traverse_instruments(
+                market_direction, settings
+            )
 
             top_instruments = sorted(
                 filter(
@@ -392,18 +404,16 @@ class Calibration:
                 key=lambda x: x["identifier"],
             )
 
-            if settings["instruments"]["TRADING"].get(market_direction) in [
+            if settings["instruments"]["TRADING"].get(market_direction) not in [
                 i["identifier"] for i in top_instruments
             ]:
-                break
+                log.info(
+                    f'Change instrument {market_direction} -> {top_instruments[0]["identifier"]} ({top_instruments[0]["numbers"]})'
+                )
 
-            log.info(
-                f'Change instrument {market_direction} -> {top_instruments[0]["identifier"]} ({top_instruments[0]["numbers"]})'
-            )
-
-            settings["instruments"]["TRADING"][market_direction] = top_instruments[0][
-                "identifier"
-            ]
+                settings["instruments"]["TRADING"][market_direction] = top_instruments[
+                    0
+                ]["identifier"]
 
         Settings().dump(settings, "DT")
 
