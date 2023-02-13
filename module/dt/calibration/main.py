@@ -2,7 +2,7 @@ import logging
 import time
 import traceback
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import pandas as pd
 from avanza import InstrumentType, OrderType
@@ -281,7 +281,7 @@ class Calibration:
             strategy_summary = helper.get_orders_history_summary()
 
             if consider_efficiency and any(
-                [strategy_summary["profit"] <= 0, strategy_summary["points"] < -20]
+                [strategy_summary["profit"] <= 100, strategy_summary["points"] < -10]
             ):
                 continue
 

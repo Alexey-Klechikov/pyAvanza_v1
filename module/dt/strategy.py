@@ -19,6 +19,42 @@ log = logging.getLogger("main.dt.strategy")
 
 class CustomIndicators:
     @staticmethod
+    def trend_intensity(
+        data: pd.DataFrame, length_sma: int, length_signal: int
+    ) -> pd.DataFrame:
+        """https://raposa.trade/blog/4-ways-to-trade-the-trend-intensity-indicator/"""
+
+        make_name = lambda x: f"{x}_{length_sma}_{length_signal}"
+
+        sma = data.ta.sma(length=length_sma)
+        diff = data["Close"] - sma
+        pos_count = (
+            diff.map(lambda x: 1 if x > 0 else 0).rolling(int(length_sma / 2)).sum()
+        )
+        data[make_name("TII")] = 200 * (pos_count) / length_sma
+        data[make_name("TII_SIGNAL")] = data.ta.ema(
+            close=data[make_name("TII")], length=length_signal
+        )
+
+        return data
+
+    @staticmethod
+    def starc_bands(
+        data: pd.DataFrame, length_sma: int, length_atr: int, multiplier_atr: float
+    ):
+        """https://www.investopedia.com/terms/s/starc.asp"""
+
+        make_name = lambda x: f"{x}_{length_sma}_{length_atr}_{multiplier_atr}"
+
+        sma = data.ta.sma(length=length_sma)
+        atr = data.ta.atr(length=length_atr)
+
+        data[make_name("STARC_U")] = sma + multiplier_atr * atr
+        data[make_name("STARC_B")] = sma - multiplier_atr * atr
+
+        return data
+
+    @staticmethod
     def impulse_macd(
         data: pd.DataFrame, length_ma: int, length_signal: int
     ) -> pd.DataFrame:
@@ -68,12 +104,12 @@ class Components:
 
         self.data = data.groupby(data.index).last()
 
-        self.generate_conditions_volatility()
-        self.generate_conditions_trend()
         self.generate_conditions_overlap()
         self.generate_conditions_momentum()
         self.generate_conditions_volume()
         self.generate_conditions_cycles()
+        self.generate_conditions_volatility()
+        self.generate_conditions_trend()
         self.generate_conditions_extra()
 
         self.data = self.clean_up_data()
@@ -144,16 +180,16 @@ class Components:
     def generate_conditions_volatility(self) -> None:
         self.conditions["Volatility"] = {}
 
-        # DONCHAIN (Donchian Channel)
-        self.data.ta.donchian(lower_length=15, upper_length=15, append=True)
-        if "DCM_15_15" in self.data.columns:
-            self.conditions["Volatility"]["DONCHAIN"] = {
-                OrderType.BUY: lambda x: x["Close"]
-                > x["DCU_15_15"] - (x["DCU_15_15"] - x["DCM_15_15"]) * 0.4,
-                OrderType.SELL: lambda x: x["Close"]
-                < x["DCL_15_15"] + (x["DCM_15_15"] - x["DCL_15_15"]) * 0.6,
+        # STARC (Stoller Average Range Channel)
+        self.data = CustomIndicators.starc_bands(
+            self.data, length_sma=6, length_atr=14, multiplier_atr=1.5
+        )
+        if "STARC_U_6_14_1.5" in self.data.columns:
+            self.conditions["Volatility"]["STARC"] = {
+                OrderType.BUY: lambda x: x["Close"] < x["STARC_B_6_14_1.5"],
+                OrderType.SELL: lambda x: x["Close"] > x["STARC_U_6_14_1.5"],
             }
-            self.columns_needed += ["DCM_15_15", "DCL_15_15", "DCU_15_15"]
+            self.columns_needed += ["STARC_U_6_14_1.5", "STARC_B_6_14_1.5"]
 
         # HWC (Holt-Winter Channel)
         self.data.ta.hwc(append=True)
@@ -163,17 +199,6 @@ class Components:
                 OrderType.SELL: lambda x: x["Close"] < x["HWM"],
             }
             self.columns_needed += ["HWM"]
-
-        # BBANDS (Bollinger Bands)
-        self.data.ta.bbands(length=16, std=2, append=True)
-        if "BBL_16_2.0" in self.data.columns:
-            self.conditions["Volatility"]["BBANDS"] = {
-                OrderType.BUY: lambda x: x["Close"]
-                > x["BBU_16_2.0"] - (x["BBU_16_2.0"] - x["BBM_16_2.0"]) * 0.4,
-                OrderType.SELL: lambda x: x["Close"]
-                < x["BBL_16_2.0"] + (x["BBM_16_2.0"] - x["BBL_16_2.0"]) * 0.6,
-            }
-            self.columns_needed += ["BBL_16_2.0", "BBU_16_2.0", "BBM_16_2.0"]
 
         # RVI (Relative Volatility Index)
         self.data.ta.rvi(length=20, append=True)
@@ -207,14 +232,16 @@ class Components:
             }
             self.columns_needed += ["PSARl_0.1_0.25", "PSARs_0.1_0.25"]
 
-        # TTM_TREND (Trend based on TTM Squeeze)
-        self.data.ta.ttm_trend(length=8, append=True)
-        if "TTM_TRND_8" in self.data.columns:
-            self.conditions["Trend"]["TTM_TREND"] = {
-                OrderType.BUY: lambda x: x["TTM_TRND_8"] == 1,
-                OrderType.SELL: lambda x: x["TTM_TRND_8"] == -1,
+        # TII (Trend Intensity Index)
+        self.data = CustomIndicators.trend_intensity(
+            self.data, length_sma=15, length_signal=5
+        )
+        if "TII_15_5" in self.data.columns:
+            self.conditions["Trend"]["TII"] = {
+                OrderType.BUY: lambda x: x["TII_SIGNAL_15_5"] > x["TII_15_5"],
+                OrderType.SELL: lambda x: x["TII_SIGNAL_15_5"] < x["TII_15_5"],
             }
-            self.columns_needed += ["TTM_TRND_8"]
+            self.columns_needed += ["TII_15_5", "TII_SIGNAL_15_5"]
 
         # VHF (Vertical Horizontal Filter)
         self.data["VHF_30"] = self.data.ta.ema(
@@ -251,7 +278,7 @@ class Components:
         # EMA (Trend direction by 100 EMA)
         self.data["EMA"] = self.data.ta.ema(length=min(len(self.data) - 1, 100))
         if "EMA" in self.data.columns:
-            self.conditions["Trend"]["EMA"] = {
+            self.conditions["Overlap"]["EMA"] = {
                 OrderType.BUY: lambda x: x["Close"] > x["EMA"],
                 OrderType.SELL: lambda x: x["Close"] < x["EMA"],
             }
