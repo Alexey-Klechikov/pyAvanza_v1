@@ -5,7 +5,7 @@ import warnings
 from copy import copy
 from dataclasses import dataclass, field
 from json import JSONDecodeError
-from typing import Dict, List, Tuple
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -112,6 +112,19 @@ class Components:
             }
             self.columns_needed += ["SMA_9", "PVT"]
 
+        # ADOSC (Accumulation/Distribution Oscillator)
+        self.data["ADOSC_direction"] = (
+            self.data.ta.adosc(fast=30, slow=45)
+            .rolling(2)
+            .apply(lambda x: x.iloc[1] > x.iloc[0])
+        )
+        if "ADOSC_direction" in self.data.columns:
+            self.conditions["Volume"]["ADOSC"] = {
+                OrderType.BUY: lambda x: x["ADOSC_direction"] == 1,
+                OrderType.SELL: lambda x: x["ADOSC_direction"] == 0,
+            }
+            self.columns_needed += ["ADOSC_direction"]
+
         # CMF (Chaikin Money Flow)
         self.data.ta.cmf(append=True)
         if "CMF_20" in self.data.columns:
@@ -200,6 +213,35 @@ class Components:
     def generate_conditions_trend(self) -> None:
         self.conditions["Trend"] = {}
 
+        # TTM_TREND (Trend based on TTM Squeeze)
+        self.data.ta.ttm_trend(length=8, append=True)
+        if "TTM_TRND_8" in self.data.columns:
+            self.conditions["Trend"]["TTM_TREND"] = {
+                OrderType.BUY: lambda x: x["TTM_TRND_8"] == 1,
+                OrderType.SELL: lambda x: x["TTM_TRND_8"] == -1,
+            }
+            self.columns_needed += ["TTM_TRND_8"]
+
+        # VHF (Vertical Horizontal Filter)
+        self.data["VHF_30"] = self.data.ta.ema(
+            close=self.data.ta.vhf(length=30), length=10
+        )
+        if "VHF_30" in self.data.columns:
+            self.conditions["Trend"]["VHF"] = {
+                OrderType.BUY: lambda x: x["VHF_30"] > 0.45,
+                OrderType.SELL: lambda x: x["VHF_30"] > 0.4,
+            }
+            self.columns_needed += ["VHF_30"]
+
+        # VORTEX (Vortex Indicator)
+        self.data.ta.vortex(length=14, append=True)
+        if "VTXP_14" in self.data.columns:
+            self.conditions["Trend"]["VORTEX"] = {
+                OrderType.BUY: lambda x: x["VTXP_14"] > x["VTXM_14"],
+                OrderType.SELL: lambda x: x["VTXM_14"] < x["VTXP_14"],
+            }
+            self.columns_needed += ["VTXP_14", "VTXM_14"]
+
         # PSAR (Parabolic Stop and Reverse)
         self.data.ta.psar(append=True)
         if "PSARl_0.02_0.2" in self.data.columns:
@@ -229,6 +271,20 @@ class Components:
 
     def generate_conditions_overlap(self) -> None:
         self.conditions["Overlap"] = {}
+
+        # 2DEMA (Trend direction by Double EMA)
+        self.data.ta.dema(length=15, append=True)
+        self.data.ta.dema(length=30, append=True)
+        self.data["2DEMA"] = self.data.apply(
+            lambda x: 1 if x["DEMA_15"] >= x["DEMA_30"] else -1,
+            axis=1,
+        )
+        if "2DEMA" in self.data.columns:
+            self.conditions["Overlap"]["2DEMA"] = {
+                OrderType.BUY: lambda x: x["2DEMA"] == 1,
+                OrderType.SELL: lambda x: x["2DEMA"] == -1,
+            }
+            self.columns_needed += ["2DEMA"]
 
         # GHLA (Gann High-Low Activator)
         self.data.ta.hilo(append=True)
@@ -271,6 +327,15 @@ class Components:
                 OrderType.SELL: lambda x: x["STC_10_12_26_0.5"] > 25,
             }
             self.columns_needed += ["STC_10_12_26_0.5"]
+
+        # UO (Ultimate Oscillator)
+        self.data.ta.uo(fast=10, medium=15, slow=30, append=True)
+        if "UO_10_15_30" in self.data.columns:
+            self.conditions["Momentum"]["UO"] = {
+                OrderType.BUY: lambda x: x["UO_10_15_30"] < 30,
+                OrderType.SELL: lambda x: x["UO_10_15_30"] > 65,
+            }
+            self.columns_needed += ["UO_10_15_30"]
 
         # CCI (Commodity Channel Index)
         self.data.ta.cci(length=20, append=True, offset=1)

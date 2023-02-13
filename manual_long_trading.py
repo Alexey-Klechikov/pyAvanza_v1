@@ -79,7 +79,7 @@ class PortfolioAnalysis:
         log.info("Performance per strategy")
 
         for i, (strategy_name, strategy_stats) in enumerate(
-            [f'-- MAX -- : {str(self.counter_per_strategy.pop("-- MAX --"))}']
+            [["-- MAX --", str(self.counter_per_strategy.pop("-- MAX --"))]]
             + sorted(
                 self.counter_per_strategy.items(),
                 key=lambda x: int(x[1]["total_sum"]),
@@ -215,7 +215,7 @@ class PortfolioAnalysis:
                 strategy_name, "transactions_counter", len(strategy_data.transactions)
             )
 
-            if i < 3:
+            if i < 20:
                 log.info(
                     " ".join(
                         [
