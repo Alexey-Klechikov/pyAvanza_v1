@@ -60,8 +60,8 @@ class Signal:
             break
 
         if (
-            self.last_candle
-            and self.target_candle
+            self.last_candle is not None
+            and self.target_candle is not None
             and any(
                 [
                     (
@@ -93,7 +93,10 @@ class Signal:
 
         message: list = []
 
-        if self.last_candle and self.last_candle.name == self.target_candle.name:
+        if (
+            self.last_candle is not None
+            and self.last_candle.name == self.target_candle.name
+        ):
             # if I hit the same candle multiple times
             return None, message
 
@@ -114,7 +117,7 @@ class Signal:
 
             self.signal = self._get_last_signal_on_strategy(strategy.data)
 
-        if self.signal and self.last_candle:
+        if self.signal and self.last_candle is not None:
             message = [
                 f"Signal: {self.signal.name}",
                 f"Candle: {str(self.last_candle.name)[11:-9]}",

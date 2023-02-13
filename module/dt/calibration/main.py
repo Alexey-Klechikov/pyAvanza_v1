@@ -179,8 +179,8 @@ class Calibration:
                     self.settings["instruments"]["MONITORING"]["AVA"]
                 ),
             ).data[
-                datetime.now() - timedelta(hours=limit_history_hours) :
-            ],  # type: ignore
+                datetime.now() - timedelta(hours=limit_history_hours) :  # type: ignore
+            ],
             strategies=loaded_strategies,
         )
 
