@@ -56,7 +56,6 @@ class InstrumentStatus:
 
         self.spread = instrument_info["spread"]
         self.active_order = instrument_info["order"]
-        self.price_sell = instrument_info[OrderType.SELL]
 
         if self.price_max and self.price_sell:
             self.price_max = max(self.price_max, self.price_sell)
@@ -66,14 +65,13 @@ class InstrumentStatus:
 
         if self.spread and self.spread >= self.stop_settings["spread_limit"]:
             self.price_buy = None
+            self.price_sell = None
 
-            if not self.position:
-                log.debug(
-                    f"{self.instrument.value} ===> High spread for BUY: {self.spread}"
-                )
+            log.debug(f"{self.instrument.value} ===> High spread: {self.spread}")
 
         else:
             self.price_buy = instrument_info[OrderType.BUY]
+            self.price_sell = instrument_info[OrderType.SELL]
 
     def update_limits(self, atr) -> None:
         if not self.position or self.price_sell is None:
