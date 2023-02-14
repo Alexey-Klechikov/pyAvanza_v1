@@ -80,13 +80,13 @@ class CalibrationOrder:
                         self.instrument == Instrument.BULL
                         and (
                             self.price_sell <= self.price_stop_loss
-                            or self.price_sell >= self.price_take_profit
+                            or row["High"] > self.price_take_profit
                         )
                     ),
                     (
                         self.instrument == Instrument.BEAR
                         and (
-                            self.price_sell <= self.price_take_profit
+                            row["Low"] < self.price_take_profit
                             or self.price_sell >= self.price_stop_loss
                         )
                     ),
