@@ -108,7 +108,12 @@ class Helper:
 
     def get_orders_history_summary(self) -> dict:
         if len(self.orders_history) == 0:
-            return {"strategy": self.strategy_name, "points": 0, "profit": 0}
+            return {
+                "strategy": self.strategy_name,
+                "points": 0,
+                "profit": 0,
+                "efficiency": "0%",
+            }
 
         df = pd.DataFrame(self.orders_history)
         df.profit = df.profit.astype(float)
@@ -352,10 +357,7 @@ class Calibration:
             }.get(instrument_info["key_indicators"]["direction"]):
                 log.debug(f"{log_prefix} is in wrong category")
 
-            elif instrument_info["spread"] is None:
-                log.debug(f"{log_prefix} has no spread")
-
-            elif 0.1 > instrument_info["spread"] > 0.85:
+            elif not (0.1 < instrument_info.get("spread", 0) < 0.9):
                 log.debug(f"{log_prefix} has bad spread: {instrument_info['spread']}")
 
             elif instrument_info[OrderType.BUY] > 280:
