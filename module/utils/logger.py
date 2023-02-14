@@ -7,9 +7,10 @@ import copy
 import datetime
 import logging
 import os
+from typing import Union
 
 
-def displace_message(displacements: tuple, messages: tuple) -> str:
+def displace_message(displacements: tuple, messages: Union[tuple, list]) -> str:
     return " | ".join(
         map(
             lambda y: str(y[0]) + (y[1] - len(str(y[0]))) * " ",

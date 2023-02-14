@@ -165,7 +165,7 @@ class Calibration:
         period: str,
         interval: str,
         cache: Cache,
-        consider_efficiency: bool,
+        filter_strategies: bool,
         loaded_strategies: List[dict],
         limit_history_hours: int = 9999,
     ) -> List[dict]:
@@ -209,7 +209,11 @@ class Calibration:
                     "Pts",
                     "Prft",
                     "Effi",
-                    "Numbers BULL | Numbers BEAR | Signal (at)",
+                    " | ".join(
+                        ["Numbers BULL", "Numbers BEAR", "Signal (at)"][
+                            : 2 if filter_strategies else 3
+                        ]
+                    ),
                 ),
             )
         )
@@ -280,8 +284,12 @@ class Calibration:
 
             strategy_summary = helper.get_orders_history_summary()
 
-            if consider_efficiency and any(
-                [strategy_summary["profit"] <= 100, strategy_summary["points"] < -10]
+            if filter_strategies and any(
+                [
+                    strategy_summary["points"] < -10,
+                    strategy_summary["profit"] <= 100,
+                    int(strategy_summary["efficiency"][:-1]) < 50,
+                ]
             ):
                 continue
 
@@ -290,15 +298,11 @@ class Calibration:
             log.info(
                 displace_message(
                     DISPLACEMENTS,
-                    tuple(
+                    list(
                         [f"[{i+1}/{len(strategy.strategies)}]"]
                         + list(strategy_summary.values())
-                        + [
-                            ""
-                            if not last_signal["signal"]
-                            else f"{last_signal['signal']} ({last_signal['time']})"
-                        ]
-                    ),
+                        + [f"{last_signal['signal']} ({last_signal['time']})"]
+                    )[: 7 if filter_strategies else 8],
                 )
             )
 
@@ -455,7 +459,7 @@ class Calibration:
         log.info("Updating strategies")
 
         profitable_strategies = self._walk_through_strategies(
-            "30d", "1m", Cache.APPEND, consider_efficiency=True, loaded_strategies=[]
+            "30d", "1m", Cache.APPEND, filter_strategies=True, loaded_strategies=[]
         )
 
         indicators_counter = self._count_indicators_usage(profitable_strategies)
@@ -474,7 +478,7 @@ class Calibration:
             "15d",
             "1m",
             Cache.APPEND,
-            consider_efficiency=True,
+            filter_strategies=True,
             loaded_strategies=[i["strategy"] for i in stored_strategies.get("30d", [])],
         )
 
@@ -502,7 +506,7 @@ class Calibration:
             "1d",
             "1m",
             Cache.SKIP,
-            consider_efficiency=False,
+            filter_strategies=False,
             loaded_strategies=stored_strategies.get("use", []),
         )
 
