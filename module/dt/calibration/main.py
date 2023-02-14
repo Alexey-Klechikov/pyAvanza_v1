@@ -436,6 +436,21 @@ class Calibration:
             )
         ]
 
+    def _extract_top_strategies(self, strategies: list) -> list:
+        top_strategies = []
+        points = sorted({i["points"] for i in strategies}, reverse=True)
+
+        for point in points:
+            top_strategies += [
+                i["strategy"]
+                for i in filter(lambda s: s["points"] == point, strategies)
+            ]
+
+            if len(top_strategies) > 3:
+                break
+
+        return top_strategies
+
     def update(self) -> None:
         log.info("Updating strategies")
 
@@ -463,14 +478,7 @@ class Calibration:
             loaded_strategies=[i["strategy"] for i in stored_strategies.get("30d", [])],
         )
 
-        top_strategies = [
-            i["strategy"]
-            for i in profitable_strategies
-            if i["points"]
-            in sorted(
-                list(set([s["points"] for s in profitable_strategies])), reverse=True
-            )[: min(3, len(profitable_strategies))]
-        ]
+        top_strategies = self._extract_top_strategies(profitable_strategies)
 
         Strategy.dump(
             "DT",
