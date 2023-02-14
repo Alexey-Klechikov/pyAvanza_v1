@@ -301,7 +301,11 @@ class Calibration:
                     list(
                         [f"[{i+1}/{len(strategy.strategies)}]"]
                         + list(strategy_summary.values())
-                        + [f"{last_signal['signal']} ({last_signal['time']})"]
+                        + [
+                            ""
+                            if not last_signal["signal"]
+                            else f"{last_signal['signal']} ({last_signal['time']})"
+                        ]
                     )[: 7 if filter_strategies else 8],
                 )
             )
