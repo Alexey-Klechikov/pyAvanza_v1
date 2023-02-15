@@ -7,10 +7,12 @@
         "ACCBU",
         "ADOSC",
         "Bostad",
+        "coef",
         "DEMA",
         "DONCHAIN",
         "donchian",
         "effi",
+        "ffill",
         "imacd",
         "Keltner",
         "Kort",
@@ -25,8 +27,12 @@
         "tclength",
         "timeframe",
         "TRND",
+        "vave",
+        "vinter",
+        "vmax",
         "VTXM",
         "VTXP",
+        "weis",
         "zlema"
     ]
 }

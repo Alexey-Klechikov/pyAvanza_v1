@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from json import JSONDecodeError
-from typing import List, Tuple
+from pprint import pprint as print
 
 import numpy as np
 import pandas as pd
@@ -18,6 +18,46 @@ log = logging.getLogger("main.dt.strategy")
 
 
 class CustomIndicators:
+    @staticmethod
+    def volume_flow(
+        data: pd.DataFrame,
+        period: int,
+        smooth: int,
+        ma_period: int,
+        coef: float,
+        vol_coef: float,
+    ) -> pd.DataFrame:
+        """https://precisiontradingsystems.com/volume-flow.htm"""
+
+        make_name = lambda x: f"{x}_{period}_{smooth}_{ma_period}_{coef}_{vol_coef}"
+
+        data["_inter"] = np.log(data["Close"]).diff()  # type: ignore
+        data["_vinter"] = ta.stdev(data["_inter"], length=30)
+        data["_cutoff"] = coef * data["_vinter"] * data["Close"]
+        data["_vave"] = ta.sma(data["Volume"], length=period).shift(1)  # type: ignore
+        data["_vmax"] = data["_vave"] * vol_coef
+        data["_mf"] = data["Close"] - data["Close"].shift(1)
+        data["_vcp"] = np.where(
+            data["_mf"] > data["_cutoff"],
+            data["Volume"].clip(upper=data["_vmax"]),
+            np.where(
+                data["_mf"] < -data["_cutoff"],
+                -data["Volume"].clip(upper=data["_vmax"]),
+                0,
+            ),
+        )
+        data[make_name("VFI")] = ta.ema(
+            ta.sma(data["_vcp"], length=period) / data["_vave"], length=smooth  # type: ignore
+        )
+        data[make_name("VFI_MA")] = ta.sma(
+            ta.ema(
+                ta.sma(data["_vcp"], length=period) / data["_vave"], length=smooth  # type: ignore
+            ),
+            length=ma_period,
+        )
+
+        return data
+
     @staticmethod
     def trend_intensity(
         data: pd.DataFrame, length_sma: int, length_signal: int
@@ -138,17 +178,16 @@ class Components:
     def generate_conditions_volume(self) -> None:
         self.conditions["Volume"] = {}
 
-        # PVT (Price Volume Trend)
-        self.data.ta.pvt(append=True)
-        if "PVT" in self.data.columns:
-            self.data.ta.ema(close="PVT", length=14, append=True)
-            self.conditions["Volume"]["PVT"] = {
+        # VFI (Volume Flow Index)
+        self.data = CustomIndicators.volume_flow(self.data, 20, 3, 3, 0.2, 2.5)
+        if "VFI_MA_20_3_3_0.2_2.5" in self.data.columns:
+            self.conditions["Volume"]["VFI"] = {
                 OrderType.BUY: lambda x: (x["Volume"] != 0)
-                and (x["EMA_14"] < x["PVT"]),
+                and x["VFI_MA_20_3_3_0.2_2.5"] > 0,
                 OrderType.SELL: lambda x: (x["Volume"] != 0)
-                and (x["EMA_14"] > x["PVT"]),
+                and x["VFI_MA_20_3_3_0.2_2.5"] < 0,
             }
-            self.columns_needed += ["EMA_14", "PVT"]
+            self.columns_needed += ["VFI_MA_20_3_3_0.2_2.5"]
 
         # CMF (Chaikin Money Flow)
         self.data.ta.cmf(append=True)

@@ -318,8 +318,6 @@ class Calibration:
             if self.print_orders_history:
                 helper.print_orders_history()
 
-        strategies.sort(key=lambda s: (s["points"], s["profit"]), reverse=True)
-
         return strategies
 
     def _traverse_instruments(
@@ -466,8 +464,12 @@ class Calibration:
     def update(self) -> None:
         log.info("Updating strategies")
 
-        profitable_strategies = self._walk_through_strategies(
-            "30d", "1m", Cache.APPEND, filter_strategies=True, loaded_strategies=[]
+        profitable_strategies = sorted(
+            self._walk_through_strategies(
+                "30d", "1m", Cache.APPEND, filter_strategies=True, loaded_strategies=[]
+            ),
+            key=lambda s: (s["points"], s["profit"]),
+            reverse=True,
         )
 
         indicators_counter = self._count_indicators_usage(profitable_strategies)
@@ -482,12 +484,18 @@ class Calibration:
 
         stored_strategies = Strategy.load("DT")
 
-        profitable_strategies = self._walk_through_strategies(
-            "15d",
-            "1m",
-            Cache.APPEND,
-            filter_strategies=True,
-            loaded_strategies=[i["strategy"] for i in stored_strategies.get("30d", [])],
+        profitable_strategies = sorted(
+            self._walk_through_strategies(
+                "15d",
+                "1m",
+                Cache.APPEND,
+                filter_strategies=True,
+                loaded_strategies=[
+                    i["strategy"] for i in stored_strategies.get("30d", [])
+                ],
+            ),
+            key=lambda s: (s["points"], s["profit"]),
+            reverse=True,
         )
 
         top_strategies = self._extract_top_strategies(profitable_strategies)
@@ -510,12 +518,16 @@ class Calibration:
 
         stored_strategies = Strategy.load("DT")
 
-        profitable_strategies = self._walk_through_strategies(
-            "1d",
-            "1m",
-            Cache.SKIP,
-            filter_strategies=False,
-            loaded_strategies=stored_strategies.get("use", []),
+        profitable_strategies = sorted(
+            self._walk_through_strategies(
+                "1d",
+                "1m",
+                Cache.SKIP,
+                filter_strategies=False,
+                loaded_strategies=stored_strategies.get("use", []),
+            ),
+            key=lambda s: s["profit"],
+            reverse=True,
         )
 
         Strategy.dump(
@@ -550,7 +562,7 @@ def run(
             elif trading_time.day_time == DayTime.EVENING:
                 break
 
-            time.sleep(60 * 5)
+            time.sleep(60 * 4)
 
         except Exception as e:
             log.error(f">>> {e}: {traceback.format_exc()}")
