@@ -33,12 +33,14 @@ class Signal:
         self.signal: Optional[OrderType] = None
 
     def _get_signal_on_strategy(self, row: pd.Series) -> Optional[OrderType]:
-        if self.last_strategy["logic"] is None:
+        if not self.last_strategy["logic"]:
             return None
 
         for signal in [OrderType.BUY, OrderType.SELL]:
             if not all([i(row) for i in self.last_strategy["logic"].get(signal)]):
                 continue
+
+            log.debug(f"Signal contents: {row.to_dict()}")
 
             return signal
 

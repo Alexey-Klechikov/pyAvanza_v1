@@ -169,7 +169,7 @@ class Day_Trading:
                 log.info(
                     " ".join(
                         [
-                            f"{market_direction} ({self.helper.settings['instruments']['TRADING'][market_direction]}) has position.",
+                            f"{market_direction} {self.helper.settings['instruments']['TRADING'][market_direction]} has position.",
                             f"Acquired price: {instrument_status.acquired_price},",
                             f"Current price: {instrument_status.price_sell},",
                             f"Profit: {instrument_status.get_profit()}%",
