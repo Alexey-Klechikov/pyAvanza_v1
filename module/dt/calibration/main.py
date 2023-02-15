@@ -357,7 +357,9 @@ class Calibration:
             }.get(instrument_info["key_indicators"]["direction"]):
                 log.debug(f"{log_prefix} is in wrong category")
 
-            elif not (0.1 < instrument_info.get("spread", 0) < 0.9):
+            elif not instrument_info.get("spread") or not (
+                0.1 < instrument_info.get("spread", 0) < 0.9
+            ):
                 log.debug(f"{log_prefix} has bad spread: {instrument_info['spread']}")
 
             elif instrument_info[OrderType.BUY] > 280:
