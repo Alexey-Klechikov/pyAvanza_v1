@@ -78,16 +78,22 @@ class CalibrationOrder:
                 [
                     (
                         self.instrument == Instrument.BULL
-                        and (
-                            self.price_sell <= self.price_stop_loss
-                            or row["High"] > self.price_take_profit
+                        and any(
+                            [
+                                row["Close"] <= self.price_stop_loss,
+                                (row["High"] + max(row["Close"], row["Open"])) / 2
+                                >= self.price_take_profit,
+                            ]
                         )
                     ),
                     (
                         self.instrument == Instrument.BEAR
-                        and (
-                            row["Low"] < self.price_take_profit
-                            or self.price_sell >= self.price_stop_loss
+                        and any(
+                            [
+                                row["Close"] >= self.price_stop_loss,
+                                (row["Low"] + min(row["Close"], row["Open"])) / 2
+                                <= self.price_take_profit,
+                            ]
                         )
                     ),
                 ]

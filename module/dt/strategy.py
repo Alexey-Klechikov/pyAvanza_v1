@@ -18,6 +18,8 @@ log = logging.getLogger("main.dt.strategy")
 
 
 class CustomIndicators:
+
+    # Volume
     @staticmethod
     def volume_flow(
         data: pd.DataFrame,
@@ -58,6 +60,7 @@ class CustomIndicators:
 
         return data
 
+    # Trend
     @staticmethod
     def trend_intensity(
         data: pd.DataFrame, length_sma: int, length_signal: int
@@ -78,6 +81,7 @@ class CustomIndicators:
 
         return data
 
+    # Volatility
     @staticmethod
     def starc_bands(
         data: pd.DataFrame, length_sma: int, length_atr: int, multiplier_atr: float
@@ -94,6 +98,7 @@ class CustomIndicators:
 
         return data
 
+    # Momentum
     @staticmethod
     def impulse_macd(
         data: pd.DataFrame, length_ma: int, length_signal: int
