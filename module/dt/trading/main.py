@@ -177,6 +177,8 @@ class Day_Trading:
                     )
                 )
 
+                instrument_status.update_limits(0.7)
+
     def action_day(self) -> None:
         signal, message = self.signal.get(Strategy.load("DT").get("use", []))
         self.helper.order.settings = self.helper.settings = Settings().load("DT")

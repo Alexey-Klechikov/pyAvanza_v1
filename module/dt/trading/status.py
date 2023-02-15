@@ -36,14 +36,18 @@ class InstrumentStatus:
             else {}
         )
 
-        if self.acquired_price and not self.position:
+        if (
+            self.acquired_price
+            and self.last_sell_deal.get("price")
+            and not self.position
+        ):
             log.warning(
                 ", ".join(
                     [
-                        f'{self.instrument.value} ===> Verdict: {"good" if self.acquired_price < self.last_sell_deal.get("price", 0) else "bad"}',
+                        f'{self.instrument.value} ===> Verdict: {"good" if self.acquired_price < self.last_sell_deal["price"] else "bad"}',
                         f"Acquired: {self.acquired_price}",
-                        f"Sold: {self.price_sell}",
-                        f"Profit: {round((self.last_sell_deal.get('price', 0) / self.acquired_price - 1)* 100, 2)}%",
+                        f"Sold: {self.last_sell_deal['price']}",
+                        f"Profit: {round((self.last_sell_deal['price'] / self.acquired_price - 1)* 100, 2)}%",
                     ]
                 )
             )
