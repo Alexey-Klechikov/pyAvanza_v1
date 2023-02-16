@@ -38,7 +38,8 @@ class TeleLog:
         if "message" in kwargs:
             self.message = kwargs["message"]
 
-        self.message += f"\n\nErrors: {count_errors()}"
+        number_errors = count_errors()
+        self.message += "" if number_errors == 0 else f"\n\nErrors: {number_errors}"
 
         self.dump_to_telegram()
 
