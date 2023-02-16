@@ -19,6 +19,19 @@ def displace_message(displacements: tuple, messages: Union[tuple, list]) -> str:
     )
 
 
+def count_errors() -> int:
+    for handler in logging.getLogger("main").handlers:
+        if not isinstance(handler, logging.FileHandler):
+            continue
+
+        if not "ERROR" in handler.baseFilename:
+            continue
+
+        return len([line for line in open(handler.baseFilename) if "ERROR" in line])
+
+    return 0
+
+
 class ColoredFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors"""
 
@@ -89,24 +102,36 @@ class OneLineFormatter(logging.Formatter):
         return s
 
 
+class LevelFilter(logging.Filter):
+    def __init__(self, log_levels: list):
+        log_level_to_int = {
+            "DEBUG": 10,
+            "INFO": 20,
+            "WARNING": 30,
+            "ERROR": 40,
+        }
+
+        self._low = log_level_to_int[log_levels[0]]
+        self._high = log_level_to_int[log_levels[1]]
+        logging.Filter.__init__(self)
+
+    def filter(self, record):
+        return self._low <= record.levelno <= self._high
+
+
 class Logger:
     def __init__(
         self,
-        logger_name: str,
         file_prefix: str,
-        log_level: str = "DEBUG",
-        file_log_level: str = "INFO",
-        console_log_level: str = "INFO",
+        logger_name: str = "main",
+        console_log_levels: list = ["INFO", "WARNING"],
     ):
         self.log = logging.getLogger(logger_name)
         self.set_handlers(
-            True,
-            True,
-            console_log_level,
+            console_log_levels,
             self._get_log_file_name(file_prefix),
-            file_log_level,
         )
-        self.log.setLevel(os.environ.get("LOGLEVEL", log_level))
+        self.log.setLevel(os.environ.get("LOGLEVEL", "DEBUG"))
 
     def _get_log_file_name(self, file_prefix: str) -> str:
         log_dir = os.path.join(
@@ -117,16 +142,18 @@ class Logger:
 
         return f"{log_dir}/{file_prefix}_"
 
-    def _create_console_handler(self, console_log_level) -> None:
+    def _create_console_handler(self, log_levels: list) -> None:
         ch = logging.StreamHandler()
-        ch.setLevel(console_log_level)
+        ch.addFilter(LevelFilter(log_levels))
         cf = ColoredFormatter("[%(levelname)s] [%(name)s] - %(message)s")
         ch.setFormatter(cf)
         self.log.addHandler(ch)
 
-    def _create_file_handler(self, file_name, log_level, write_mode) -> None:
+    def _create_file_handler(
+        self, file_name: str, log_levels: list, write_mode: str
+    ) -> None:
         fh = logging.FileHandler(file_name, write_mode)
-        fh.setLevel(log_level)
+        fh.addFilter(LevelFilter(log_levels))
         ff = OneLineFormatter(
             "[%(levelname)s] [%(asctime)s] [%(name)s] - %(message)s",
             datefmt="%H:%M:%S",
@@ -136,20 +163,24 @@ class Logger:
 
     def set_handlers(
         self,
-        console_show: bool,
-        save_file: bool,
-        console_log_level: str,
+        console_log_levels: list,
         log_file_name: str,
-        file_log_level: str,
     ) -> None:
-        if console_show:
-            self._create_console_handler(console_log_level)
+        self._create_console_handler(console_log_levels)
 
-        if save_file:
-            self._create_file_handler(
-                f"{log_file_name}{datetime.datetime.now():%Y-%m-%d}.log",
-                file_log_level,
-                "a",
-            )
+        self._create_file_handler(
+            file_name=f"{log_file_name}{datetime.datetime.now():%Y-%m-%d}.log",
+            log_levels=["INFO", "WARNING"],
+            write_mode="a",
+        )
 
-        self._create_file_handler(f"{log_file_name}DEBUG.log", "DEBUG", "w")
+        self._create_file_handler(
+            file_name=f"{log_file_name}DEBUG.log",
+            log_levels=["DEBUG", "WARNING"],
+            write_mode="w",
+        )
+        self._create_file_handler(
+            file_name=f"{log_file_name}ERROR.log",
+            log_levels=["ERROR", "ERROR"],
+            write_mode="w",
+        )

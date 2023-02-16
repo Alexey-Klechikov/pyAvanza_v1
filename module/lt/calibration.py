@@ -20,7 +20,7 @@ class Calibration:
         )
 
     def record_strategies(self, ticker: str, strategy: Strategy) -> None:
-        log.info("Record strategies")
+        log.debug("Record strategies")
 
         for strategy_item in strategy.summary.sorted_strategies[:20]:
             self.top_strategies_per_ticket.setdefault(ticker, []).append(

@@ -40,8 +40,6 @@ class Signal:
             if not all([i(row) for i in self.last_strategy["logic"].get(signal)]):
                 continue
 
-            log.debug(f"Signal contents: {row.to_dict()}")
-
             return signal
 
         return None

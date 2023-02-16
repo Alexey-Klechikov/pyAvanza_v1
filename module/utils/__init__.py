@@ -1,6 +1,7 @@
 from .context import Context
 from .history import Cache, History
-from .logger import Logger, displace_message
+from .indicators import CustomIndicators
+from .logger import Logger, count_errors, displace_message
 from .plot import Plot
 from .settings import Settings
 from .telelog import TeleLog

@@ -8,6 +8,7 @@ import telegram_send
 from avanza import OrderType
 
 from module.utils.context import Portfolio
+from module.utils.logger import count_errors
 
 log = logging.getLogger("main.utils.telelog")
 
@@ -36,6 +37,8 @@ class TeleLog:
 
         if "message" in kwargs:
             self.message = kwargs["message"]
+
+        self.message += f"\n\nErrors: {count_errors()}"
 
         self.dump_to_telegram()
 
@@ -77,7 +80,7 @@ class TeleLog:
 
         self.message = "\n".join(watch_lists_analysis_log)
 
-    def parse_orders(self, orders: dict) -> str:
+    def parse_orders(self, orders: dict) -> None:
         log.debug("Parse orders")
 
         for order_type, orders_by_type in orders.items():
@@ -104,9 +107,7 @@ class TeleLog:
 
                 self.message += "\n".join(order_messages + ["\n"])
 
-        return self.message
-
-    def parse_completed_orders(self, completed_orders: list[dict]) -> str:
+    def parse_completed_orders(self, completed_orders: list[dict]) -> None:
         log.debug("Parse completed_orders")
 
         orders = [
@@ -115,8 +116,6 @@ class TeleLog:
         ]
 
         self.message = "\n".join(orders)
-
-        return self.message
 
     def dump_to_telegram(self) -> None:
         log.info("Dump log to Telegram")
