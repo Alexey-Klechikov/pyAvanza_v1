@@ -241,7 +241,7 @@ class Day_Trading:
                 )
                 self.helper.sell_instrument(market_direction)
 
-            if self.signal.exit(market_direction, instrument_status):
+            if not signal and self.signal.exit(market_direction, instrument_status):
                 self.helper.sell_instrument(market_direction)
 
     def action_evening(self) -> None:

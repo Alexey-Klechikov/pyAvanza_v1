@@ -82,10 +82,10 @@ class InstrumentStatus:
             return None
 
         self.stop_loss = round(
-            self.acquired_price * (1 - (1 - self.stop_settings["stop_loss"]) * atr), 2
+            self.price_sell * (1 - (1 - self.stop_settings["stop_loss"]) * atr), 2
         )
         self.take_profit = round(
-            self.acquired_price * (1 + (self.stop_settings["take_profit"] - 1) * atr), 2
+            self.price_sell * (1 + (self.stop_settings["take_profit"] - 1) * atr), 2
         )
 
     def get_profit(self) -> float:
