@@ -456,7 +456,7 @@ class Calibration:
                 for i in filter(lambda s: s["points"] == point, strategies)
             ]
 
-            if len(top_strategies) >= 3:
+            if len(top_strategies) > 3:
                 break
 
         return top_strategies
