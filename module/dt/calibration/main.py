@@ -576,7 +576,7 @@ def run(
             elif trading_time.day_time == DayTime.EVENING:
                 break
 
-            time.sleep(60 * 4)
+            time.sleep(60 * 5)
 
         except Exception as e:
             log.error(f">>> {e}: {traceback.format_exc()}")
