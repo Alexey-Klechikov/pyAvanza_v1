@@ -153,13 +153,4 @@ class Signal:
             < self.settings["trading"]["pullback"]
         )
 
-        if all([rsi_condition, price_condition, price_pullback_condition]):
-            log.info(
-                " | ".join(
-                    ["Signal: Exit", f'RSI: {round(self.last_candle["RSI"], 2)}']
-                )
-            )
-
-            return True
-
-        return False
+        return all([rsi_condition, price_condition, price_pullback_condition])

@@ -227,65 +227,11 @@ class Calibration:
             strategy.strategies.items()
         ):
             helper = Helper(strategy_name, self.settings)
-            exit_instrument = None
             last_signal = {"signal": None, "time": ""}
-            signal = None
 
-            for index, row in strategy.data.iterrows():
-                time_index: datetime = index  # type: ignore
-
-                if time_index.hour < 10:
-                    continue
-
-                if (time_index.hour == 17 and time_index.minute >= 15) or (
-                    strategy.data.iloc[-1].name == time_index
-                ):
-                    if any(
-                        [
-                            (
-                                last_signal["signal"] == OrderType.BUY
-                                and exit_instrument == Instrument.BULL
-                            ),
-                            (
-                                last_signal["signal"] == OrderType.SELL
-                                and exit_instrument == Instrument.BEAR
-                            ),
-                            not any([o.on_balance for o in helper.orders.values()]),
-                        ]
-                    ):
-                        last_signal["signal"] = None
-
-                    for instrument in helper.orders:
-                        helper.sell_order(row, instrument)
-
-                    continue
-
-                if not signal and exit_instrument:
-                    helper.sell_order(
-                        row,
-                        exit_instrument,
-                    )
-
-                elif signal:
-                    helper.sell_order(
-                        row,
-                        Instrument.from_signal(signal)[OrderType.SELL],
-                    )
-                    helper.buy_order(
-                        row,
-                        Instrument.from_signal(signal)[OrderType.BUY],
-                    )
-
-                helper.check_orders_for_limits(row)
-
-                signal = Helper.get_signal(strategy_logic, row)
-                if signal:
-                    last_signal = {
-                        "signal": signal.value,
-                        "time": time_index.strftime("%H:%M"),
-                    }
-
-                exit_instrument = helper.get_exit_instrument(row, strategy.data)
+            last_signal = self._walk_through_day(
+                strategy, helper, strategy_logic, last_signal
+            )
 
             strategy_summary = helper.get_orders_history_summary()
 
@@ -319,6 +265,74 @@ class Calibration:
                 helper.print_orders_history()
 
         return strategies
+
+    def _walk_through_day(
+        self,
+        strategy: Strategy,
+        helper: Helper,
+        strategy_logic: dict,
+        last_signal: dict,
+    ) -> dict:
+        exit_instrument = None
+        signal = None
+
+        for index, row in strategy.data.iterrows():
+            time_index: datetime = index  # type: ignore
+
+            if time_index.hour < 10:
+                continue
+
+            if (time_index.hour == 17 and time_index.minute >= 15) or (
+                strategy.data.iloc[-1].name == time_index
+            ):
+                if any(
+                    [
+                        (
+                            last_signal["signal"] == OrderType.BUY
+                            and exit_instrument == Instrument.BULL
+                        ),
+                        (
+                            last_signal["signal"] == OrderType.SELL
+                            and exit_instrument == Instrument.BEAR
+                        ),
+                        not any([o.on_balance for o in helper.orders.values()]),
+                    ]
+                ):
+                    last_signal["signal"] = None
+
+                for instrument in helper.orders:
+                    helper.sell_order(row, instrument)
+
+                continue
+
+            if not signal and exit_instrument:
+                helper.sell_order(
+                    row,
+                    exit_instrument,
+                )
+
+            elif signal:
+                helper.sell_order(
+                    row,
+                    Instrument.from_signal(signal)[OrderType.SELL],
+                )
+                helper.buy_order(
+                    row,
+                    Instrument.from_signal(signal)[OrderType.BUY],
+                )
+
+            helper.check_orders_for_limits(row)
+
+            signal = Helper.get_signal(strategy_logic, row)
+            if signal:
+                last_signal = {
+                    "signal": signal.value,
+                    "time": time_index.strftime("%H:%M"),
+                }
+
+            exit_instrument = helper.get_exit_instrument(row, strategy.data)
+
+        return last_signal
 
     def _traverse_instruments(
         self, market_direction: Instrument, settings: dict

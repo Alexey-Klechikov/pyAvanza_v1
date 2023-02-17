@@ -2,6 +2,7 @@ import logging
 import time
 import traceback
 from datetime import date
+from http.client import RemoteDisconnected
 from typing import Optional
 
 from avanza import InstrumentType, OrderType
@@ -156,7 +157,7 @@ class Day_Trading:
 
                 break
 
-            except (ReadTimeout, ConnectionError):
+            except (ReadTimeout, ConnectionError, RemoteDisconnected):
                 log.error("AVA Connection error, retrying in 5 seconds")
 
                 self.helper.ava.ctx = self.helper.ava.get_ctx(settings["user"])
@@ -242,6 +243,10 @@ class Day_Trading:
                 self.helper.sell_instrument(market_direction)
 
             if self.signal.exit(market_direction, instrument_status):
+                log.info(
+                    f"Signal: Exit | RSI: {round(self.signal.last_candle['RSI'], 2)}",
+                )
+
                 self.helper.sell_instrument(market_direction)
 
     def action_evening(self) -> None:
