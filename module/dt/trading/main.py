@@ -183,7 +183,7 @@ class Day_Trading:
         signal, message = self.signal.get(Strategy.load("DT").get("use", []))
         self.helper.order.settings = self.helper.settings = Settings().load("DT")
 
-        if self.signal.last_candle is None:
+        if self.signal.last_candle is None or message == ["Duplicate candle hit"]:
             return
 
         if signal:
@@ -241,7 +241,7 @@ class Day_Trading:
                 )
                 self.helper.sell_instrument(market_direction)
 
-            if not signal and self.signal.exit(market_direction, instrument_status):
+            if self.signal.exit(market_direction, instrument_status):
                 self.helper.sell_instrument(market_direction)
 
     def action_evening(self) -> None:

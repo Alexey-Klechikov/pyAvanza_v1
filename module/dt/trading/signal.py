@@ -97,12 +97,10 @@ class Signal:
             self.last_candle is not None
             and self.last_candle.name == self.target_candle.name
         ):
-            # if I hit the same candle multiple times
-            return None, message
+            return None, ["Duplicate candle hit"]
 
         if (datetime.now() - self.target_candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
-            # if last candle is too old
-            return self.signal, message
+            return self.signal, ["Candle is too old"]
 
         self.last_candle = self.target_candle
 
