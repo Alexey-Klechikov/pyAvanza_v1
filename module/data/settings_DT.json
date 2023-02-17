@@ -8,7 +8,7 @@
         "budget": 1200,
         "stop_loss": 0.93,
         "take_profit": 1.11,
-        "exit": 1.025,
+        "exit": 1.02,
         "pullback": 0.998,
         "spread_limit": 0.9
     },
@@ -20,7 +20,7 @@
             ],
             "BULL": [
                 "WARRANT",
-                1521091
+                1521066
             ]
         },
         "TRADING_POOL": {
