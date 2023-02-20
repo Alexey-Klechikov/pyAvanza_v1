@@ -7,7 +7,7 @@ import copy
 import datetime
 import logging
 import os
-from typing import Union
+from typing import Tuple, Union
 
 
 def displace_message(displacements: tuple, messages: Union[tuple, list]) -> str:
@@ -30,6 +30,35 @@ def count_errors() -> int:
         return len([line for line in open(handler.baseFilename) if "ERROR" in line])
 
     return 0
+
+
+def count_trades() -> Tuple[dict, list]:
+    handler = [
+        h
+        for h in logging.getLogger("main").handlers
+        if isinstance(h, logging.FileHandler)
+        and "ERROR" not in h.baseFilename
+        and "DEBUG" not in h.baseFilename
+    ].pop()
+
+    trades = {"good": 0, "bad": 0}
+    profits = []
+    for line in open(handler.baseFilename):
+        if not "Verdict" in line:
+            continue
+
+        try:
+            if "good" in line:
+                trades["good"] += 1
+            elif "bad" in line:
+                trades["bad"] += 1
+
+            profits.append(line.split("Profit: ")[1].replace("\n", ""))
+
+        except Exception as e:
+            logging.error(f"Could not parse line: {line}: {e}")
+
+    return trades, profits
 
 
 class ColoredFormatter(logging.Formatter):

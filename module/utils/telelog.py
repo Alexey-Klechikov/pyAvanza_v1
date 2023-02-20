@@ -8,7 +8,7 @@ import telegram_send
 from avanza import OrderType
 
 from module.utils.context import Portfolio
-from module.utils.logger import count_errors
+from module.utils.logger import count_errors, count_trades
 
 log = logging.getLogger("main.utils.telelog")
 
@@ -17,6 +17,7 @@ class TeleLog:
     def __init__(self, **kwargs):
         self.message = ""
 
+        # Long trading
         if "portfolio" in kwargs:
             self.parse_portfolio(kwargs["portfolio"])
 
@@ -29,17 +30,20 @@ class TeleLog:
         if "completed_orders" in kwargs:
             self.parse_completed_orders(kwargs["completed_orders"])
 
+        # Day trading
         if "day_trading_stats" in kwargs:
             self.parse_day_trading_stats(kwargs["day_trading_stats"])
 
+            self.append_trades()
+
+        # General
         if "crash_report" in kwargs:
             self.message = kwargs["crash_report"]
 
         if "message" in kwargs:
             self.message = kwargs["message"]
 
-        number_errors = count_errors()
-        self.message += "" if number_errors == 0 else f"\n\nErrors: {number_errors}"
+        self.append_errors()
 
         self.dump_to_telegram()
 
@@ -62,6 +66,29 @@ class TeleLog:
         ]
 
         self.message += "\n".join(messages)
+
+    def append_trades(self) -> None:
+        number_trades, profits = count_trades()
+
+        if not number_trades.get("good") and not number_trades.get("bad"):
+            return
+
+        self.message += (
+            "\n> Trades: "
+            + ", ".join(
+                [f"{k} - {v}" for k, v in number_trades.items() if k in ["good", "bad"]]
+            )
+            + "\n> Profits: "
+            + ", ".join(profits)
+        )
+
+    def append_errors(self) -> None:
+        number_errors = count_errors()
+
+        if number_errors == 0:
+            return
+
+        self.message += f"\n\nErrors: {number_errors}"
 
     def parse_portfolio(self, portfolio: Portfolio) -> None:
         log.debug("Parse portfolio")

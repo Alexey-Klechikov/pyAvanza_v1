@@ -373,11 +373,13 @@ class Context:
 
         deals = instrument_info.get("ordersAndDeals", {}).get("deals", [])
 
-        key_indicators = instrument_info.get("keyIndicators", {})
+        key_indicators = instrument_info.get(
+            "keyIndicators", {"direction": None, "leverage": None}
+        )
         if instrument_info["type"] == "CERTIFICATE":
             key_indicators.update(
                 {
-                    "direction": instrument_info["direction"],
+                    "direction": instrument_info.get("direction"),
                     "leverage": None
                     if not instrument_info.get("leverage")
                     else float(instrument_info["leverage"]),

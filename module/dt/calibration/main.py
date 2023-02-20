@@ -367,7 +367,9 @@ class Calibration:
                 "Lång": Instrument.BULL,
                 "Kort": Instrument.BEAR,
             }.get(instrument_info["key_indicators"]["direction"]):
-                log.debug(f"{log_prefix} is in wrong category")
+                log.debug(
+                    f"{log_prefix} is in wrong category: {instrument_info['key_indicators']['direction']}"
+                )
 
             elif (
                 not instrument_info[OrderType.BUY]
@@ -387,7 +389,7 @@ class Calibration:
                 or instrument_info["key_indicators"]["leverage"] < 18
             ):
                 log.debug(
-                    f"{log_prefix} has bad leverage: {instrument_info['key_indicators']['leverage']}"
+                    f"{log_prefix} has bad leverage: {instrument_info['key_indicators'].get('leverage')}"
                 )
 
             else:
