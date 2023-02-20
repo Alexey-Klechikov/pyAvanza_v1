@@ -369,19 +369,25 @@ class Calibration:
             }.get(instrument_info["key_indicators"]["direction"]):
                 log.debug(f"{log_prefix} is in wrong category")
 
-            elif not instrument_info.get("spread") or not (
-                0.1 < instrument_info.get("spread", 0) < 0.9
+            elif (
+                not instrument_info[OrderType.BUY]
+                or instrument_info[OrderType.BUY] > 280
+            ):
+                log.debug(
+                    f"{log_prefix} has bad price: {instrument_info[OrderType.BUY]}"
+                )
+
+            elif not instrument_info["spread"] or not (
+                0.1 < instrument_info["spread"] < 0.9
             ):
                 log.debug(f"{log_prefix} has bad spread: {instrument_info['spread']}")
 
-            elif instrument_info[OrderType.BUY] > 280:
-                log.debug(f"{log_prefix} is too expensive")
-
-            elif not isinstance(instrument_info["spread"], float) or not isinstance(
-                instrument_info["key_indicators"].get("leverage"), float
+            elif (
+                not instrument_info["key_indicators"].get("leverage")
+                or instrument_info["key_indicators"]["leverage"] < 18
             ):
                 log.debug(
-                    f"{log_prefix} is not valid: {instrument_info['spread']} / {instrument_info['key_indicators'].get('leverage')}"
+                    f"{log_prefix} has bad leverage: {instrument_info['key_indicators']['leverage']}"
                 )
 
             else:
