@@ -8,7 +8,7 @@ import telegram_send
 from avanza import OrderType
 
 from module.utils.context import Portfolio
-from module.utils.logger import count_errors, count_trades
+from module.utils.logger import count_errors
 
 log = logging.getLogger("main.utils.telelog")
 
@@ -32,9 +32,9 @@ class TeleLog:
 
         # Day trading
         if "day_trading_stats" in kwargs:
-            self.parse_day_trading_stats(kwargs["day_trading_stats"])
-
-            self.append_trades()
+            self.parse_day_trading_stats(
+                kwargs["day_trading_stats"], kwargs["trades_stats"], kwargs["profits"]
+            )
 
         # General
         if "crash_report" in kwargs:
@@ -47,7 +47,9 @@ class TeleLog:
 
         self.dump_to_telegram()
 
-    def parse_day_trading_stats(self, day_trading_stats: dict) -> None:
+    def parse_day_trading_stats(
+        self, day_trading_stats: dict, trades_stats: dict, profits: list
+    ) -> None:
         log.debug("Parse day_trading_stats")
 
         profit = round(
@@ -60,27 +62,16 @@ class TeleLog:
             f'DT: Total value: {round(day_trading_stats["balance_after"])}\n',
             f'> Budget: {day_trading_stats["budget"]}',
             f"> Profit: {profit_percentage}% ({profit} SEK)",
-            ""
-            if "number_trades" not in day_trading_stats
-            else f'> Trades: {day_trading_stats["number_trades"]}',
         ]
 
+        if profit_percentage:
+            messages += [
+                "\n> Trades: "
+                + ", ".join([f"{k} - {v}" for k, v in trades_stats.items()]),
+                "> Profits: " + ", ".join(f"{i}%" for i in profits),
+            ]
+
         self.message += "\n".join(messages)
-
-    def append_trades(self) -> None:
-        number_trades, profits = count_trades()
-
-        if not number_trades.get("good") and not number_trades.get("bad"):
-            return
-
-        self.message += (
-            "\n> Trades: "
-            + ", ".join(
-                [f"{k} - {v}" for k, v in number_trades.items() if k in ["good", "bad"]]
-            )
-            + "\n> Profits: "
-            + ", ".join(profits)
-        )
 
     def append_errors(self) -> None:
         number_errors = count_errors()

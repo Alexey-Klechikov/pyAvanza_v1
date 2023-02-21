@@ -3,8 +3,9 @@ import time
 import traceback
 from datetime import date
 from http.client import RemoteDisconnected
-from typing import Optional
+from typing import Optional, Tuple
 
+import pandas as pd
 from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
 
@@ -63,6 +64,49 @@ class Helper:
         )
 
         log.info(f'Balance after: {round(self.log_data["balance_after"])}')
+
+    def get_trade_history(self) -> Tuple[dict, list]:
+        transactions = self.ava.ctx.get_transactions(
+            account_id=str(self.settings["accounts"]["DT"]),
+            transactions_from=date.today(),
+        )
+
+        if not transactions:
+            return {}, []
+
+        transactions_df = (
+            pd.DataFrame(transactions["transactions"]).set_index("id").iloc[::-1]
+        )
+        transactions_df["orderbook"] = transactions_df["orderbook"].apply(
+            lambda x: x["name"]
+        )
+
+        trades = []
+        buy_price = 0
+        sell_price = 0
+
+        for _, row in transactions_df.iterrows():
+            if buy_price and sell_price and row["transactionType"] == "BUY":
+                trades.append([sell_price, buy_price])
+                buy_price = 0
+                sell_price = 0
+
+            if row["transactionType"] == "SELL":
+                sell_price += row["sum"]
+
+            elif row["transactionType"] == "BUY":
+                buy_price += row["sum"]
+
+        if buy_price and sell_price:
+            trades.append([sell_price, buy_price])
+
+        profits = [round((1 - abs(i[1] / i[0])) * 100, 2) for i in trades]
+        trades_stats = {
+            "good": len([i for i in profits if i > 0]),
+            "bad": len([i for i in profits if i < 0]),
+        }
+
+        return trades_stats, profits
 
     def update_budget(self) -> None:
         self.settings["trading"]["budget"] = max(
@@ -281,7 +325,13 @@ class Day_Trading:
         self.helper.get_balance_after()
 
         if log_to_telegram:
-            TeleLog(day_trading_stats=self.helper.log_data)
+            trades_stats, profits = self.helper.get_trade_history()
+
+            TeleLog(
+                day_trading_stats=self.helper.log_data,
+                trades_stats=trades_stats,
+                profits=profits,
+            )
 
 
 def run(dry: bool) -> None:
