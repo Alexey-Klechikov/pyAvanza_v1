@@ -436,9 +436,10 @@ class Calibration:
                 key=lambda x: x["identifier"],
             )
 
-            if settings["instruments"]["TRADING"].get(market_direction) not in [
-                i["identifier"] for i in top_instruments
-            ]:
+            if top_instruments and (
+                settings["instruments"]["TRADING"].get(market_direction)
+                not in [i["identifier"] for i in top_instruments]
+            ):
                 log.info(
                     f'Change instrument {market_direction} -> {top_instruments[0]["identifier"]} ({top_instruments[0]["numbers"]})'
                 )

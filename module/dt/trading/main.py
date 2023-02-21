@@ -228,10 +228,7 @@ class Day_Trading:
         signal, message = self.signal.get(Strategy.load("DT").get("use", []))
         self.helper.order.settings = self.helper.settings = Settings().load("DT")
 
-        if self.signal.last_candle is None or message == ["Duplicate candle hit"]:
-            return
-
-        if signal:
+        def _action_signal(signal: OrderType, atr: float) -> None:
             instrument_sell = Instrument.from_signal(signal)[OrderType.SELL]
             self.helper.sell_instrument(instrument_sell)
 
@@ -249,49 +246,59 @@ class Day_Trading:
                 displace_message(DISPLACEMENTS, tuple(message)),
             )
 
-            instrument_status.update_limits(self.signal.last_candle["ATR"])
+            instrument_status.update_limits(atr)
 
             self.helper.sell_instrument(
                 instrument_buy,
                 instrument_status.take_profit,
             )
 
+        def _action_no_signal(atr: float, rsi: float) -> None:
+            for market_direction in Instrument:
+                instrument_status = self.helper.update_instrument_status(
+                    market_direction
+                )
+
+                if instrument_status.position and not instrument_status.stop_loss:
+                    self.helper.instrument_status[market_direction].update_limits(atr)
+
+                if not (
+                    instrument_status.position
+                    and instrument_status.price_sell
+                    and instrument_status.stop_loss
+                    and instrument_status.take_profit
+                ):
+                    continue
+
+                if instrument_status.position and not instrument_status.active_order:
+                    self.helper.sell_instrument(
+                        market_direction,
+                        instrument_status.take_profit,
+                    )
+
+                if instrument_status.price_sell <= instrument_status.stop_loss:
+                    log.debug(
+                        f"{market_direction} hit SL {instrument_status.price_sell} <= {instrument_status.stop_loss}"
+                    )
+                    self.helper.sell_instrument(market_direction)
+
+                if self.signal.exit(market_direction, instrument_status):
+                    log.info(
+                        f"Signal: Exit | RSI: {round(rsi, 2)}",
+                    )
+
+                    self.helper.sell_instrument(market_direction)
+
+        if self.signal.last_candle is None or message == ["Duplicate candle hit"]:
             return
 
-        for market_direction in Instrument:
-            instrument_status = self.helper.update_instrument_status(market_direction)
+        if signal:
+            _action_signal(signal, self.signal.last_candle["ATR"])
 
-            if instrument_status.position and not instrument_status.stop_loss:
-                self.helper.instrument_status[market_direction].update_limits(
-                    self.signal.last_candle["ATR"]
-                )
-
-            if not (
-                instrument_status.position
-                and instrument_status.price_sell
-                and instrument_status.stop_loss
-                and instrument_status.take_profit
-            ):
-                continue
-
-            if instrument_status.position and not instrument_status.active_order:
-                self.helper.sell_instrument(
-                    market_direction,
-                    instrument_status.take_profit,
-                )
-
-            if instrument_status.price_sell <= instrument_status.stop_loss:
-                log.debug(
-                    f"{market_direction} hit SL {instrument_status.price_sell} <= {instrument_status.stop_loss}"
-                )
-                self.helper.sell_instrument(market_direction)
-
-            if self.signal.exit(market_direction, instrument_status):
-                log.info(
-                    f"Signal: Exit | RSI: {round(self.signal.last_candle['RSI'], 2)}",
-                )
-
-                self.helper.sell_instrument(market_direction)
+        else:
+            _action_no_signal(
+                self.signal.last_candle["ATR"], self.signal.last_candle["RSI"]
+            )
 
     def action_evening(self) -> None:
         for market_direction in Instrument:

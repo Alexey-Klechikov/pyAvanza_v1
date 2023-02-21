@@ -23,63 +23,56 @@ class Signal:
         self.ava = ava
         self.settings = settings
 
-        self.last_candle = None
-        self.target_candle = None
-        self.last_strategy = {
+        self.strategy = {
             "name": None,
             "logic": None,
         }
 
-        self.signal: Optional[OrderType] = None
+        self.last_candle = None
+        self.last_signal = {
+            "signal": None,
+            "time": None,
+        }
 
     def _get_signal_on_strategy(self, row: pd.Series) -> Optional[OrderType]:
-        if not self.last_strategy["logic"]:
+        if not self.strategy["logic"]:
             return None
 
         for signal in [OrderType.BUY, OrderType.SELL]:
-            if not all([i(row) for i in self.last_strategy["logic"].get(signal)]):
+            if not all([i(row) for i in self.strategy["logic"].get(signal)]):
                 continue
 
             return signal
 
         return None
 
-    def _get_last_signal_on_strategy(self, data: pd.DataFrame) -> Optional[OrderType]:
-        signal = None
+    def _get_last_signal_on_strategy(
+        self, data: pd.DataFrame
+    ) -> Tuple[Optional[OrderType], Optional[pd.Series]]:
+        if not self.strategy["name"]:
+            return None, None
 
-        if self.last_strategy["name"] is None:
-            return None
+        signal = None
+        candle = None
 
         for i in range(1, 31):
             signal = self._get_signal_on_strategy(data.iloc[-i])
 
-            if signal is None:
+            if not signal:
                 continue
 
-            self.target_candle = data.iloc[-i]
+            candle = data.iloc[-i]
             break
 
-        if (
-            self.last_candle is not None
-            and self.target_candle is not None
-            and any(
-                [
-                    (
-                        signal == OrderType.BUY
-                        and self.last_candle["Close"] > self.target_candle["Close"]
-                    ),
-                    (
-                        signal == OrderType.SELL
-                        and self.last_candle["Close"] < self.target_candle["Close"]
-                    ),
-                ]
-            )
+        if candle is not None and any(
+            [
+                (signal == OrderType.BUY and data.iloc[-1]["Close"] > candle["Close"]),
+                (signal == OrderType.SELL and data.iloc[-1]["Close"] < candle["Close"]),
+            ]
         ):
-            self.last_candle = self.target_candle
+            return signal, candle
 
-            return signal
-
-        return None
+        return None, None
 
     def get(self, strategy_names: list) -> Tuple[Optional[OrderType], list]:
         strategy = Strategy(
@@ -89,42 +82,53 @@ class Signal:
             strategies=strategy_names,
         )
 
-        self.target_candle = strategy.data.iloc[-1]
-
+        candle = strategy.data.iloc[-1]
         message: list = []
 
-        if (
-            self.last_candle is not None
-            and self.last_candle.name == self.target_candle.name
-        ):
+        if self.last_candle is not None and self.last_candle.name == candle.name:
             return None, ["Duplicate candle hit"]
 
-        if (datetime.now() - self.target_candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
-            return self.signal, ["Candle is too old"]
+        if (datetime.now() - candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
+            return None, ["Candle is too old"]
 
-        self.last_candle = self.target_candle
+        if strategy_names[0] == self.strategy["name"]:
+            # Same strategy as before
+            signal = self._get_signal_on_strategy(candle)
 
-        if strategy_names[0] == self.last_strategy["name"]:
-            self.signal = self._get_signal_on_strategy(self.last_candle)
+            if signal:
+                self.last_signal = {
+                    "signal": signal,
+                    "time": candle.name,
+                }
 
         else:
-            self.last_strategy = {
+            # Strategy has changed
+            self.strategy = {
                 "name": strategy_names[0],
                 "logic": strategy.strategies[strategy_names[0]],
             }
 
-            self.signal = self._get_last_signal_on_strategy(strategy.data)
+            signal, candle = self._get_last_signal_on_strategy(strategy.data)
 
-        if self.signal and self.last_candle is not None:
+            if (
+                self.last_signal["signal"] == signal
+                and candle.name <= self.last_signal["time"]  # type: ignore
+            ):
+                # Signal on new strategy is the same, but older than the last one
+                signal = None
+
+        if signal and candle is not None:
             message = [
-                f"Signal: {self.signal.name}",
-                f"Candle: {str(self.last_candle.name)[11:-9]}",
-                f"OMX: {round(self.last_candle['Close'], 2)}",
-                f"ATR: {round(self.last_candle['ATR'], 2)}",
+                f"Signal: {signal.name}",
+                f"Candle: {str(candle.name)[11:-9]}",
+                f"OMX: {round(candle['Close'], 2)}",
+                f"ATR: {round(candle['ATR'], 2)}",
                 f"Strategy: {strategy_names[0]}",
             ]
 
-        return self.signal, message
+        self.last_candle = candle
+
+        return signal, message
 
     def exit(
         self,
