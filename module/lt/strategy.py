@@ -12,6 +12,8 @@ import pandas as pd
 import pandas_ta as ta
 from avanza import OrderType
 
+from module.utils import CustomIndicators
+
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.expand_frame_repr", False)
@@ -160,6 +162,17 @@ class Components:
     def generate_conditions_volatility(self) -> None:
         self.conditions["Volatility"] = {}
 
+        # STARC (Stoller Average Range Channel)
+        self.data = CustomIndicators.starc_bands(
+            self.data, length_sma=6, length_atr=14, multiplier_atr=1.5
+        )
+        if "STARC_U_6_14_1.5" in self.data.columns:
+            self.conditions["Volatility"]["STARC"] = {
+                OrderType.BUY: lambda x: x["Close"] < x["STARC_B_6_14_1.5"],
+                OrderType.SELL: lambda x: x["Close"] > x["STARC_U_6_14_1.5"],
+            }
+            self.columns_needed += ["STARC_U_6_14_1.5", "STARC_B_6_14_1.5"]
+
         # MASSI (Mass Index)
         self.data.ta.massi(append=True)
         if "MASSI_9_25" in self.data.columns:
@@ -212,6 +225,17 @@ class Components:
 
     def generate_conditions_trend(self) -> None:
         self.conditions["Trend"] = {}
+
+        # TII (Trend Intensity Index)
+        self.data = CustomIndicators.trend_intensity(
+            self.data, length_sma=15, length_signal=5
+        )
+        if "TII_15_5" in self.data.columns:
+            self.conditions["Trend"]["TII"] = {
+                OrderType.BUY: lambda x: x["TII_SIGNAL_15_5"] > x["TII_15_5"],
+                OrderType.SELL: lambda x: x["TII_SIGNAL_15_5"] < x["TII_15_5"],
+            }
+            self.columns_needed += ["TII_15_5", "TII_SIGNAL_15_5"]
 
         # TTM_TREND (Trend based on TTM Squeeze)
         self.data.ta.ttm_trend(length=8, append=True)
@@ -294,15 +318,6 @@ class Components:
                 OrderType.SELL: lambda x: x["Close"] < x["HILO_13_21"],
             }
             self.columns_needed += ["HILO_13_21"]
-
-        # SUPERT (Supertrend)
-        self.data.ta.supertrend(append=True)
-        if "SUPERT_7_3.0" in self.data.columns:
-            self.conditions["Overlap"]["SUPERT"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["SUPERT_7_3.0"],
-                OrderType.SELL: lambda x: x["Close"] < x["SUPERT_7_3.0"],
-            }
-            self.columns_needed += ["SUPERT_7_3.0"]
 
         # LINREG (Linear Regression)
         self.data.ta.linreg(append=True, r=True)
