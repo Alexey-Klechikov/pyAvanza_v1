@@ -111,7 +111,9 @@ class Signal:
             signal, candle = self._get_last_signal_on_strategy(strategy.data)
 
             if (
-                self.last_signal["signal"] == signal
+                signal
+                and self.last_signal["signal"]
+                and self.last_signal["signal"] == signal
                 and candle.name <= self.last_signal["time"]  # type: ignore
             ):
                 # Signal on new strategy is the same, but older than the last one
