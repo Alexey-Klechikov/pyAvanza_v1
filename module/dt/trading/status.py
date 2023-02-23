@@ -29,14 +29,18 @@ class InstrumentStatus:
     price_max: Optional[float] = None
 
     def extract(self, instrument_info: dict) -> None:
-        self.position = instrument_info["position"]
         self.last_sell_deal = (
             instrument_info["last_deal"]
             if instrument_info["last_deal"].get("orderType") == "SELL"
             else {}
         )
 
-        if self.acquired_price and not self.position:
+        self.position = instrument_info["position"]
+
+        if self.position:
+            self.acquired_price = self.position.get("acquiredPrice")
+
+        elif self.acquired_price:
             price_sell = self.last_sell_deal.get(
                 "price", self.price_sell if self.price_sell else 0
             )
@@ -55,19 +59,20 @@ class InstrumentStatus:
             self.price_max = None
             self.acquired_price = None
 
-        elif self.position:
-            self.acquired_price = self.position.get("acquiredPrice", 0)
-
         self.spread = instrument_info["spread"]
         self.active_order = instrument_info["order"]
 
-        if self.price_max and self.price_sell:
-            self.price_max = max(self.price_max, self.price_sell)
+        if self.acquired_price:
+            self.price_max = max(
+                self.price_max if self.price_max else self.acquired_price,
+                self.price_sell if self.price_sell else self.acquired_price,
+            )
 
-        elif not self.price_max:
-            self.price_max = self.price_sell
-
-        if self.spread and self.spread >= self.stop_settings["spread_limit"]:
+        if (
+            self.spread
+            and self.spread >= self.stop_settings["spread_limit"]
+            and not instrument_info["is_deprecated"]
+        ):
             self.price_buy = None
             self.price_sell = None
 
@@ -77,7 +82,7 @@ class InstrumentStatus:
             self.price_buy = instrument_info[OrderType.BUY]
             self.price_sell = instrument_info[OrderType.SELL]
 
-    def update_limits(self, atr) -> None:
+    def update_limits(self, atr: float) -> None:
         if not self.position or self.price_sell is None:
             return None
 
@@ -92,7 +97,5 @@ class InstrumentStatus:
         return (
             0.0
             if (not self.position or not self.acquired_price or not self.price_sell)
-            else round(
-                ((self.price_sell - self.acquired_price) / self.acquired_price) * 100, 2
-            )
+            else round((self.price_sell / self.acquired_price - 1) * 100, 2)
         )

@@ -190,7 +190,7 @@ class Day_Trading:
         self.helper = Helper(settings, dry)
         self.signal = Signal(self.helper.ava, settings)
 
-        log.warning(("Dry run, no o" if dry else "O") + "rders will be placed")
+        log.warning(("Dry run, no orders" if dry else "Orders") + "will be placed")
 
         log.info("Strategies: ")
         [log.info(f"> [{index + 1}] {i}") for index, i in enumerate(Strategy.load("DT").get("use", []))]  # type: ignore

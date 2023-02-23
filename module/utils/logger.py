@@ -20,6 +20,8 @@ def displace_message(displacements: tuple, messages: Union[tuple, list]) -> str:
 
 
 def count_errors() -> int:
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+
     for handler in logging.getLogger("main").handlers:
         if not isinstance(handler, logging.FileHandler):
             continue
@@ -27,7 +29,7 @@ def count_errors() -> int:
         if not "ERROR" in handler.baseFilename:
             continue
 
-        return len([line for line in open(handler.baseFilename) if "ERROR" in line])
+        return len([line for line in open(handler.baseFilename) if today in line])
 
     return 0
 
@@ -150,13 +152,13 @@ class Logger:
         self.log.addHandler(ch)
 
     def _create_file_handler(
-        self, file_name: str, log_levels: list, write_mode: str
+        self, file_name: str, log_levels: list, write_mode: str, datefmt="%H:%M:%S"
     ) -> None:
         fh = logging.FileHandler(file_name, write_mode)
         fh.addFilter(LevelFilter(log_levels))
         ff = OneLineFormatter(
             "[%(levelname)s] [%(asctime)s] [%(name)s] - %(message)s",
-            datefmt="%H:%M:%S",
+            datefmt=datefmt,
         )
         fh.setFormatter(ff)
         self.log.addHandler(fh)
@@ -182,5 +184,6 @@ class Logger:
         self._create_file_handler(
             file_name=f"{log_file_name}ERROR.log",
             log_levels=["ERROR", "ERROR"],
-            write_mode="w",
+            write_mode="a",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )

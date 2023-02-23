@@ -361,6 +361,38 @@ class Context:
                 time.sleep(2)
                 continue
 
+        market_maker_orders = {"buySide": None, "sellSide": None}
+        order_depth = instrument_info.get("orderDepthLevels", [])
+        for side in market_maker_orders:
+            side_orders_depth = [
+                i[side] for i in order_depth if i[side]["volume"] >= 10000
+            ]
+
+            if len(side_orders_depth) == 0:
+                continue
+
+            market_maker_orders[side] = (
+                pd.DataFrame(side_orders_depth)
+                .sort_values(by="volume", ascending=False)
+                .iloc[0]["price"]
+            )
+
+        has_market_maker = all([i is not None for i in market_maker_orders.values()])
+        spread = (
+            round(
+                (market_maker_orders["sellSide"] / market_maker_orders["buySide"] - 1)  # type: ignore
+                * 100,
+                2,
+            )
+            if has_market_maker
+            else instrument_info.get("quote", {}).get("spread")
+        )
+
+        is_deprecated = (
+            market_maker_orders["buySide"] is not None
+            and market_maker_orders["sellSide"] is None
+        )
+
         positions = instrument_info.get("holdings", {}).get(
             "accountAndPositionsView", []
         )
@@ -389,11 +421,12 @@ class Context:
         return {
             OrderType.BUY: instrument_info.get("quote", {}).get("sell", None),
             OrderType.SELL: instrument_info.get("quote", {}).get("buy", None),
-            "spread": instrument_info.get("quote", {}).get("spread"),
+            "spread": spread,
             "position": {} if len(positions) == 0 else positions[0],
             "order": {} if len(orders) == 0 else orders[0],
             "last_deal": {} if len(deals) == 0 else deals[0],
             "key_indicators": key_indicators,
+            "is_deprecated": is_deprecated,
         }
 
     def delete_active_orders(self, account_ids: list[Union[str, int]]) -> None:

@@ -363,6 +363,9 @@ class Calibration:
                     }
                 ]
 
+            elif instrument_info["is_deprecated"]:
+                log.debug(f"{log_prefix} is deprecated")
+
             elif market_direction != {
                 "Lång": Instrument.BULL,
                 "Kort": Instrument.BEAR,
