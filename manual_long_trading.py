@@ -161,7 +161,6 @@ class PortfolioAnalysis:
                     "18mo",
                     "1d",
                     cache=Cache.REUSE if cache else Cache.SKIP,
-                    even=False,
                 ).data,
                 ticker_name=comment,
             )
