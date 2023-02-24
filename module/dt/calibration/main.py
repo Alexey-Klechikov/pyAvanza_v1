@@ -173,6 +173,7 @@ class Calibration:
         filter_strategies: bool,
         loaded_strategies: List[dict],
         limit_history_hours: int = 9999,
+        target_day_direction: Optional[str] = None,
     ) -> List[dict]:
         strategy = Strategy(
             History(
@@ -180,6 +181,7 @@ class Calibration:
                 period,
                 interval,
                 cache,
+                target_day_direction=target_day_direction,
                 extra_data=self.ava.get_today_history(
                     self.settings["instruments"]["MONITORING"]["AVA"]
                 ),
@@ -194,6 +196,14 @@ class Calibration:
         self.conditions = strategy.components.conditions
 
         daily_volumes = strategy.data.groupby([strategy.data.index.date])["Volume"].sum().values.tolist()  # type: ignore
+
+        stored_strategies = Strategy.load("DT").get(f"{target_day_direction}_{period}")
+        if target_day_direction and stored_strategies and datetime.now().date() - strategy.data.index[-1].date() != timedelta(days=0):  # type: ignore
+            log.info(
+                "Skipping strategy calibration for today, because there is no fresh data for this target direction"
+            )
+
+            return stored_strategies
 
         log.info(
             " ".join(
@@ -487,12 +497,17 @@ class Calibration:
 
         return top_strategies
 
-    def update(self) -> None:
-        log.info("Updating strategies")
+    def update(self, target_day_direction) -> None:
+        log.info(f"Updating strategies ({target_day_direction})")
 
         profitable_strategies = sorted(
             self._walk_through_strategies(
-                "30d", "1m", Cache.APPEND, filter_strategies=True, loaded_strategies=[]
+                "20d",
+                "1m",
+                Cache.APPEND,
+                filter_strategies=True,
+                loaded_strategies=[],
+                target_day_direction=target_day_direction,
             ),
             key=lambda s: (s["points"], s["profit"]),
             reverse=True,
@@ -502,35 +517,43 @@ class Calibration:
 
         Strategy.dump(
             "DT",
-            {"30d": profitable_strategies, "indicators_stats": indicators_counter},
+            {
+                **Strategy.load("DT"),
+                **{f"{target_day_direction}_20d": profitable_strategies},
+                **{f"{target_day_direction}_indicators_stats": indicators_counter},
+            },
         )
 
-    def test(self) -> list:
-        log.info("Testing strategies")
+    def test(self, target_day_direction: str) -> list:
+        log.info(f"Testing strategies ({target_day_direction})")
 
         stored_strategies = Strategy.load("DT")
 
         profitable_strategies = sorted(
             self._walk_through_strategies(
-                "15d",
+                "10d",
                 "1m",
                 Cache.APPEND,
                 filter_strategies=True,
                 loaded_strategies=[
-                    i["strategy"] for i in stored_strategies.get("30d", [])
+                    i["strategy"]
+                    for i in stored_strategies.get(f"{target_day_direction}_20d", [])
                 ],
+                target_day_direction=target_day_direction,
             ),
             key=lambda s: (s["points"], s["profit"]),
             reverse=True,
         )
 
-        top_strategies = self._extract_top_strategies(profitable_strategies)
+        top_strategies = stored_strategies.get("use", []) + [
+            i["strategy"] for i in profitable_strategies[:2]
+        ]
 
         Strategy.dump(
             "DT",
             {
                 **stored_strategies,
-                **{"15d": profitable_strategies},
+                **{f"{target_day_direction}_10d": profitable_strategies},
                 **{"use": top_strategies},
             },
         )
@@ -596,14 +619,20 @@ def run(
 
     # full calibration
     try:
-        if update:
-            calibration.update()
+        for target_day_direction in ["BULL", "BEAR", "range"]:
+            if update:
+                calibration.update(target_day_direction)
 
-        strategy_use = calibration.test()
+            calibration.test(target_day_direction)
 
         TeleLog(
             message="DT calibration:\n"
-            + "\n".join(["\n> " + "\n> ".join(s.split(" + ")) for s in strategy_use])
+            + "\n".join(
+                [
+                    "\n> " + "\n> ".join(s.split(" + "))
+                    for s in Strategy.load("DT").get("use", [])
+                ]
+            )
         )
 
     except Exception as e:

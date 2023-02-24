@@ -87,7 +87,6 @@ class Calibration:
                             "18mo",
                             "1d",
                             cache=Cache.SKIP,
-                            even=False,
                         ).data
 
                         if str(data.iloc[-1]["Close"]) == "nan":

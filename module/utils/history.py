@@ -7,7 +7,7 @@ import os
 import pickle
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import yfinance as yf
@@ -31,27 +31,22 @@ class History:
         extra_data: pd.DataFrame = pd.DataFrame(
             columns=["Open", "High", "Low", "Close", "Volume"]
         ),
-        even: bool = True,
+        target_day_direction: Optional[str] = None,
     ):
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.pickle_path = f"{current_dir}/cache/{ticker_yahoo}.pickle"
-        self.extra_data = extra_data
         self.ticker_yahoo = ticker_yahoo
+        self.extra_data = extra_data
         self.interval = interval
         self.period = period
         self.cache = cache
-        self.even = even
 
-        self.data = self.get_data()
+        self.data = self.get_data(target_day_direction)
 
-    def get_data(self) -> pd.DataFrame:
+    def get_data(self, target_day_direction: Optional[str]) -> pd.DataFrame:
         data: pd.DataFrame = pd.DataFrame(
             columns=["Open", "High", "Low", "Close", "Volume"]
         )
-
-        if self.even:
-            # If we want evenly distributed data, we need to get excessive data that we can later filter out
-            self.period = f"{int(self.period[:-1]) * 2}d"
 
         if self.cache == Cache.REUSE:
             data = self._read_cache(self.pickle_path)
@@ -67,12 +62,17 @@ class History:
             )
 
         if self.cache == Cache.APPEND:
+            # If we want evenly distributed data, we need to get excessive data that we can later filter out
+            period = (
+                self.period
+                if not target_day_direction
+                else f"{int(self.period[:-1]) * 6}d"
+            )
+
             data = (
                 self._read_cache(self.pickle_path)
                 .append(self.extra_data)
-                .append(
-                    self._read_ticker(self.ticker_yahoo, self.period, self.interval)
-                )
+                .append(self._read_ticker(self.ticker_yahoo, period, self.interval))
                 .fillna(0)
             )
 
@@ -84,15 +84,15 @@ class History:
 
             self._dump_cache(self.pickle_path, data)
 
-            if self.even:
-                data = self._get_evenly_distributed_history(data)
+            if target_day_direction:
+                data = self._get_directed_history(data, target_day_direction)
 
             else:
                 data = data[
                     lambda x: (
-                        (
-                            datetime.today() - timedelta(days=int(self.period[:-1]))
-                        ).strftime("%Y-%m-%d")
+                        (datetime.today() - timedelta(days=int(period[:-1]))).strftime(
+                            "%Y-%m-%d"
+                        )
                         <= x.index
                     )
                 ]  # type: ignore
@@ -163,13 +163,12 @@ class History:
         with open(pickle_path, "wb") as pcl:
             pickle.dump(data, pcl)
 
-    def _get_evenly_distributed_history(self, data: pd.DataFrame) -> pd.DataFrame:
-        strategy_target = int(self.period[:-1]) // 4
+    def _get_directed_history(
+        self, data: pd.DataFrame, target_day_direction: str
+    ) -> pd.DataFrame:
+        strategy_target = int(self.period[:-1])
 
-        counters = {
-            "BULL": 0,
-            "BEAR": 0,
-        }
+        counters = {"BULL": 0, "BEAR": 0, "range": 0}
 
         filtered_data = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
 
@@ -177,15 +176,28 @@ class History:
             if len(group) < 470 or sum(group["Volume"]) == 0:
                 continue
 
-            day_direction = (
-                "BULL" if group["Close"].iloc[-10] > group["Close"].iloc[60] else "BEAR"
-            )
+            day_direction = None
+            day_price_change = group["Close"].iloc[-10] / group["Close"].iloc[60]
+            if day_price_change > 1.005:
+                day_direction = "BULL"
 
-            if counters[day_direction] >= strategy_target:
+            elif day_price_change < 0.995:
+                day_direction = "BEAR"
+
+            elif abs(1 - day_price_change) < 0.002:
+                day_direction = "range"
+
+            if (
+                not day_direction
+                or counters[day_direction] >= strategy_target
+                or day_direction != target_day_direction
+            ):
                 continue
 
             counters[day_direction] += 1
 
             filtered_data = pd.concat([filtered_data, group])
+
+        log.debug(f"Counters: {counters}")
 
         return filtered_data

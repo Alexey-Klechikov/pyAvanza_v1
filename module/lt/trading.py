@@ -25,9 +25,7 @@ class PortfolioAnalysis:
 
         if ticker_yahoo not in self.signals:
             try:
-                data = History(
-                    ticker_yahoo, "18mo", "1d", cache=Cache.SKIP, even=False
-                ).data
+                data = History(ticker_yahoo, "18mo", "1d", cache=Cache.SKIP).data
 
                 if str(data.iloc[-1]["Close"]) == "nan":
                     self.ava.update_todays_ochl(data, ticker_ava)
