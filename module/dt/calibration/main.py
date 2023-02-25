@@ -8,6 +8,9 @@ from module.utils import Cache, Settings, TeleLog
 
 log = logging.getLogger("main.dt.calibration.main")
 
+PERIOD_UPDATE = "20d"
+PERIOD_TEST = "10d"
+
 
 class Calibration:
     def __init__(self):
@@ -18,7 +21,7 @@ class Calibration:
 
         profitable_strategies = sorted(
             self.walker.traverse_strategies(
-                "20d",
+                PERIOD_UPDATE,
                 "1m",
                 Cache.APPEND,
                 filter_strategies=True,
@@ -35,7 +38,7 @@ class Calibration:
             "DT",
             {
                 **Strategy.load("DT"),
-                **{f"{target_day_direction}_20d": profitable_strategies},
+                **{f"{target_day_direction}_{PERIOD_UPDATE}": profitable_strategies},
                 **{f"{target_day_direction}_indicators_stats": indicators_counter},
             },
         )
@@ -47,29 +50,38 @@ class Calibration:
 
         profitable_strategies = sorted(
             self.walker.traverse_strategies(
-                "10d",
+                PERIOD_TEST,
                 "1m",
                 Cache.APPEND,
                 filter_strategies=True,
                 loaded_strategies=[
                     i["strategy"]
-                    for i in stored_strategies.get(f"{target_day_direction}_20d", [])
+                    for i in stored_strategies.get(
+                        f"{target_day_direction}_{PERIOD_UPDATE}", []
+                    )
                 ],
                 target_day_direction=target_day_direction,
             ),
-            key=lambda s: (s["points"], s["profit"]),
+            key=lambda s: s["points"] * 100 + s["profit"],
             reverse=True,
         )
 
-        top_strategies = stored_strategies.get("use", []) + [
-            i["strategy"] for i in profitable_strategies[:2]
-        ]
+        top_strategies = []
+        for day_direction in ["BULL", "BEAR", "range"]:
+            top_strategies += [
+                i["strategy"]
+                for i in (
+                    profitable_strategies
+                    if day_direction == target_day_direction
+                    else stored_strategies.get(f"{day_direction}_{PERIOD_TEST}", [])
+                )
+            ][:2]
 
         Strategy.dump(
             "DT",
             {
                 **stored_strategies,
-                **{f"{target_day_direction}_10d": profitable_strategies},
+                **{f"{target_day_direction}_{PERIOD_TEST}": profitable_strategies},
                 **{"use": top_strategies},
             },
         )

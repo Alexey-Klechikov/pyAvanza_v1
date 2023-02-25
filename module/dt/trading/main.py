@@ -77,6 +77,9 @@ class Helper:
         transactions_df = (
             pd.DataFrame(transactions["transactions"]).set_index("id").iloc[::-1]
         )
+
+        log.debug(f"Transactions: {transactions_df}")  # TODO: Remove
+
         transactions_df["orderbook"] = transactions_df["orderbook"].apply(
             lambda x: x["name"]
         )
