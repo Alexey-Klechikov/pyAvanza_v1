@@ -74,42 +74,48 @@ class Helper:
         if not transactions:
             return {}, []
 
-        transactions_df = (
-            pd.DataFrame(transactions["transactions"]).set_index("id").iloc[::-1]
-        )
+        try:
+            transactions_df = (
+                pd.DataFrame(transactions["transactions"]).set_index("id").iloc[::-1]
+            )
 
-        log.debug(f"Transactions: {transactions_df}")  # TODO: Remove
+            transactions_df["orderbook"] = transactions_df["orderbook"].apply(
+                lambda x: x["name"]
+            )
 
-        transactions_df["orderbook"] = transactions_df["orderbook"].apply(
-            lambda x: x["name"]
-        )
+            trades = []
+            buy_price = 0
+            sell_price = 0
 
-        trades = []
-        buy_price = 0
-        sell_price = 0
+            for _, row in transactions_df.iterrows():
+                if buy_price and sell_price and row["transactionType"] == "BUY":
+                    trades.append([sell_price, buy_price])
+                    buy_price = 0
+                    sell_price = 0
 
-        for _, row in transactions_df.iterrows():
-            if buy_price and sell_price and row["transactionType"] == "BUY":
+                if row["transactionType"] == "SELL":
+                    sell_price += row["sum"]
+
+                elif row["transactionType"] == "BUY":
+                    buy_price += row["sum"]
+
+            if buy_price and sell_price:
                 trades.append([sell_price, buy_price])
-                buy_price = 0
-                sell_price = 0
 
-            if row["transactionType"] == "SELL":
-                sell_price += row["sum"]
+            profits = [round((1 - abs(i[1] / i[0])) * 100, 2) for i in trades]
+            trades_stats = {
+                "good": len([i for i in profits if i > 0]),
+                "bad": len([i for i in profits if i < 0]),
+            }
 
-            elif row["transactionType"] == "BUY":
-                buy_price += row["sum"]
+            return trades_stats, profits
 
-        if buy_price and sell_price:
-            trades.append([sell_price, buy_price])
+        except Exception as e:
+            log.error(f"Error getting trade history: {e}")
 
-        profits = [round((1 - abs(i[1] / i[0])) * 100, 2) for i in trades]
-        trades_stats = {
-            "good": len([i for i in profits if i > 0]),
-            "bad": len([i for i in profits if i < 0]),
-        }
+            log.error(f"Transactions: {transactions}")
 
-        return trades_stats, profits
+            return {}, []
 
     def update_budget(self) -> None:
         self.settings["trading"]["budget"] = max(
