@@ -3,6 +3,7 @@ import logging
 import os
 import warnings
 from json import JSONDecodeError
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -16,6 +17,8 @@ pd.options.mode.chained_assignment = None  # type: ignore
 pd.set_option("display.expand_frame_repr", False)
 
 log = logging.getLogger("main.dt.strategy")
+
+ADDITIONAL_FILENAME_SUFFIX = ""
 
 
 class Components:
@@ -319,7 +322,7 @@ class Strategy:
 
         return strategies_component_names
 
-    def parse_names(self, strategies_names: list[str]) -> list:
+    def parse_names(self, strategies_names: List[str]) -> list:
         """
         before: ["(Trend) CKSP + (Overlap) SUPERT + (Momentum) STOCH", ...]
         after: [[('Trend', 'CKSP'), ('Overlap', 'SUPERT'), ('Momentum', 'STOCH')], ...]
@@ -333,7 +336,7 @@ class Strategy:
         ]
 
     def generate_functions(
-        self, strategies_component_names: list[list[tuple[str, str]]]
+        self, strategies_component_names: List[List[Tuple[str, str]]]
     ) -> dict:
         strategies = {}
 
@@ -354,13 +357,16 @@ class Strategy:
 
     @staticmethod
     def load(filename_suffix: str) -> dict:
-        log.debug(f"Loading strategies_{filename_suffix}.json")
+        log.debug(
+            f"Loading strategies_{filename_suffix}{ADDITIONAL_FILENAME_SUFFIX}.json"
+        )
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
         try:
             with open(
-                f"{current_dir}/data/strategies_{filename_suffix}.json", "r"
+                f"{current_dir}/data/strategies_{filename_suffix}{ADDITIONAL_FILENAME_SUFFIX}.json",
+                "r",
             ) as f:
                 strategies = json.load(f)
 
@@ -371,9 +377,12 @@ class Strategy:
 
     @staticmethod
     def dump(filename_suffix: str, strategies: dict):
-        log.debug(f"Dump strategies_{filename_suffix}.json")
+        log.debug(f"Dump strategies_{filename_suffix}{ADDITIONAL_FILENAME_SUFFIX}.json")
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        with open(f"{current_dir}/data/strategies_{filename_suffix}.json", "w") as f:
+        with open(
+            f"{current_dir}/data/strategies_{filename_suffix}{ADDITIONAL_FILENAME_SUFFIX}.json",
+            "w",
+        ) as f:
             json.dump(strategies, f, indent=4)

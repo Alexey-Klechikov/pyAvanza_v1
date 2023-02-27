@@ -5,7 +5,7 @@ This module is used to plot tickers, indicators, and comparison graph
 
 import logging
 import warnings
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import mplfinance as mpf
@@ -24,7 +24,7 @@ class Plot:
 
         self.plots: list = []
 
-    def add_horizontal_lines(self, level_color: list[tuple], panel_num: int) -> None:
+    def add_horizontal_lines(self, level_color: List[tuple], panel_num: int) -> None:
         horizontal_lines_plots = []
 
         for level, color in level_color:

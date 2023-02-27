@@ -8,6 +8,7 @@ from typing import Optional, Tuple
 import pandas as pd
 from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
+from requests.exceptions import ConnectionError
 
 from module.dt import DayTime, Strategy, TradingTime
 from module.dt.common_types import Instrument

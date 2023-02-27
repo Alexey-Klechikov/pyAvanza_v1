@@ -5,7 +5,7 @@ import warnings
 from copy import copy
 from dataclasses import dataclass, field
 from json import JSONDecodeError
-from typing import Dict
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -454,7 +454,7 @@ class Strategy:
 
         return strategies_component_names
 
-    def parse_names(self, strategies_names: list[str]) -> list:
+    def parse_names(self, strategies_names: List[str]) -> list:
         log.debug("Parsing strategy names")
 
         """
@@ -470,7 +470,7 @@ class Strategy:
         ] + [[("Blank", "HOLD")]]
 
     def generate_functions(
-        self, strategies_component_names: list[list[tuple[str, str]]]
+        self, strategies_component_names: List[List[Tuple[str, str]]]
     ) -> dict:
         log.debug("Generating strategies functions")
 

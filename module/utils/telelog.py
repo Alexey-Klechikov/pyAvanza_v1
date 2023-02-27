@@ -3,6 +3,7 @@ This module is used to process and dump execution logs to Telegram
 """
 
 import logging
+from typing import List
 
 import telegram_send
 from avanza import OrderType
@@ -93,7 +94,7 @@ class TeleLog:
         self.message += f"LT: Total value: {round(portfolio.total_own_capital)}\n\nTotal free funds:\n{free_funds}\n\n"
 
     def parse_watch_lists_analysis_log(
-        self, watch_lists_analysis_log: list[str]
+        self, watch_lists_analysis_log: List[str]
     ) -> None:
         log.debug("Parse watch_lists_analysis_log")
 
@@ -126,7 +127,7 @@ class TeleLog:
 
                 self.message += "\n".join(order_messages + ["\n"])
 
-    def parse_completed_orders(self, completed_orders: list[dict]) -> None:
+    def parse_completed_orders(self, completed_orders: List[dict]) -> None:
         log.debug("Parse completed_orders")
 
         orders = [

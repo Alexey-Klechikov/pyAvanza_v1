@@ -81,7 +81,7 @@ class OneLineFormatter(logging.Formatter):
     def format(self, record) -> str:
         s = super(OneLineFormatter, self).format(record)
         s = (
-            s.replace("\n", "")
+            s.replace("\n", " >>>")
             .replace("main.", "")
             .replace("BULL", "🟢 BULL")
             .replace("BEAR", "🔴 BEAR")

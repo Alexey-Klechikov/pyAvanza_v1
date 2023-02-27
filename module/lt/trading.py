@@ -1,6 +1,6 @@
 import logging
 import traceback
-from typing import Tuple
+from typing import List, Tuple
 
 from avanza import OrderType as Signal
 
@@ -47,7 +47,7 @@ class PortfolioAnalysis:
 
         return self.signals[ticker_yahoo]
 
-    def create_sell_orders(self) -> Tuple[list[dict], dict]:
+    def create_sell_orders(self) -> Tuple[List[dict], dict]:
         log.info("Walk through portfolio (sell)")
 
         orders, portfolio_tickers = [], {}
@@ -85,7 +85,7 @@ class PortfolioAnalysis:
 
         return orders, portfolio_tickers
 
-    def create_buy_orders(self, portfolio_tickers: dict) -> Tuple[list[dict], dict]:
+    def create_buy_orders(self, portfolio_tickers: dict) -> Tuple[List[dict], dict]:
         log.info("Walk through budget lists (buy)")
 
         orders = []
@@ -139,8 +139,8 @@ class PortfolioAnalysis:
         return created_orders, portfolio_tickers
 
     def create_take_profit_orders(
-        self, portfolio_tickers: dict, created_sell_orders: list[dict]
-    ) -> list[dict]:
+        self, portfolio_tickers: dict, created_sell_orders: List[dict]
+    ) -> List[dict]:
         log.info("Walk through portfolio (take profit)")
 
         for sell_order in created_sell_orders:

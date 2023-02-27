@@ -8,7 +8,7 @@ import time
 from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import keyring
 import pandas as pd
@@ -219,7 +219,7 @@ class Context:
 
         return budget_rules, watch_lists
 
-    def create_orders(self, orders: list[dict], order_type: OrderType) -> list[dict]:
+    def create_orders(self, orders: List[dict], order_type: OrderType) -> List[dict]:
         log.debug(f"Creating {order_type.value} order(s)")
 
         created_orders = []
@@ -429,7 +429,7 @@ class Context:
             "is_deprecated": is_deprecated,
         }
 
-    def delete_active_orders(self, account_ids: list[Union[str, int]]) -> None:
+    def delete_active_orders(self, account_ids: List[Union[str, int]]) -> None:
         active_orders = []
 
         deals_and_orders = self.ctx.get_deals_and_orders()
