@@ -75,7 +75,7 @@ class Helper:
             ):
                 continue
 
-            history_slice = history.loc[calibration_order.time_buy : row.name]["Close"]  # type: ignore
+            history_slice = history.loc[calibration_order.time_buy : row.name]  # type: ignore
             price_change = calibration_order.price_sell / calibration_order.price_buy
             percent_exit = Walker.settings["trading"]["exit"] - 1
             percent_pullback = 1 - Walker.settings["trading"]["pullback"]
@@ -85,18 +85,18 @@ class Helper:
                     all(
                         [
                             instrument == Instrument.BULL,
-                            row["RSI"] < 60,
+                            row["RSI"] < 58,
                             (price_change - 1) * 20 > percent_exit,
-                            ((1 - row["Close"] / history_slice.max()) * 20)
+                            ((1 - row["Low"] / history_slice["High"].max()) * 20)
                             > percent_pullback,
                         ]
                     ),
                     all(
                         [
                             instrument == Instrument.BEAR,
-                            row["RSI"] > 40,
+                            row["RSI"] > 42,
                             (1 - price_change) * 20 > percent_exit,
-                            ((row["Close"] / history_slice.min() - 1) * 20)
+                            ((row["High"] / history_slice["Low"].min() - 1) * 20)
                             > percent_pullback,
                         ]
                     ),

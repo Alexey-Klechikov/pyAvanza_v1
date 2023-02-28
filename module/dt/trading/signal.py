@@ -102,7 +102,10 @@ class Signal:
                 }
 
         else:
-            # Strategy has changed
+            log.debug(
+                f"Strategy has changed: {self.strategy['name']} -> {strategy_names[0]}"
+            )
+
             self.strategy = {
                 "name": strategy_names[0],
                 "logic": strategy.strategies[strategy_names[0]],
@@ -110,13 +113,21 @@ class Signal:
 
             signal, candle = self._get_last_signal_on_strategy(strategy.data)
 
+            if signal:
+                log.debug(f"> new signal: {signal} at {candle.name.strftime('%H:%M')}")  # type: ignore
+
+            if self.last_signal["signal"]:
+                log.debug(f"> old signal: {self.last_signal['signal']} at {self.last_signal['time'].strftime('%H:%M')}")  # type: ignore
+
             if (
                 signal
                 and self.last_signal["signal"]
                 and self.last_signal["signal"] == signal
                 and candle.name <= self.last_signal["time"]  # type: ignore
             ):
-                # Signal on new strategy is the same, but older than the last one
+                log.debug(
+                    "Signal on new strategy is the same, but older than the last one"
+                )
                 signal = None
 
         if signal and candle is not None:
@@ -146,8 +157,8 @@ class Signal:
             return False
 
         rsi_condition = (
-            instrument == Instrument.BULL and self.last_candle["RSI"] < 60
-        ) or (instrument == Instrument.BEAR and self.last_candle["RSI"] > 40)
+            instrument == Instrument.BULL and self.last_candle["RSI"] < 58
+        ) or (instrument == Instrument.BEAR and self.last_candle["RSI"] > 42)
 
         price_condition = (
             instrument_status.price_sell / instrument_status.acquired_price
