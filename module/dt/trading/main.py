@@ -8,7 +8,6 @@ from typing import Optional, Tuple
 import pandas as pd
 from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
-from requests.exceptions import ConnectionError
 
 from module.dt import DayTime, Strategy, TradingTime
 from module.dt.common_types import Instrument
@@ -118,9 +117,15 @@ class Helper:
 
             return {}, []
 
+    def check_out_of_balance(self) -> bool:
+        return (
+            self.ava.get_portfolio().total_own_capital
+            < self.settings["trading"]["budget"]
+        )
+
     def update_budget(self) -> None:
         self.settings["trading"]["budget"] = max(
-            round((self.log_data["balance_before"] * 0.8 / 100)) * 100,
+            round(self.log_data["balance_before"] * 0.9),
             self.settings["trading"]["budget"],
         )
 
@@ -328,7 +333,10 @@ class Day_Trading:
             if self.helper.trading_time.day_time == DayTime.DAY:
                 self.action_day()
 
-            elif self.helper.trading_time.day_time == DayTime.EVENING:
+            elif (
+                self.helper.trading_time.day_time == DayTime.EVENING
+                or self.helper.check_out_of_balance()
+            ):
                 self.action_evening()
 
                 if (

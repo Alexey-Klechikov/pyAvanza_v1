@@ -102,7 +102,6 @@ class Calibration:
                 Cache.SKIP,
                 filter_strategies=False,
                 loaded_strategies=stored_strategies.get("use", []),
-                limit_history_hours=4,
             ),
             key=lambda s: s["profit"],
             reverse=True,

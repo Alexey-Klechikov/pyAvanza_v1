@@ -188,7 +188,6 @@ class Walker:
         cache: Cache,
         filter_strategies: bool,
         loaded_strategies: List[dict],
-        limit_history_hours: int = 9999,
         target_day_direction: Optional[str] = None,
     ) -> List[dict]:
         strategy = Strategy(
@@ -201,9 +200,7 @@ class Walker:
                 extra_data=self.ava.get_today_history(
                     Walker.settings["instruments"]["MONITORING"]["AVA"]
                 ),
-            ).data[
-                datetime.now() - timedelta(hours=limit_history_hours) :  # type: ignore
-            ],
+            ).data,
             strategies=loaded_strategies,
         )
 
