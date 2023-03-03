@@ -76,7 +76,10 @@ class Helper:
 
         try:
             transactions_df = (
-                pd.DataFrame(transactions["transactions"]).set_index("id").iloc[::-1]
+                pd.DataFrame(transactions["transactions"])
+                .dropna(subset=["orderbook"])
+                .set_index("id")
+                .iloc[::-1]
             )
 
             transactions_df["orderbook"] = transactions_df["orderbook"].apply(
