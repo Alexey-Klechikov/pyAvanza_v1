@@ -336,7 +336,7 @@ class Day_Trading:
             if self.helper.trading_time.day_time == DayTime.DAY:
                 self.action_day()
 
-            elif (
+            if (
                 self.helper.trading_time.day_time == DayTime.EVENING
                 or self.helper.check_out_of_balance()
             ):

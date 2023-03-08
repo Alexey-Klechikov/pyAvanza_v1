@@ -61,18 +61,13 @@ class Signal:
             if not signal:
                 continue
 
+            if data.iloc[-i].name.hour < 10:  # type: ignore
+                break
+
             candle = data.iloc[-i]
             break
 
-        if candle is not None and any(
-            [
-                (signal == OrderType.BUY and data.iloc[-1]["Close"] > candle["Close"]),
-                (signal == OrderType.SELL and data.iloc[-1]["Close"] < candle["Close"]),
-            ]
-        ):
-            return signal, candle
-
-        return None, None
+        return signal, candle
 
     def get(self, strategy_names: list) -> Tuple[Optional[OrderType], list]:
         strategy = Strategy(

@@ -106,7 +106,7 @@ class CalibrationOrder:
 
         if self.price_sell is not None and self.price_buy is not None:
             profit = round(
-                20
+                10
                 * (self.price_sell - self.price_buy)
                 * (1 if self.instrument == Instrument.BULL else -1)
                 + 1000
