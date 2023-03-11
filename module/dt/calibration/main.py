@@ -82,13 +82,13 @@ class Calibration:
             {
                 **stored_strategies,
                 **{f"{target_day_direction}_{PERIOD_TEST}": profitable_strategies},
-                **{"use": top_strategies},
+                **{"top": top_strategies},
             },
         )
 
         return top_strategies
 
-    def adjust(self) -> None:
+    def pick(self) -> None:
         log.info("Adjusting strategies")
 
         self.walker.update_trading_settings()
@@ -101,7 +101,7 @@ class Calibration:
                 "1m",
                 Cache.SKIP,
                 filter_strategies=False,
-                loaded_strategies=stored_strategies.get("use", []),
+                loaded_strategies=stored_strategies.get("top", []),
             ),
             key=lambda s: s["profit"],
             reverse=True,
@@ -111,19 +111,23 @@ class Calibration:
             "DT",
             {
                 **stored_strategies,
-                **{"use": [s["strategy"] for s in profitable_strategies]},
+                **{
+                    "act": [
+                        s["strategy"] for s in profitable_strategies if s["profit"] > 0
+                    ][:2]
+                },
             },
         )
 
 
-def run(update: bool = True, adjust: bool = True, show_orders: bool = False) -> None:
+def run(update: bool = True, pick: bool = True, show_orders: bool = False) -> None:
     trading_time = TradingTime()
     calibration = Calibration()
     Helper.show_orders = show_orders
 
     # day run
     while True:
-        if not adjust:
+        if not pick:
             break
 
         try:
@@ -133,7 +137,7 @@ def run(update: bool = True, adjust: bool = True, show_orders: bool = False) -> 
                 pass
 
             elif trading_time.day_time == DayTime.DAY:
-                calibration.adjust()
+                calibration.pick()
 
             elif trading_time.day_time == DayTime.EVENING:
                 break

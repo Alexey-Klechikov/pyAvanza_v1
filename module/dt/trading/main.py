@@ -211,7 +211,7 @@ class Day_Trading:
         log.warning(("Dry run, no orders" if dry else "Orders") + " will be placed")
 
         log.info("Strategies: ")
-        [log.info(f"> [{index + 1}] {i}") for index, i in enumerate(Strategy.load("DT").get("use", []))]  # type: ignore
+        [log.info(f"> [{index + 1}] {i}") for index, i in enumerate(Strategy.load("DT").get("top", []))]  # type: ignore
 
         while True:
             try:
@@ -243,7 +243,7 @@ class Day_Trading:
                 instrument_status.update_limits(0.7)
 
     def action_day(self) -> None:
-        signal, message = self.signal.get(Strategy.load("DT").get("use", []))
+        signal, message = self.signal.get(Strategy.load("DT").get("act", []))
         self.helper.order.settings = self.helper.settings = Settings().load("DT")
 
         def _action_signal(signal: OrderType, atr: float) -> None:
@@ -307,16 +307,14 @@ class Day_Trading:
 
                     self.helper.sell_instrument(market_direction)
 
-        if self.signal.last_candle is None or message == ["Duplicate candle hit"]:
+        if self.signal.candle is None:
             return
 
         if signal:
-            _action_signal(signal, self.signal.last_candle["ATR"])
+            _action_signal(signal, self.signal.candle["ATR"])
 
         else:
-            _action_no_signal(
-                self.signal.last_candle["ATR"], self.signal.last_candle["RSI"]
-            )
+            _action_no_signal(self.signal.candle["ATR"], self.signal.candle["RSI"])
 
     def action_evening(self) -> None:
         for market_direction in Instrument:

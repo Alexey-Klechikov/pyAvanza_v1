@@ -23,53 +23,33 @@ class Signal:
         self.ava = ava
         self.settings = settings
 
-        self.strategy = {
-            "name": None,
-            "logic": None,
-        }
-
-        self.last_candle = None
+        self.candle = pd.Series()
         self.last_signal = {
             "signal": None,
             "time": None,
         }
 
-    def _get_signal_on_strategy(self, row: pd.Series) -> Optional[OrderType]:
-        if not self.strategy["logic"]:
-            return None
-
-        for signal in [OrderType.BUY, OrderType.SELL]:
-            if not all([i(row) for i in self.strategy["logic"].get(signal)]):
-                continue
-
-            return signal
-
-        return None
-
     def _get_last_signal_on_strategy(
-        self, data: pd.DataFrame
-    ) -> Tuple[Optional[OrderType], Optional[pd.Series]]:
-        if not self.strategy["name"]:
-            return None, None
-
-        signal = None
-        candle = None
-
+        self, strategy: Strategy, strategy_name: str
+    ) -> Tuple[Optional[OrderType], Optional[datetime]]:
         for i in range(1, 31):
-            signal = self._get_signal_on_strategy(data.iloc[-i])
+            candle = strategy.data.iloc[-i]
 
-            if not signal:
-                continue
+            for signal in [OrderType.BUY, OrderType.SELL]:
+                if all(
+                    [i(candle) for i in strategy.strategies[strategy_name].get(signal)]
+                ):
+                    return signal, candle.name  # type: ignore
 
-            if data.iloc[-i].name.hour < 10:  # type: ignore
+            if candle.name.hour < 10:  # type: ignore
                 break
 
-            candle = data.iloc[-i]
-            break
-
-        return signal, candle
+        return None, None
 
     def get(self, strategy_names: list) -> Tuple[Optional[OrderType], list]:
+        if len(strategy_names) == 0:
+            return None, ["No strategies"]
+
         strategy = Strategy(
             self.ava.get_today_history(
                 self.settings["instruments"]["MONITORING"]["AVA"]
@@ -77,66 +57,50 @@ class Signal:
             strategies=strategy_names,
         )
 
-        candle = strategy.data.iloc[-1]
-        message: list = []
-
-        if self.last_candle is not None and self.last_candle.name == candle.name:
+        if self.candle is not None and self.candle.name == strategy.data.iloc[-1].name:
             return None, ["Duplicate candle hit"]
 
-        if (datetime.now() - candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
+        self.candle = strategy.data.iloc[-1]
+
+        if (datetime.now() - self.candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
             return None, ["Candle is too old"]
 
-        if strategy_names[0] == self.strategy["name"]:
-            # Same strategy as before
-            signal = self._get_signal_on_strategy(candle)
+        signals = []
+        for strategy_name in strategy_names:
+            (
+                strategy_last_signal,
+                strategy_last_signal_time,
+            ) = self._get_last_signal_on_strategy(strategy, strategy_name)
 
-            if signal:
-                self.last_signal = {
-                    "signal": signal,
-                    "time": candle.name,
-                }
-
-        else:
-            log.debug(
-                f"Strategy has changed: {self.strategy['name']} -> {strategy_names[0]}"
-            )
-
-            self.strategy = {
-                "name": strategy_names[0],
-                "logic": strategy.strategies[strategy_names[0]],
-            }
-
-            signal, candle = self._get_last_signal_on_strategy(strategy.data)
-
-            if signal:
-                log.debug(f"> new signal: {signal} at {candle.name.strftime('%H:%M')}")  # type: ignore
-
-            if self.last_signal["signal"]:
-                log.debug(f"> old signal: {self.last_signal['signal']} at {self.last_signal['time'].strftime('%H:%M')}")  # type: ignore
-
-            if (
-                signal
-                and self.last_signal["signal"]
-                and self.last_signal["signal"] == signal
-                and candle.name <= self.last_signal["time"]  # type: ignore
-            ):
-                log.debug(
-                    "Signal on new strategy is the same, but older than the last one"
+            if strategy_last_signal:
+                signals.append(
+                    {
+                        "signal": strategy_last_signal,
+                        "time": strategy_last_signal_time,
+                        "strategy_name": strategy_name,
+                    }
                 )
-                signal = None
 
-        if signal and candle is not None:
-            message = [
-                f"Signal: {signal.name}",
-                f"Candle: {str(candle.name)[11:-9]}",
-                f"OMX: {round(candle['Close'], 2)}",
-                f"ATR: {round(candle['ATR'], 2)}",
-                f"Strategy: {strategy_names[0]}",
-            ]
+        if len(signals) == 0:
+            return None, ["No signals"]
 
-        self.last_candle = candle
+        current_signal = sorted(signals, key=lambda x: x["time"], reverse=True)[0]
 
-        return signal, message
+        if (
+            self.last_signal["signal"] == current_signal["signal"]
+            and self.last_signal["time"] == current_signal["time"]
+        ):
+            return None, ["Duplicate signal hit"]
+
+        self.last_signal = current_signal
+
+        return current_signal["signal"], [
+            f"Signal: {current_signal['signal'].name}",
+            f"Candle: {str(current_signal['time'])[11:-9]}",
+            f"OMX: {round(self.candle['Close'], 2)}",
+            f"ATR: {round(self.candle['ATR'], 2)}",
+            f"Strategy: {current_signal['strategy_name']}",
+        ]
 
     def exit(
         self,
@@ -144,16 +108,16 @@ class Signal:
         instrument_status: InstrumentStatus,
     ) -> bool:
         if (
-            self.last_candle is None
+            self.candle is None
             or instrument_status.acquired_price is None
             or instrument_status.price_sell is None
             or instrument_status.price_max is None
         ):
             return False
 
-        rsi_condition = (
-            instrument == Instrument.BULL and self.last_candle["RSI"] < 58
-        ) or (instrument == Instrument.BEAR and self.last_candle["RSI"] > 42)
+        rsi_condition = (instrument == Instrument.BULL and self.candle["RSI"] < 58) or (
+            instrument == Instrument.BEAR and self.candle["RSI"] > 42
+        )
 
         price_condition = (
             instrument_status.price_sell / instrument_status.acquired_price
