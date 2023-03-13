@@ -28,6 +28,8 @@ class Helper:
 
         self.trading_done = False
 
+        self.budget = 0
+
         self.trading_time = TradingTime()
         self.instrument_status: dict = {
             instrument: InstrumentStatus(instrument, settings["trading"])
@@ -121,20 +123,17 @@ class Helper:
             return {}, []
 
     def check_out_of_balance(self) -> bool:
-        return (
-            self.ava.get_portfolio().total_own_capital
-            < self.settings["trading"]["budget"]
-        )
+        return self.ava.get_portfolio().total_own_capital < self.budget
 
     def update_budget(self) -> None:
-        self.settings["trading"]["budget"] = max(
+        self.budget = max(
             round(self.log_data["balance_before"] * 0.9),
             self.settings["trading"]["budget"],
         )
 
-        self.log_data["budget"] = self.settings["trading"]["budget"]
+        self.log_data["budget"] = self.budget
 
-        log.info(f'Trading budget: {self.settings["trading"]["budget"]}')
+        log.info(f"Trading budget: {self.budget}")
 
     def update_instrument_status(
         self, market_direction: Instrument
@@ -243,11 +242,7 @@ class Day_Trading:
                 instrument_status.update_limits(0.7)
 
     def action_day(self) -> None:
-        actual_strategies = Strategy.load("DT").get("act", [])
-        if not actual_strategies:
-            return
-
-        signal, message = self.signal.get(actual_strategies)
+        signal, message = self.signal.get(Strategy.load("DT").get("act", []))
         self.helper.order.settings = self.helper.settings = Settings().load("DT")
 
         def _action_signal(signal: OrderType, atr: float) -> None:

@@ -29,6 +29,31 @@ class Signal:
             "time": None,
         }
 
+    def _check_candle_is_valid(
+        self, strategy_names: list
+    ) -> Tuple[Optional[str], Strategy]:
+        strategy = Strategy(
+            self.ava.get_today_history(
+                self.settings["instruments"]["MONITORING"]["AVA"]
+            ).iloc[:-1],
+            strategies=strategy_names,
+        )
+
+        skip_message = None
+
+        if self.candle is not None and self.candle.name == strategy.data.iloc[-1].name:
+            skip_message = "Duplicate candle hit"
+
+        self.candle = strategy.data.iloc[-1]
+
+        if len(strategy_names) == 0:
+            skip_message = "No strategies"
+
+        if (datetime.now() - self.candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
+            skip_message = "Candle is too old"
+
+        return skip_message, strategy
+
     def _get_last_signal_on_strategy(
         self, strategy: Strategy, strategy_name: str
     ) -> Tuple[Optional[OrderType], Optional[datetime]]:
@@ -47,23 +72,9 @@ class Signal:
         return None, None
 
     def get(self, strategy_names: list) -> Tuple[Optional[OrderType], list]:
-        if len(strategy_names) == 0:
-            return None, ["No strategies"]
-
-        strategy = Strategy(
-            self.ava.get_today_history(
-                self.settings["instruments"]["MONITORING"]["AVA"]
-            ).iloc[:-1],
-            strategies=strategy_names,
-        )
-
-        if self.candle is not None and self.candle.name == strategy.data.iloc[-1].name:
-            return None, ["Duplicate candle hit"]
-
-        self.candle = strategy.data.iloc[-1]
-
-        if (datetime.now() - self.candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
-            return None, ["Candle is too old"]
+        skip_message, strategy = self._check_candle_is_valid(strategy_names)
+        if skip_message:
+            return None, [skip_message]
 
         signals = []
         for strategy_name in strategy_names:
