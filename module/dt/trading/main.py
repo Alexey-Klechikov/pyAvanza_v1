@@ -243,7 +243,11 @@ class Day_Trading:
                 instrument_status.update_limits(0.7)
 
     def action_day(self) -> None:
-        signal, message = self.signal.get(Strategy.load("DT").get("act", []))
+        actual_strategies = Strategy.load("DT").get("act", [])
+        if not actual_strategies:
+            return
+
+        signal, message = self.signal.get(actual_strategies)
         self.helper.order.settings = self.helper.settings = Settings().load("DT")
 
         def _action_signal(signal: OrderType, atr: float) -> None:
