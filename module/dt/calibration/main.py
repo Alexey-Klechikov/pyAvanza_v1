@@ -160,7 +160,7 @@ def run(update: bool = True, pick: bool = True, show_orders: bool = False) -> No
             + "\n".join(
                 [
                     "\n> " + "\n> ".join(s.split(" + "))
-                    for s in Strategy.load("DT").get("use", [])
+                    for s in Strategy.load("DT").get("top", [])
                 ]
             )
         )

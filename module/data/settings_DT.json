@@ -6,7 +6,7 @@
     "log_to_telegram": true,
     "trading": {
         "budget": 1200,
-        "stop_loss": 0.92,
+        "stop_loss": 0.93,
         "take_profit": 1.11,
         "exit": 1.015,
         "pullback": 0.998,
