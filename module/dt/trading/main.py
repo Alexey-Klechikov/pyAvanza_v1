@@ -29,6 +29,7 @@ class Helper:
         self.trading_done = False
 
         self.budget = 0
+        self.target = 0
 
         self.trading_time = TradingTime()
         self.instrument_status: dict = {
@@ -122,10 +123,11 @@ class Helper:
 
             return {}, []
 
-    def check_out_of_balance(self) -> bool:
-        return self.ava.get_portfolio().total_own_capital < self.budget
+    def check_daily_limits(self) -> bool:
+        balance = self.ava.get_portfolio().total_own_capital
+        return balance < self.budget or balance > self.target
 
-    def update_budget(self) -> None:
+    def update_daily_limits(self) -> None:
         self.budget = max(
             round(self.log_data["balance_before"] * 0.9),
             self.settings["trading"]["budget"],
@@ -134,6 +136,10 @@ class Helper:
         self.log_data["budget"] = self.budget
 
         log.info(f"Trading budget: {self.budget}")
+
+        self.target = round(self.log_data["balance_before"] * 1.1)
+
+        log.info(f"Target: {self.target}")
 
     def update_instrument_status(
         self, market_direction: Instrument
@@ -322,7 +328,7 @@ class Day_Trading:
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:
         self.helper.get_balance_before()
-        self.helper.update_budget()
+        self.helper.update_daily_limits()
 
         while True:
             if self.helper.trading_time.day_time == DayTime.MORNING:
@@ -335,7 +341,7 @@ class Day_Trading:
 
             if (
                 self.helper.trading_time.day_time == DayTime.EVENING
-                or self.helper.check_out_of_balance()
+                or self.helper.check_daily_limits()
             ):
                 self.action_evening()
 
