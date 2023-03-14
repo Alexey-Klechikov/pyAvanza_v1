@@ -57,7 +57,7 @@ class Signal:
     def _get_last_signal_on_strategy(
         self, strategy: Strategy, strategy_name: str
     ) -> Tuple[Optional[OrderType], Optional[datetime]]:
-        for i in range(1, 31):
+        for i in range(1, 24):
             candle = strategy.data.iloc[-i]
 
             for signal in [OrderType.BUY, OrderType.SELL]:
