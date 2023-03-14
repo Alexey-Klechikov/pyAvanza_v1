@@ -7,7 +7,7 @@
     "trading": {
         "budget": 1200,
         "stop_loss": 0.93,
-        "take_profit": 1.11,
+        "take_profit": 1.10,
         "exit": 1.015,
         "pullback": 0.998,
         "spread_limit": 0.9
