@@ -215,9 +215,6 @@ class Day_Trading:
 
         log.warning(("Dry run, no orders" if dry else "Orders") + " will be placed")
 
-        log.info("Strategies: ")
-        [log.info(f"> [{index + 1}] {i}") for index, i in enumerate(Strategy.load("DT").get("top", []))]  # type: ignore
-
         while True:
             try:
                 self.run_analysis(settings["log_to_telegram"])

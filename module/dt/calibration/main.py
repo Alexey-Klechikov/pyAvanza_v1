@@ -150,19 +150,11 @@ def run(update: bool = True, pick: bool = True, show_orders: bool = False) -> No
 
             calibration.test(target_day_direction)
 
-        TeleLog(
-            message="DT calibration:\n"
-            + "\n".join(
-                [
-                    "\n> " + "\n> ".join(s.split(" + "))
-                    for s in Strategy.load("DT").get("top", [])
-                ]
-            )
-        )
+        TeleLog(message="DT Calibration: Done")
 
     except Exception as e:
         log.error(f">>> {e}: {traceback.format_exc()}")
 
-        TeleLog(crash_report=f"DT_Calibration: script has crashed: {e}")
+        TeleLog(crash_report=f"DT Calibration: script has crashed: {e}")
 
     return

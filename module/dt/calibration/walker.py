@@ -269,22 +269,23 @@ class Walker:
 
             strategies.append(strategy_summary)
 
-            log.info(
-                displace_message(
-                    DISPLACEMENTS,
-                    list(
-                        [f"[{i+1}/{len(strategy.strategies)}]"]
-                        + list(strategy_summary.values())
-                        + [
-                            ""
-                            if not last_signal["signal"]
-                            else f"{last_signal['signal']} ({last_signal['time']})"
-                        ]
-                    )[: 7 if filter_strategies else 8],
+            if strategy_summary["profit"] > 0:
+                log.info(
+                    displace_message(
+                        DISPLACEMENTS,
+                        list(
+                            [f"[{i+1}/{len(strategy.strategies)}]"]
+                            + list(strategy_summary.values())
+                            + [
+                                ""
+                                if not last_signal["signal"]
+                                else f"{last_signal['signal']} ({last_signal['time']})"
+                            ]
+                        )[: 7 if filter_strategies else 8],
+                    )
                 )
-            )
 
-            helper.print_orders_history()
+                helper.print_orders_history()
 
         return strategies
 
