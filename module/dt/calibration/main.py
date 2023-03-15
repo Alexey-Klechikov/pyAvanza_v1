@@ -71,6 +71,7 @@ class Calibration:
             {
                 **stored_strategies,
                 **{f"{target_day_direction}_{PERIOD_TEST}": profitable_strategies},
+                **{"act": []},
             },
         )
 
