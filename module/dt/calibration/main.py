@@ -43,7 +43,7 @@ class Calibration:
             },
         )
 
-    def test(self, target_day_direction: str) -> list:
+    def test(self, target_day_direction: str):
         log.info(f"Testing strategies ({target_day_direction})")
 
         stored_strategies = Strategy.load("DT")
@@ -66,34 +66,29 @@ class Calibration:
             reverse=True,
         )
 
-        top_strategies = []
-        for day_direction in ["BULL", "BEAR", "range"]:
-            top_strategies += [
-                i["strategy"]
-                for i in (
-                    profitable_strategies
-                    if day_direction == target_day_direction
-                    else stored_strategies.get(f"{day_direction}_{PERIOD_TEST}", [])
-                )
-            ][:2]
-
         Strategy.dump(
             "DT",
             {
                 **stored_strategies,
                 **{f"{target_day_direction}_{PERIOD_TEST}": profitable_strategies},
-                **{"top": top_strategies},
             },
         )
 
-        return top_strategies
-
     def pick(self) -> None:
-        log.info("Adjusting strategies")
+        log.info("Picking strategies")
 
         self.walker.update_trading_settings()
 
         stored_strategies = Strategy.load("DT")
+
+        strategies_to_test = []
+        for direction in ["BULL", "BEAR", "range"]:
+            strategies_to_test += [
+                i["strategy"]
+                for i in stored_strategies.get(f"{direction}_{PERIOD_TEST}", [])
+                if int(i["efficiency"][:-1]) > 60
+            ]
+        strategies_to_test = list(set(strategies_to_test))
 
         profitable_strategies = sorted(
             self.walker.traverse_strategies(
@@ -101,7 +96,7 @@ class Calibration:
                 "1m",
                 Cache.SKIP,
                 filter_strategies=False,
-                loaded_strategies=stored_strategies.get("top", []),
+                loaded_strategies=strategies_to_test,
             ),
             key=lambda s: s["profit"],
             reverse=True,

@@ -388,7 +388,7 @@ class Context:
             else instrument_info.get("quote", {}).get("spread")
         )
 
-        is_deprecated = (
+        is_deprecated = not instrument_info or (
             market_maker_orders["buySide"] is not None
             and market_maker_orders["sellSide"] is None
         )

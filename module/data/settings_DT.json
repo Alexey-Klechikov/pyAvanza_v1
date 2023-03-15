@@ -16,15 +16,35 @@
         "TRADING": {
             "BEAR": [
                 "CERTIFICATE",
-                1534291
+                1495786
             ],
             "BULL": [
-                "CERTIFICATE",
-                1456629
+                "WARRANT",
+                1492382
             ]
         },
         "TRADING_POOL": {
             "BEAR": [
+                [
+                    "WARRANT",
+                    1552612
+                ],
+                [
+                    "WARRANT",
+                    1547693
+                ],
+                [
+                    "WARRANT",
+                    1548287
+                ],
+                [
+                    "WARRANT",
+                    1548289
+                ],
+                [
+                    "WARRANT",
+                    1548283
+                ],
                 [
                     "WARRANT",
                     1327793
@@ -69,15 +89,35 @@
             "BULL": [
                 [
                     "WARRANT",
-                    1521094
+                    1515738
                 ],
                 [
                     "WARRANT",
-                    1520749
+                    1518501
                 ],
                 [
                     "WARRANT",
-                    1521066
+                    1492393
+                ],
+                [
+                    "WARRANT",
+                    1492382
+                ],
+                [
+                    "WARRANT",
+                    1492388
+                ],
+                [
+                    "WARRANT",
+                    1493114
+                ],
+                [
+                    "WARRANT",
+                    1529506
+                ],
+                [
+                    "WARRANT",
+                    1492388
                 ],
                 [
                     "CERTIFICATE",
