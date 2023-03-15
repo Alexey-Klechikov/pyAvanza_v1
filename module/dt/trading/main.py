@@ -90,23 +90,29 @@ class Helper:
             )
 
             trades = []
-            buy_price = 0
-            sell_price = 0
+            prices = {"BUY": 0, "SELL": 0}
+            volumes = {"BUY": 0, "SELL": 0}
 
             for _, row in transactions_df.iterrows():
-                if buy_price and sell_price and row["transactionType"] == "BUY":
-                    trades.append([sell_price, buy_price])
-                    buy_price = 0
-                    sell_price = 0
+                if (
+                    prices["BUY"]
+                    and prices["SELL"]
+                    and volumes["SELL"] == -1 * volumes["BUY"]
+                ):
+                    trades.append([prices["SELL"], prices["BUY"]])
+                    prices = {"BUY": 0, "SELL": 0}
+                    volumes = {"BUY": 0, "SELL": 0}
 
                 if row["transactionType"] == "SELL":
-                    sell_price += row["sum"]
+                    prices["SELL"] += row["sum"]
+                    volumes["SELL"] += row["volume"]
 
                 elif row["transactionType"] == "BUY":
-                    buy_price += row["sum"]
+                    prices["BUY"] += row["sum"]
+                    volumes["BUY"] += row["volume"]
 
-            if buy_price and sell_price:
-                trades.append([sell_price, buy_price])
+            if prices["BUY"] and prices["SELL"]:
+                trades.append([prices["SELL"], prices["BUY"]])
 
             profits = [round((1 - abs(i[1] / i[0])) * 100, 2) for i in trades]
             trades_stats = {
