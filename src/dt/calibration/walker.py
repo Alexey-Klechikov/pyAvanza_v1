@@ -5,10 +5,10 @@ from typing import Dict, List, Optional
 import pandas as pd
 from avanza import InstrumentType, OrderType
 
-from scr.dt import Strategy
-from scr.dt.calibration.order import CalibrationOrder
-from scr.dt.common_types import Instrument
-from scr.utils import Cache, Context, History, Settings, displace_message
+from src.dt import Strategy
+from src.dt.calibration.order import CalibrationOrder
+from src.dt.common_types import Instrument
+from src.utils import Cache, Context, History, Settings, displace_message
 
 log = logging.getLogger("main.dt.calibration.walker")
 

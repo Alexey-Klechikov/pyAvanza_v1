@@ -4,8 +4,8 @@ import traceback
 import pandas as pd
 from avanza import OrderType as Signal
 
-from scr.lt.strategy import Strategy
-from scr.utils import Context, History, Logger, Plot, Settings, Cache
+from src.lt.strategy import Strategy
+from src.utils import Context, History, Logger, Plot, Settings, Cache
 
 log = logging.getLogger("main")
 

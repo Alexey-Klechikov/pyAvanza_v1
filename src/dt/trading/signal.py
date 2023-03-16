@@ -7,9 +7,9 @@ import pandas as pd
 import pandas_ta as ta
 from avanza import OrderType
 
-from scr.dt import Strategy
-from scr.dt.common_types import Instrument
-from scr.dt.trading.status import InstrumentStatus
+from src.dt import Strategy
+from src.dt.common_types import Instrument
+from src.dt.trading.status import InstrumentStatus
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore

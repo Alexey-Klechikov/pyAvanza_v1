@@ -5,7 +5,7 @@ from typing import Optional
 
 import pandas as pd
 
-from scr.dt.common_types import Instrument
+from src.dt.common_types import Instrument
 
 log = logging.getLogger("main.dt.calibration.order")
 

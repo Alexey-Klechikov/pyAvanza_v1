@@ -9,12 +9,12 @@ import pandas as pd
 from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
 
-from scr.dt import DayTime, Strategy, TradingTime
-from scr.dt.common_types import Instrument
-from scr.dt.trading.order import Order
-from scr.dt.trading.signal import Signal
-from scr.dt.trading.status import InstrumentStatus
-from scr.utils import Context, Settings, TeleLog, displace_message
+from src.dt import DayTime, Strategy, TradingTime
+from src.dt.common_types import Instrument
+from src.dt.trading.order import Order
+from src.dt.trading.signal import Signal
+from src.dt.trading.status import InstrumentStatus
+from src.utils import Context, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.dt.trading.main")
 

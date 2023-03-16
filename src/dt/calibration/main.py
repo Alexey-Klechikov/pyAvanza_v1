@@ -2,9 +2,9 @@ import logging
 import time
 import traceback
 
-from scr.dt import DayTime, Strategy, TradingTime
-from scr.dt.calibration.walker import Helper, Walker
-from scr.utils import Cache, Settings, TeleLog
+from src.dt import DayTime, Strategy, TradingTime
+from src.dt.calibration.walker import Helper, Walker
+from src.utils import Cache, Settings, TeleLog
 
 log = logging.getLogger("main.dt.calibration.main")
 

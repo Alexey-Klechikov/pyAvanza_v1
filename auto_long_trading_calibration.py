@@ -1,5 +1,5 @@
-from scr.utils import Logger
-from scr import run_long_trading_calibration
+from src.utils import Logger
+from src import run_long_trading_calibration
 
 
 if __name__ == "__main__":

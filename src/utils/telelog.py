@@ -8,8 +8,8 @@ from typing import List
 import telegram_send
 from avanza import OrderType
 
-from scr.utils.context import Portfolio
-from scr.utils.logger import count_errors
+from src.utils.context import Portfolio
+from src.utils.logger import count_errors
 
 log = logging.getLogger("main.utils.telelog")
 
@@ -140,4 +140,4 @@ class TeleLog:
     def dump_to_telegram(self) -> None:
         log.info("Dump log to Telegram")
 
-        #telegram_send.send(messages=[self.message])
+        # telegram_send.send(messages=[self.message])
