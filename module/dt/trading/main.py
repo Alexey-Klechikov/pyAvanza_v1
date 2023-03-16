@@ -215,6 +215,8 @@ class Helper:
 
 class Day_Trading:
     def __init__(self, dry: bool):
+        self.dry = dry
+
         settings = Settings().load("DT")
         self.helper = Helper(settings, dry)
         self.signal = Signal(self.helper.ava, settings)
@@ -346,9 +348,8 @@ class Day_Trading:
             if self.helper.trading_time.day_time == DayTime.DAY:
                 self.action_day()
 
-            if (
-                self.helper.trading_time.day_time == DayTime.EVENING
-                or self.helper.check_daily_limits()
+            if self.helper.trading_time.day_time == DayTime.EVENING or (
+                not self.dry and self.helper.check_daily_limits()
             ):
                 self.action_evening()
 
@@ -358,7 +359,7 @@ class Day_Trading:
                 ):
                     break
 
-            time.sleep(30)
+            time.sleep(45)
 
         self.helper.get_balance_after()
 

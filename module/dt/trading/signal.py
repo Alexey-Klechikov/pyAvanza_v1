@@ -71,12 +71,50 @@ class Signal:
 
         return None, None
 
+    def _extract_signal_from_list(
+        self, signals: list
+    ) -> Tuple[OrderType, datetime, str]:
+        latest_signal_time = max([s["time"] for s in signals])
+        latest_signals = {
+            "all": [s for s in signals if s["time"] == latest_signal_time]
+        }
+
+        [
+            log.debug(f"> {s['signal'].value}: {s['strategy_name']}")  # type: ignore
+            for s in latest_signals["all"]
+        ]
+
+        for signal in [OrderType.BUY, OrderType.SELL]:
+            latest_signals[signal.name.lower()] = [
+                s for s in latest_signals["all"] if s["signal"] == signal
+            ]
+
+        current_signal = latest_signals["all"][0]
+        if len(latest_signals["sell"]) != len(latest_signals["buy"]):
+            current_signal = (
+                OrderType.SELL
+                if len(latest_signals["sell"]) > len(latest_signals["buy"])
+                else OrderType.BUY
+            )
+
+        return (
+            current_signal,
+            latest_signal_time,
+            " / ".join(
+                [
+                    f"{s}: {len(latest_signals[s.lower()])}"
+                    for s in ["BUY", "SELL"]
+                    if len(latest_signals[s.lower()]) > 0
+                ]
+            ),
+        )
+
     def get(self, strategy_names: list) -> Tuple[Optional[OrderType], list]:
         skip_message, strategy = self._check_candle_is_valid(strategy_names)
         if skip_message:
             return None, [skip_message]
 
-        signals = []
+        signals: list = []
         for strategy_name in strategy_names:
             (
                 strategy_last_signal,
@@ -95,22 +133,26 @@ class Signal:
         if len(signals) == 0:
             return None, ["No signals"]
 
-        current_signal = sorted(signals, key=lambda x: x["time"], reverse=True)[0]
+        (
+            current_signal,
+            latest_signal_time,
+            signals_summary,
+        ) = self._extract_signal_from_list(signals)
 
         if (
-            self.last_signal["signal"] == current_signal["signal"]
-            and self.last_signal["time"] == current_signal["time"]
+            self.last_signal["signal"] == current_signal
+            and self.last_signal["time"] == latest_signal_time
         ):
             return None, ["Duplicate signal hit"]
 
-        self.last_signal = current_signal
+        self.last_signal = {"signal": current_signal, "time": latest_signal_time}  # type: ignore
 
-        return current_signal["signal"], [
-            f"Signal: {current_signal['signal'].name}",
-            f"Candle: {str(current_signal['time'])[11:-9]}",
+        return current_signal, [
+            f"Signal: {current_signal.name}",
+            f"Candle: {str(latest_signal_time)[11:-9]}",
             f"OMX: {round(self.candle['Close'], 2)}",
             f"ATR: {round(self.candle['ATR'], 2)}",
-            f"Strategy: {current_signal['strategy_name']}",
+            f"Counts: {signals_summary}",
         ]
 
     def exit(
