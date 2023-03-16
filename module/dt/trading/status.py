@@ -28,6 +28,8 @@ class InstrumentStatus:
     take_profit: Optional[float] = None
     price_max: Optional[float] = None
 
+    adjusted_price_sell: Optional[float] = None
+
     def extract(self, instrument_info: dict) -> None:
         self.last_sell_deal = (
             instrument_info["last_deal"]
@@ -81,6 +83,14 @@ class InstrumentStatus:
         else:
             self.price_buy = instrument_info[OrderType.BUY]
             self.price_sell = instrument_info[OrderType.SELL]
+
+        self.adjusted_price_sell = (
+            instrument_info[OrderType.SELL]
+            if not self.position
+            or not self.adjusted_price_sell
+            or not instrument_info[OrderType.SELL]
+            else (instrument_info[OrderType.SELL] + self.adjusted_price_sell) / 2
+        )
 
     def update_limits(self, atr: float) -> None:
         if not self.position or self.price_sell is None:

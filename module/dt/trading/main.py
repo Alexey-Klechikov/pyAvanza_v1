@@ -219,8 +219,6 @@ class Day_Trading:
         self.helper = Helper(settings, dry)
         self.signal = Signal(self.helper.ava, settings)
 
-        self.adjusted_price_sell: Optional[float] = None
-
         log.warning(("Dry run, no orders" if dry else "Orders") + " will be placed")
 
         while True:
@@ -304,21 +302,15 @@ class Day_Trading:
                         instrument_status.take_profit,
                     )
 
-                self.adjusted_price_sell = (
-                    instrument_status.price_sell
-                    if not self.adjusted_price_sell
-                    else round(
-                        (self.adjusted_price_sell + instrument_status.price_sell) / 2, 2
-                    )
-                )
-
-                if self.adjusted_price_sell <= instrument_status.stop_loss:
+                if (
+                    instrument_status.adjusted_price_sell
+                    and instrument_status.adjusted_price_sell
+                    <= instrument_status.stop_loss
+                ):
                     log.debug(
                         f"{market_direction} hit SL {instrument_status.price_sell} <= {instrument_status.stop_loss}"
                     )
                     self.helper.sell_instrument(market_direction)
-
-                    self.adjusted_price_sell = None
 
                 if self.signal.exit(market_direction, instrument_status):
                     log.info(
