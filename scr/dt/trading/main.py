@@ -9,12 +9,12 @@ import pandas as pd
 from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
 
-from module.dt import DayTime, Strategy, TradingTime
-from module.dt.common_types import Instrument
-from module.dt.trading.order import Order
-from module.dt.trading.signal import Signal
-from module.dt.trading.status import InstrumentStatus
-from module.utils import Context, Settings, TeleLog, displace_message
+from scr.dt import DayTime, Strategy, TradingTime
+from scr.dt.common_types import Instrument
+from scr.dt.trading.order import Order
+from scr.dt.trading.signal import Signal
+from scr.dt.trading.status import InstrumentStatus
+from scr.utils import Context, Settings, TeleLog, displace_message
 
 log = logging.getLogger("main.dt.trading.main")
 
@@ -359,7 +359,7 @@ class Day_Trading:
                 ):
                     break
 
-            time.sleep(45)
+            time.sleep(50)
 
         self.helper.get_balance_after()
 

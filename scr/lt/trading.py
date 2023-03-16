@@ -4,8 +4,8 @@ from typing import List, Tuple
 
 from avanza import OrderType as Signal
 
-from module.lt.strategy import Strategy
-from module.utils import Cache, Context, History, Settings, TeleLog
+from scr.lt.strategy import Strategy
+from scr.utils import Cache, Context, History, Settings, TeleLog
 
 log = logging.getLogger("main.lt.trading")
 

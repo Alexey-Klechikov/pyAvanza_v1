@@ -2,9 +2,9 @@ import logging
 import time
 import traceback
 
-from module.dt import DayTime, Strategy, TradingTime
-from module.dt.calibration.walker import Helper, Walker
-from module.utils import Cache, Settings, TeleLog
+from scr.dt import DayTime, Strategy, TradingTime
+from scr.dt.calibration.walker import Helper, Walker
+from scr.utils import Cache, Settings, TeleLog
 
 log = logging.getLogger("main.dt.calibration.main")
 
@@ -107,7 +107,7 @@ class Calibration:
             "DT",
             {
                 **stored_strategies,
-                **{"act": [s["strategy"] for s in profitable_strategies][:10]},
+                **{"act": [s["strategy"] for s in profitable_strategies][:5]},
             },
         )
 

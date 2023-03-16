@@ -1,8 +1,8 @@
 import logging
 import traceback
 
-from module.lt.strategy import Strategy
-from module.utils import Cache, Context, History, Settings, TeleLog
+from scr.lt.strategy import Strategy
+from scr.utils import Cache, Context, History, Settings, TeleLog
 
 log = logging.getLogger("main.lt.calibration")
 

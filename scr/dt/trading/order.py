@@ -3,9 +3,9 @@ from typing import Optional
 
 from avanza import OrderType
 
-from module.dt.common_types import Instrument
-from module.dt.trading.status import InstrumentStatus
-from module.utils import Context
+from scr.dt.common_types import Instrument
+from scr.dt.trading.status import InstrumentStatus
+from scr.utils import Context
 
 log = logging.getLogger("main.dt.trading.order")
 

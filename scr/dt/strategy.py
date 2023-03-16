@@ -10,7 +10,7 @@ import pandas as pd
 import pandas_ta as ta
 from avanza import OrderType
 
-from module.utils import CustomIndicators
+from scr.utils import CustomIndicators
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore

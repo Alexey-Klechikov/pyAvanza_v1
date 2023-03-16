@@ -4,7 +4,7 @@ from typing import Optional
 
 from avanza import OrderType
 
-from module.dt.common_types import Instrument
+from scr.dt.common_types import Instrument
 
 log = logging.getLogger("main.dt.trading.status")
 

@@ -1,5 +1,5 @@
-from module import run_day_trading_calibration
-from module.utils import Logger
+from scr import run_day_trading_calibration
+from scr.utils import Logger
 
 if __name__ == "__main__":
     log = Logger(file_prefix="auto_day_trading_calibration")

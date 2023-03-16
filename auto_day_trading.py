@@ -1,5 +1,5 @@
-from module.utils import Logger
-from module import run_day_trading
+from scr.utils import Logger
+from scr import run_day_trading
 
 
 if __name__ == "__main__":

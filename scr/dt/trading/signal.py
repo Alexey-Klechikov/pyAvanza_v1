@@ -7,9 +7,9 @@ import pandas as pd
 import pandas_ta as ta
 from avanza import OrderType
 
-from module.dt import Strategy
-from module.dt.common_types import Instrument
-from module.dt.trading.status import InstrumentStatus
+from scr.dt import Strategy
+from scr.dt.common_types import Instrument
+from scr.dt.trading.status import InstrumentStatus
 
 warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # type: ignore
@@ -26,7 +26,7 @@ class Signal:
         self.candle = pd.Series()
         self.last_signal = {
             "signal": None,
-            "time": None,
+            "time": datetime.now(),
         }
 
     def _check_candle_is_valid(
@@ -89,7 +89,7 @@ class Signal:
                 s for s in latest_signals["all"] if s["signal"] == signal
             ]
 
-        current_signal = latest_signals["all"][0]
+        current_signal = latest_signals["all"][0]["signal"]
         if len(latest_signals["sell"]) != len(latest_signals["buy"]):
             current_signal = (
                 OrderType.SELL
@@ -141,7 +141,7 @@ class Signal:
 
         if (
             self.last_signal["signal"] == current_signal
-            and self.last_signal["time"] == latest_signal_time
+            and self.last_signal["time"] >= latest_signal_time
         ):
             return None, ["Duplicate signal hit"]
 
