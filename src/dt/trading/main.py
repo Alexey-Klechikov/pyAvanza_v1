@@ -12,6 +12,7 @@ from requests import ReadTimeout
 from src.dt import DayTime, Strategy, TradingTime
 from src.dt.common_types import Instrument
 from src.dt.trading.order import Order
+from src.dt.trading.plot import main as export_signals_as_plot
 from src.dt.trading.signal import Signal
 from src.dt.trading.status import InstrumentStatus
 from src.utils import Context, Settings, TeleLog, displace_message
@@ -376,6 +377,8 @@ class Day_Trading:
 def run(dry: bool) -> None:
     try:
         Day_Trading(dry)
+
+        export_signals_as_plot(date.today().strftime("%Y-%m-%d"))
 
     except Exception as e:
         log.error(f">>> {e}: {traceback.format_exc()}")
