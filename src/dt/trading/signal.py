@@ -143,7 +143,11 @@ class Signal:
             self.last_signal["signal"] == current_signal
             and self.last_signal["time"] >= latest_signal_time
         ):
-            return None, ["Duplicate signal hit"]
+            log.debug(
+                f"Outdated signal: {current_signal.name} at {latest_signal_time.strftime('%H:%M')}"
+            )
+
+            return None, ["Outdated signal"]
 
         self.last_signal = {"signal": current_signal, "time": latest_signal_time}  # type: ignore
 

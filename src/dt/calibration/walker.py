@@ -302,7 +302,7 @@ class Walker:
         for index, row in strategy.data.iterrows():
             time_index: datetime = index  # type: ignore
 
-            if time_index.hour < 10:
+            if time_index.hour < 9 and time_index.minute < 30:
                 continue
 
             if (time_index.hour == 17 and time_index.minute >= 15) or (
