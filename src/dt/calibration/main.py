@@ -107,7 +107,7 @@ class Calibration:
             "DT",
             {
                 **stored_strategies,
-                **{"act": [s["strategy"] for s in profitable_strategies][:5]},
+                **{"act": [s["strategy"] for s in profitable_strategies][:3]},
             },
         )
 
