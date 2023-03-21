@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 
 import mplfinance as mpf
@@ -104,15 +105,14 @@ def main(date_target: str):
         datetime.strptime(date_target, "%Y-%m-%d") + timedelta(days=1), "%Y-%m-%d"
     )
 
+    log = logging.getLogger("main")
+    for handler in log.handlers:
+        log.removeHandler(handler)
+        handler.close()
+
     signals = process_log_file(date_target)
     data = get_ticker_history(date_target, date_end)
     data = append_signals_to_history(data, signals)
     fig = plot(data)
 
     fig.savefig(f"logs/auto_day_trading_{date_target}.png")
-
-
-if __name__ == "__main__":
-    date_target = "2023-03-20"
-
-    main(date_target)
