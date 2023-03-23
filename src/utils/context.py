@@ -116,7 +116,7 @@ class Context:
         self.portfolio = self.get_portfolio()
 
         if process_lists:
-            self.budget_rules, self.watch_lists = self.process_watch_lists()
+            self.budget_rules, self.watch_lists = self.process_lt_watch_lists()
 
     def get_ctx(self, user: str) -> Avanza:
         log.debug("Getting context")
@@ -181,43 +181,71 @@ class Context:
 
         return portfolio
 
-    def process_watch_lists(self) -> Tuple[dict, dict]:
-        log.debug("Process watch_lists")
+    def process_lt_watch_lists(self) -> Tuple[dict, dict]:
+        log.debug("Process watch lists")
 
-        watch_lists, budget_rules = {}, {}
+        watch_lists: dict = {}
+        budget_rules: dict = {}
 
         all_watch_lists = self.ctx.get_watchlists()
-        if all_watch_lists:
-            for watch_list in all_watch_lists:
-                tickers = []
+        if not all_watch_lists:
+            return budget_rules, watch_lists
 
-                for order_book_id in watch_list["orderbooks"]:
-                    stock_info = self.ctx.get_instrument(
-                        InstrumentType.STOCK, order_book_id
-                    )
-                    if stock_info is None:
-                        log.warning(f"{order_book_id} not found")
-                        continue
+        for watch_list in all_watch_lists:
+            tickers = []
 
-                    ticker_dict = {
-                        "order_book_id": order_book_id,
-                        "name": stock_info.get("name"),
-                        "ticker_yahoo": f"{stock_info.get('listing', {}).get('tickerSymbol', '').replace(' ', '-')}.ST",
-                    }
-                    tickers.append(ticker_dict)
+            if watch_list["name"].startswith("DT"):
+                continue
 
-                temp_watch_list = {
-                    "watch_list_id": watch_list["id"],
-                    "tickers": tickers,
+            for order_book_id in watch_list["orderbooks"]:
+                stock_info = self.ctx.get_instrument(
+                    InstrumentType.STOCK, order_book_id
+                )
+                if stock_info is None:
+                    log.warning(f"{order_book_id} not found")
+                    continue
+
+                ticker_dict = {
+                    "order_book_id": order_book_id,
+                    "name": stock_info.get("name"),
+                    "ticker_yahoo": f"{stock_info.get('listing', {}).get('tickerSymbol', '').replace(' ', '-')}.ST",
                 }
+                tickers.append(ticker_dict)
 
-                try:
-                    int(watch_list["name"])
-                    budget_rules[watch_list["name"]] = copy(temp_watch_list)
-                except ValueError:
-                    watch_lists[watch_list["name"]] = copy(temp_watch_list)
+            temp_watch_list = {
+                "watch_list_id": watch_list["id"],
+                "tickers": tickers,
+            }
+
+            try:
+                int(watch_list["name"])
+                budget_rules[watch_list["name"]] = copy(temp_watch_list)
+            except ValueError:
+                watch_lists[watch_list["name"]] = copy(temp_watch_list)
 
         return budget_rules, watch_lists
+
+    def retrieve_dt_instruments_from_watch_lists(self) -> dict:
+        log.debug("Retrieve instruments from watch lists")
+
+        instruments: dict = {"BULL": [], "BEAR": []}
+
+        all_watch_lists = self.ctx.get_watchlists()
+        if not all_watch_lists:
+            return instruments
+
+        for watch_list in all_watch_lists:
+            if not watch_list["name"].startswith("DT"):
+                continue
+
+            instrument_direction = watch_list["name"].split("_")[1]
+            instrument_type = watch_list["name"].split("_")[2]
+
+            instruments[instrument_direction] += [
+                [id, instrument_type] for id in watch_list["orderbooks"]
+            ]
+
+        return instruments
 
     def create_orders(self, orders: List[dict], order_type: OrderType) -> List[dict]:
         log.debug(f"Creating {order_type.value} order(s)")

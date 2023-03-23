@@ -358,13 +358,11 @@ class Walker:
         return last_signal
 
     def traverse_instruments(
-        self, market_direction: Instrument, settings: dict
+        self, market_direction: Instrument, instruments_pool: dict
     ) -> list:
         instruments = []
 
-        for instrument_type, instrument_id in settings["instruments"]["TRADING_POOL"][
-            market_direction
-        ]:
+        for instrument_id, instrument_type in instruments_pool[market_direction]:
             instrument_info = self.ava.get_instrument_info(
                 InstrumentType[instrument_type],
                 str(instrument_id),
@@ -439,13 +437,15 @@ class Walker:
     def update_trading_settings(self) -> None:
         settings = Settings().load("DT")
 
+        instruments_pool = self.ava.retrieve_dt_instruments_from_watch_lists()
+
         instruments_info: dict = {}
 
         for market_direction in Instrument:
             instruments_info[market_direction] = []
 
             instruments_info[market_direction] = self.traverse_instruments(
-                market_direction, settings
+                market_direction, instruments_pool
             )
 
             top_instruments = sorted(
