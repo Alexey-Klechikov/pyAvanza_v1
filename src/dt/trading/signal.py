@@ -46,9 +46,6 @@ class Signal:
 
         self.candle = strategy.data.iloc[-1]
 
-        if len(strategy_names) == 0:
-            skip_message = "No strategies"
-
         if (datetime.now() - self.candle.name.replace(tzinfo=None)).seconds > 122:  # type: ignore
             skip_message = "Candle is too old"
 
@@ -110,6 +107,9 @@ class Signal:
         )
 
     def get(self, strategy_names: list) -> Tuple[Optional[OrderType], list]:
+        if len(strategy_names) == 0:
+            return None, ["No strategies"]
+
         skip_message, strategy = self._check_candle_is_valid(strategy_names)
         if skip_message:
             return None, [skip_message]

@@ -1,7 +1,8 @@
 import logging
+import os
 import time
 import traceback
-from datetime import date
+from datetime import date, timedelta
 from http.client import RemoteDisconnected
 from typing import Optional, Tuple
 
@@ -9,10 +10,9 @@ import pandas as pd
 from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
 
-from src.dt import DayTime, Strategy, TradingTime
+from src.dt import DayTime, Plot, Strategy, TradingTime
 from src.dt.common_types import Instrument
 from src.dt.trading.order import Order
-from src.dt.trading.plot import main as export_signals_as_plot
 from src.dt.trading.signal import Signal
 from src.dt.trading.status import InstrumentStatus
 from src.utils import Context, Settings, TeleLog, displace_message
@@ -213,6 +213,19 @@ class Helper:
 
             time.sleep(10)
 
+    @staticmethod
+    def plot(date_target: date) -> None:
+        plot = Plot(date_target=date_target, date_end=date_target + timedelta(days=1))
+
+        date_filename = date_target.strftime("%Y-%M-%d")
+        path = os.path.dirname(os.path.abspath(__file__))
+        for _ in range(3):
+            path = os.path.dirname(path)
+
+        plot.get_signals_from_log(f"{path}/logs/auto_day_trading_{date_filename}.log")
+        plot.add_signals_to_figure()
+        plot.save_figure(f"{path}/logs/auto_day_trading_{date_filename}.png")
+
 
 class Day_Trading:
     def __init__(self, dry: bool):
@@ -322,6 +335,11 @@ class Day_Trading:
 
                     self.helper.sell_instrument(market_direction)
 
+                if message == ["No strategies"]:
+                    log.info(f"Signal: Exit | No strategies")
+
+                    self.helper.sell_instrument(market_direction)
+
         if self.signal.candle is None:
             return
 
@@ -378,7 +396,7 @@ def run(dry: bool) -> None:
     try:
         Day_Trading(dry)
 
-        export_signals_as_plot(date.today().strftime("%Y-%m-%d"))
+        Helper.plot(date.today())
 
     except Exception as e:
         log.error(f">>> {e}: {traceback.format_exc()}")

@@ -1,6 +1,7 @@
 import logging
 import time
 import traceback
+from datetime import date
 
 from src.dt import DayTime, Strategy, TradingTime
 from src.dt.calibration.walker import Helper, Walker
@@ -21,11 +22,8 @@ class Calibration:
 
         profitable_strategies = sorted(
             self.walker.traverse_strategies(
-                PERIOD_UPDATE,
-                "1m",
-                Cache.APPEND,
-                filter_strategies=True,
-                loaded_strategies=[],
+                period=PERIOD_UPDATE,
+                cache=Cache.APPEND,
                 target_day_direction=target_day_direction,
             ),
             key=lambda s: (s["points"], s["profit"]),
@@ -50,10 +48,8 @@ class Calibration:
 
         profitable_strategies = sorted(
             self.walker.traverse_strategies(
-                PERIOD_TEST,
-                "1m",
-                Cache.APPEND,
-                filter_strategies=True,
+                period=PERIOD_TEST,
+                cache=Cache.APPEND,
                 loaded_strategies=[
                     i["strategy"]
                     for i in stored_strategies.get(
@@ -93,9 +89,8 @@ class Calibration:
 
         profitable_strategies = sorted(
             self.walker.traverse_strategies(
-                "1d",
-                "1m",
-                Cache.SKIP,
+                period="1d",
+                cache=Cache.SKIP,
                 filter_strategies=False,
                 loaded_strategies=strategies_to_test,
             ),

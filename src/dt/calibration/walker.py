@@ -1,4 +1,5 @@
 import logging
+from copy import copy
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -108,12 +109,14 @@ class Helper:
 
     def get_orders_history_summary(self) -> dict:
         if len(self.orders_history) == 0:
-            return {
-                "strategy": self.strategy_name,
-                "points": 0,
-                "profit": 0,
-                "efficiency": "0%",
-            }
+            return copy(
+                {
+                    "strategy": self.strategy_name,
+                    "points": 0,
+                    "profit": 0,
+                    "efficiency": "0%",
+                }
+            )
 
         df = pd.DataFrame(self.orders_history)
         df.profit = df.profit.astype(float)
@@ -130,14 +133,16 @@ class Helper:
                 else f"{round(number_good_trades / number_trades * 100)}% - {number_good_trades} / {number_trades}"
             )
 
-        return {
-            "strategy": self.strategy_name,
-            "points": int(df.points.sum()),
-            "profit": int(df.profit.sum() - len(df) * 1000),
-            "efficiency": f"{round(100 * len(df[df.verdict == 'good']) / len(df))}%",
-            "numbers_bull": numbers[Instrument.BULL],
-            "numbers_bear": numbers[Instrument.BEAR],
-        }
+        return copy(
+            {
+                "strategy": self.strategy_name,
+                "points": int(df.points.sum()),
+                "profit": int(df.profit.sum() - len(df) * 1000),
+                "efficiency": f"{round(100 * len(df[df.verdict == 'good']) / len(df))}%",
+                "numbers_bull": numbers[Instrument.BULL],
+                "numbers_bear": numbers[Instrument.BEAR],
+            }
+        )
 
     def print_orders_history(self) -> None:
         if len(self.orders_history) == 0 or not Helper.show_orders:
@@ -183,15 +188,18 @@ class Walker:
 
     def traverse_strategies(
         self,
-        period: str,
-        interval: str,
-        cache: Cache,
-        filter_strategies: bool,
-        loaded_strategies: List[dict],
+        period: str = "1d",
+        interval: str = "1m",
+        cache: Cache = Cache.APPEND,
+        filter_strategies: bool = True,
+        loaded_strategies: List[dict] = [],
         target_day_direction: Optional[str] = None,
+        custom_history: Optional[pd.DataFrame] = None,
     ) -> List[dict]:
         strategy = Strategy(
-            History(
+            custom_history
+            if custom_history is not None
+            else History(
                 Walker.settings["instruments"]["MONITORING"]["YAHOO"],
                 period,
                 interval,
