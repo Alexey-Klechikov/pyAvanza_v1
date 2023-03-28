@@ -140,4 +140,4 @@ class TeleLog:
     def dump_to_telegram(self) -> None:
         log.info("Dump log to Telegram")
 
-        telegram_send.send(messages=[self.message])
+        # telegram_send.send(messages=[self.message])

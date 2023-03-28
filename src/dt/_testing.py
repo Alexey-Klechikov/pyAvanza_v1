@@ -15,7 +15,7 @@ from src.utils import Cache, History, Settings
 log = logging.getLogger("main.dt.calibration._testing")
 
 
-TARGET_DATE = "2023-03-24"
+TARGET_DATE = "2023-03-16"
 
 
 class SignalMod(Signal):
@@ -127,7 +127,7 @@ class Testing:
             reverse=True,
         )
 
-        return [s["strategy"] for s in profitable_strategies][:5]
+        return [s["strategy"] for s in profitable_strategies][:3]
 
 
 def run() -> None:
@@ -151,10 +151,7 @@ def run() -> None:
 
         # Calibration
         if time_index.minute % 10 == 0:
-            sliced_history = testing.full_history.loc[
-                time_index - timedelta(hours=12) : time_index  # type: ignore
-            ]
-            strategies = testing.backtest_strategies(sliced_history)
+            strategies = testing.backtest_strategies(testing.full_history.loc[:time_index])  # type: ignore
 
         # Get signal and act
         strategy = Strategy(
