@@ -83,7 +83,7 @@ class Calibration:
             strategies_to_test += [
                 i["strategy"]
                 for i in stored_strategies.get(f"{direction}_{PERIOD_TEST}", [])
-                if int(i["efficiency"][:-1]) > 60
+                if int(i["efficiency"][:-1]) > 55
             ]
         strategies_to_test = list(set(strategies_to_test))
 
@@ -129,7 +129,7 @@ def run(update: bool = True, pick: bool = True, show_orders: bool = False) -> No
             elif trading_time.day_time == DayTime.EVENING:
                 break
 
-            time.sleep(60 * 5)
+            time.sleep(60 * 10)
 
         except Exception as e:
             log.error(f">>> {e}: {traceback.format_exc()}")
