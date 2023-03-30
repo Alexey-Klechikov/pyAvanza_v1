@@ -211,7 +211,7 @@ class Helper:
     def plot(date_target: date) -> None:
         plot = Plot(date_target=date_target, date_end=date_target + timedelta(days=1))
 
-        date_filename = date_target.strftime("%Y-%M-%d")
+        date_filename = date_target.strftime("%Y-%m-%d")
         path = os.path.dirname(os.path.abspath(__file__))
         for _ in range(3):
             path = os.path.dirname(path)

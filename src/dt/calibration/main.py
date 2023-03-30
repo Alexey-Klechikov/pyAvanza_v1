@@ -83,7 +83,7 @@ class Calibration:
             strategies_to_test += [
                 i["strategy"]
                 for i in stored_strategies.get(f"{direction}_{PERIOD_TEST}", [])
-                if int(i["efficiency"][:-1]) > 55
+                if int(i["efficiency"][:-1]) >= 65
             ]
         strategies_to_test = list(set(strategies_to_test))
 
@@ -93,6 +93,7 @@ class Calibration:
                 cache=Cache.SKIP,
                 filter_strategies=False,
                 loaded_strategies=strategies_to_test,
+                history_cutoff={"hours": 2, "minutes": 30},
             ),
             key=lambda s: s["profit"],
             reverse=True,
@@ -102,7 +103,7 @@ class Calibration:
             "DT",
             {
                 **stored_strategies,
-                **{"act": [s["strategy"] for s in profitable_strategies][:3]},
+                **{"act": [s["strategy"] for s in profitable_strategies][:5]},
             },
         )
 

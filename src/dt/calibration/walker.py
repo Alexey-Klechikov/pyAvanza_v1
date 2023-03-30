@@ -195,11 +195,11 @@ class Walker:
         loaded_strategies: List[dict] = [],
         target_day_direction: Optional[str] = None,
         custom_history: Optional[pd.DataFrame] = None,
+        history_cutoff: dict = {},
     ) -> List[dict]:
-        strategy = Strategy(
-            custom_history
-            if custom_history is not None
-            else History(
+        history = custom_history
+        if history is None:
+            history = History(
                 Walker.settings["instruments"]["MONITORING"]["YAHOO"],
                 period,
                 interval,
@@ -208,7 +208,12 @@ class Walker:
                 extra_data=self.ava.get_today_history(
                     Walker.settings["instruments"]["MONITORING"]["AVA"]
                 ),
-            ).data,
+            ).data
+        if history_cutoff:
+            history = history.loc[pd.to_datetime(history.index[-1]) - timedelta(**history_cutoff) :]  # type: ignore
+
+        strategy = Strategy(
+            history,
             strategies=loaded_strategies,
         )
 
@@ -229,7 +234,7 @@ class Walker:
         log.info(
             " ".join(
                 [
-                    f"Dates range: {strategy.data.index[0].strftime('%Y.%m.%d')} - {strategy.data.index[-1].strftime('%Y.%m.%d')}",  # type: ignore
+                    f"Dates range: {strategy.data.index[0].strftime('%Y.%m.%d %H:%M')} - {strategy.data.index[-1].strftime('%Y.%m.%d %H:%M')}",  # type: ignore
                     f"(Rows: {strategy.data.shape[0]})",
                     f"(Days with volume: {len([i for i in daily_volumes if i > 0])} / {len(daily_volumes)})",
                 ]

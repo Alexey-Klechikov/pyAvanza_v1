@@ -54,7 +54,7 @@ class Signal:
     def _get_last_signal_on_strategy(
         self, strategy: Strategy, strategy_name: str
     ) -> Tuple[Optional[OrderType], Optional[datetime]]:
-        for i in range(1, 24):
+        for i in range(1, 14):
             candle = strategy.data.iloc[-i]
 
             for signal in [OrderType.BUY, OrderType.SELL]:
@@ -63,18 +63,13 @@ class Signal:
                 ):
                     return signal, candle.name  # type: ignore
 
-            if candle.name.hour < 10:  # type: ignore
-                break
-
         return None, None
 
     def _extract_signal_from_list(
         self, signals: list
     ) -> Tuple[OrderType, datetime, str]:
         latest_signal_time = max([s["time"] for s in signals])
-        latest_signals = {
-            "all": [s for s in signals if s["time"] == latest_signal_time]
-        }
+        latest_signals = {"all": signals}
 
         [
             log.debug(f"> {s['signal'].value}: {s['strategy_name']}")  # type: ignore

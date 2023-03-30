@@ -30,7 +30,6 @@ class Plot:
         with open(path, "r") as f:
             lines = f.readlines()
 
-        signals: dict = {"BUY": [], "SELL": [], "EXIT": []}
         for line in lines:
             if not ("Signal: BUY" in line or "Signal: SELL" in line or "Exit" in line):
                 continue
@@ -43,7 +42,7 @@ class Plot:
                 .replace(second=0)
             )
 
-            signals[signal].append(time)
+            self.signals[signal].append(time)
 
     def get_ticker_history(self, date_target: date, date_end: date) -> pd.DataFrame:
         ticker = yf.Ticker("^OMX")

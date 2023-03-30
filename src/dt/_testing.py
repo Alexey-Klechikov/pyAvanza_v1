@@ -15,7 +15,8 @@ from src.utils import Cache, History, Settings
 log = logging.getLogger("main.dt.calibration._testing")
 
 
-TARGET_DATE = "2023-03-16"
+TARGET_DATES = ["2023-03-27", "2023-03-28", "2023-03-29", "2023-03-23", "2023-03-24"]
+TARGET_FOLDER = "top5 65 all"
 
 
 class SignalMod(Signal):
@@ -74,7 +75,9 @@ class SignalMod(Signal):
 
 
 class Testing:
-    def __init__(self):
+    def __init__(self, target_date):
+        self.target_date = target_date
+
         self.stored_strategies = self._get_stored_strategies()
         self.full_history = self._get_full_history()
 
@@ -86,7 +89,7 @@ class Testing:
             stored_strategies += [
                 i["strategy"]
                 for i in Strategy.load("DT").get(f"{direction}_10d", [])
-                if int(i["efficiency"][:-1]) > 55
+                if int(i["efficiency"][:-1]) >= 65
             ]
         stored_strategies = list(set(stored_strategies))
 
@@ -94,8 +97,12 @@ class Testing:
 
     def _get_full_history(self) -> pd.DataFrame:
         target_days_limits = (
-            datetime.strptime(TARGET_DATE, "%Y-%m-%d").replace(hour=7, tzinfo=None),
-            datetime.strptime(TARGET_DATE, "%Y-%m-%d").replace(hour=21, tzinfo=None),
+            datetime.strptime(self.target_date, "%Y-%m-%d").replace(
+                hour=7, tzinfo=None
+            ),
+            datetime.strptime(self.target_date, "%Y-%m-%d").replace(
+                hour=21, tzinfo=None
+            ),
         )
 
         history_data = History(
@@ -105,16 +112,19 @@ class Testing:
             cache=Cache.REUSE,
         ).data
 
-        history_data.index = pd.to_datetime(history_data.index).tz_convert(None) + timedelta(hours=1)  # type: ignore
+        history_data.index = pd.to_datetime(history_data.index).tz_convert(None)
+        history_data = history_data.loc[target_days_limits[0] : target_days_limits[1]]  # type: ignore
 
-        return history_data[
-            (history_data.index >= target_days_limits[0])
-            & (history_data.index <= target_days_limits[1])
-        ]
+        for _ in range(3):
+            if history_data.index[0].hour == 9:  # type: ignore
+                break
+            history_data.index = history_data.index + timedelta(hours=1)  # type: ignore
+
+        return history_data
 
     def backtest_strategies(self, sliced_history: pd.DataFrame) -> list:
         log.info(
-            "Back-testing strategies to get top 3 "
+            "Back-testing strategies to get top 5 "
             + f"({sliced_history.index[0].strftime('%H:%M')} : {sliced_history.index[-1].strftime('%H:%M')})"  # type: ignore
         )
 
@@ -122,89 +132,96 @@ class Testing:
             self.walker.traverse_strategies(
                 custom_history=sliced_history,
                 loaded_strategies=self.stored_strategies,
+                filter_strategies=False,
+                history_cutoff={"hours": 2, "minutes": 30},
             ),
             key=lambda s: s["profit"],
             reverse=True,
         )
 
-        return [s["strategy"] for s in profitable_strategies][:3]
+        return [s["strategy"] for s in profitable_strategies][:5]
 
 
 def run() -> None:
-    testing = Testing()
-    signal_obj = SignalMod(testing.walker.ava, Settings().load("DT"))
-    helper = Helper("TESTING")
+    for target_date in TARGET_DATES:
+        testing = Testing(target_date)
+        signal_obj = SignalMod(testing.walker.ava, Settings().load("DT"))
+        helper = Helper("TESTING")
 
-    signal = None
-    message: list = []
-    exit_instrument = None
+        signal = None
+        message: list = []
+        exit_instrument = None
 
-    strategies = []
-    signals: dict = {"BUY": [], "SELL": [], "EXIT": []}
+        strategies = []
+        signals: dict = {"BUY": [], "SELL": [], "EXIT": []}
 
-    for i in testing.full_history.index:
-        time_index: datetime = pd.to_datetime(i)  # type: ignore
+        for time_index in testing.full_history.index:
+            # Before the day
+            if time_index < time_index.replace(hour=9, minute=45):
+                continue
 
-        # Before the day
-        if time_index < time_index.replace(hour=9, minute=45):
-            continue
+            # Calibration
+            if time_index.minute % 10 == 0:
+                strategies = testing.backtest_strategies(
+                    testing.full_history.loc[:time_index]
+                )
 
-        # Calibration
-        if time_index.minute % 10 == 0:
-            strategies = testing.backtest_strategies(testing.full_history.loc[:time_index])  # type: ignore
-
-        # Get signal and act
-        strategy = Strategy(
-            testing.full_history.loc[:time_index],  # type: ignore
-            strategies=strategies,
-        )
-
-        row = strategy.data.iloc[-1]
-        if not signal and exit_instrument:
-            helper.sell_order(
-                row,
-                exit_instrument,
+            # Get signal and act
+            strategy = Strategy(
+                testing.full_history.loc[:time_index],  # type: ignore
+                strategies=strategies,
             )
 
-            signals["EXIT"].append(time_index)
+            row = strategy.data.iloc[-1]
+            if not signal and exit_instrument:
+                helper.sell_order(
+                    row,
+                    exit_instrument,
+                )
 
-        elif signal:
-            log.warn(" | ".join(message))
-
-            signals[signal.name].append(time_index)
-
-            helper.sell_order(
-                row,
-                Instrument.from_signal(signal)[OrderType.SELL],
-            )
-            helper.buy_order(
-                row,
-                Instrument.from_signal(signal)[OrderType.BUY],
-            )
-
-        helper.check_orders_for_limits(row)
-
-        signal, message = signal_obj.get(strategies, strategy)
-
-        exit_instrument = helper.get_exit_instrument(row, strategy.data)
-
-        # "End of day" or "No strategies"
-        end_of_day = time_index.hour == 17 and time_index.minute >= 15
-        if end_of_day or not strategies:
-            for instrument in helper.orders:
-                helper.sell_order(row, instrument)
                 signals["EXIT"].append(time_index)
 
-        if end_of_day:
-            break
+            elif signal:
+                log.warn(" | ".join(message))
 
-    # Plot
-    plot = Plot(testing.full_history)
+                signals[signal.name].append(time_index)
 
-    path = os.path.dirname(os.path.abspath(__file__))
-    for _ in range(2):
-        path = os.path.dirname(path)
+                helper.sell_order(
+                    row,
+                    Instrument.from_signal(signal)[OrderType.SELL],
+                )
+                helper.buy_order(
+                    row,
+                    Instrument.from_signal(signal)[OrderType.BUY],
+                )
 
-    plot.add_signals_to_figure(signals=signals)
-    plot.add_balance_to_figure(helper.orders_history)
-    plot.save_figure(f"{path}/logs/manual_day_trading_{TARGET_DATE}.png")
+            helper.check_orders_for_limits(row)
+
+            signal, message = signal_obj.get(strategies, strategy)
+
+            exit_instrument = helper.get_exit_instrument(row, strategy.data)
+
+            # "End of day" or "No strategies"
+            end_of_day = time_index.hour == 17 and time_index.minute >= 15
+            if end_of_day or not strategies:
+                for instrument in helper.orders:
+                    helper.sell_order(row, instrument)
+                    signals["EXIT"].append(time_index)
+
+            if end_of_day:
+                break
+
+        # Plot
+        plot = Plot(testing.full_history)
+
+        path = os.path.dirname(os.path.abspath(__file__))
+        for _ in range(2):
+            path = os.path.dirname(path)
+
+        plot.add_signals_to_figure(signals=signals)
+        plot.add_balance_to_figure(helper.orders_history)
+        plot.save_figure(
+            f"{path}/logs/"
+            + (f"{TARGET_FOLDER}/" if TARGET_FOLDER else "")
+            + f"manual_day_trading_{target_date}.png"
+        )
