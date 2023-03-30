@@ -16,7 +16,7 @@ log = logging.getLogger("main.dt.calibration._testing")
 
 
 TARGET_DATES = ["2023-03-27", "2023-03-28", "2023-03-29", "2023-03-23", "2023-03-24"]
-TARGET_FOLDER = "top5 65 all"
+TARGET_FOLDER = "top_5 65 2.5 5min"
 
 
 class SignalMod(Signal):
@@ -144,6 +144,8 @@ class Testing:
 
 def run() -> None:
     for target_date in TARGET_DATES:
+        log.warn(f"Target date: {target_date}")
+
         testing = Testing(target_date)
         signal_obj = SignalMod(testing.walker.ava, Settings().load("DT"))
         helper = Helper("TESTING")
@@ -161,7 +163,7 @@ def run() -> None:
                 continue
 
             # Calibration
-            if time_index.minute % 10 == 0:
+            if time_index.minute % 6 == 0:
                 strategies = testing.backtest_strategies(
                     testing.full_history.loc[:time_index]
                 )

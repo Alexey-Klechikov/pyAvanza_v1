@@ -130,7 +130,7 @@ def run(update: bool = True, pick: bool = True, show_orders: bool = False) -> No
             elif trading_time.day_time == DayTime.EVENING:
                 break
 
-            time.sleep(60 * 10)
+            time.sleep(60 * 6)
 
         except Exception as e:
             log.error(f">>> {e}: {traceback.format_exc()}")
