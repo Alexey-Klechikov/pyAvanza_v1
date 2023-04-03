@@ -357,7 +357,7 @@ class Day_Trading:
 
                     self.helper.sell_instrument(market_direction)
 
-        if self.signal.candle is None:
+        if self.signal.candle.empty:
             return
 
         if signal:
