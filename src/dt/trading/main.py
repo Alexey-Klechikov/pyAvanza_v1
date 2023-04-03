@@ -248,8 +248,6 @@ class Helper:
 
 class Day_Trading:
     def __init__(self, dry: bool):
-        self.dry = dry
-
         settings = Settings().load("DT")
         self.helper = Helper(settings, dry)
         self.signal = Signal(self.helper.ava, settings)
@@ -385,9 +383,7 @@ class Day_Trading:
             if self.helper.trading_time.day_time == DayTime.DAY:
                 self.action_day()
 
-            if self.helper.trading_time.day_time == DayTime.EVENING or (
-                not self.dry and self.helper.check_daily_limits()
-            ):  # HERE - change function check_daily_limits to overwrite self.dry
+            if self.helper.trading_time.day_time == DayTime.EVENING:
                 self.action_evening()
 
                 if (
@@ -395,6 +391,11 @@ class Day_Trading:
                     and not self.helper.instrument_status[Instrument.BULL].position
                 ):
                     break
+
+            if not self.helper.dry and self.helper.check_daily_limits():
+                log.warning("Daily limits reached, switching to DRY")
+
+                self.helper.dry = True
 
             time.sleep(50)
 
