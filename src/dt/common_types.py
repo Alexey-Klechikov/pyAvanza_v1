@@ -43,7 +43,7 @@ class TradingTime:
     def update_day_time(self) -> None:
         current_time = datetime.now()
 
-        if current_time <= current_time.replace(hour=9, minute=59):
+        if current_time <= current_time.replace(hour=9, minute=55):
             self.day_time = DayTime.MORNING
 
         elif (
