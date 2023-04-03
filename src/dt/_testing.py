@@ -15,8 +15,7 @@ from src.utils import Cache, History, Settings
 log = logging.getLogger("main.dt.calibration._testing")
 
 
-TARGET_DATES = ["2023-03-27", "2023-03-28", "2023-03-29", "2023-03-23", "2023-03-24"]
-TARGET_FOLDER = "top_5 65 2.5 5min"
+TARGET_FOLDER = ""
 
 
 class SignalMod(Signal):
@@ -124,7 +123,7 @@ class Testing:
 
     def backtest_strategies(self, sliced_history: pd.DataFrame) -> list:
         log.info(
-            "Back-testing strategies to get top 5 "
+            "Back-testing strategies "
             + f"({sliced_history.index[0].strftime('%H:%M')} : {sliced_history.index[-1].strftime('%H:%M')})"  # type: ignore
         )
 
@@ -139,11 +138,18 @@ class Testing:
             reverse=True,
         )
 
-        return [s["strategy"] for s in profitable_strategies][:5]
+        max_profit = max([s["profit"] for s in profitable_strategies])
+        profitable_strategies = [
+            s["strategy"]
+            for s in profitable_strategies
+            if s["profit"] >= max_profit * 0.5
+        ]
+
+        return profitable_strategies
 
 
-def run() -> None:
-    for target_date in TARGET_DATES:
+def run(target_dates) -> None:
+    for target_date in target_dates:
         log.warn(f"Target date: {target_date}")
 
         testing = Testing(target_date)
@@ -159,7 +165,7 @@ def run() -> None:
 
         for time_index in testing.full_history.index:
             # Before the day
-            if time_index < time_index.replace(hour=9, minute=45):
+            if time_index < time_index.replace(hour=10):
                 continue
 
             # Calibration

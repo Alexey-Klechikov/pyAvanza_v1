@@ -2,6 +2,7 @@ import logging
 import os
 import time
 import traceback
+from dataclasses import dataclass
 from datetime import date, timedelta
 from http.client import RemoteDisconnected
 from typing import Optional, Tuple
@@ -22,6 +23,38 @@ log = logging.getLogger("main.dt.trading.main")
 DISPLACEMENTS = (12, 14, 13, 12, 9, 0)
 
 
+@dataclass
+class Balance:
+    before: float = 0
+    tradable: float = 0
+    not_tradable: float = 0
+
+    daily_target: float = 0
+    daily_limit: float = 0
+
+    after: float = 0
+
+    def define(self, before: float, budget: float) -> None:
+        self.before = before
+        self.tradable = budget
+        self.not_tradable = round(before - budget)
+
+        self.daily_target = round(self.tradable * 1.1)
+        self.daily_limit = round(self.tradable * 0.9)
+
+        log.info(f"Balance before: {round(self.before)}")
+        log.info(f"Trading budget: {round(self.tradable)}")
+
+    def summarize(self) -> dict:
+        log.info(f"Balance after: {round(self.after)}")
+
+        return {
+            "balance_before": self.before,
+            "balance_after": self.after,
+            "budget": self.tradable,
+        }
+
+
 class Helper:
     def __init__(self, settings: dict, dry: bool):
         self.settings = settings
@@ -29,9 +62,7 @@ class Helper:
 
         self.trading_done = False
 
-        self.budget = 0
-        self.target = 0
-
+        self.balance = Balance()
         self.trading_time = TradingTime()
         self.instrument_status: dict = {
             instrument: InstrumentStatus(instrument, settings["trading"])
@@ -41,15 +72,13 @@ class Helper:
         self.ava = Context(settings["user"], settings["accounts"], process_lists=False)
         self.order = Order(self.ava, settings)
 
-        self.log_data = {k: 0.0 for k in ["balance_before", "balance_after", "budget"]}
-
     def get_balance_before(self) -> None:
         transactions = self.ava.ctx.get_transactions(
             account_id=str(self.settings["accounts"]["DT"]),
             transactions_from=date.today(),
         )
 
-        self.log_data["balance_before"] = (
+        account_balance_before = (
             self.ava.portfolio.total_own_capital
             if not transactions or not transactions["transactions"]
             else sum(
@@ -60,14 +89,22 @@ class Helper:
             )
         )
 
-        log.info(f"Balance before: {round(self.log_data['balance_before'])}")
-
-    def get_balance_after(self) -> None:
-        self.log_data["balance_after"] = sum(
-            self.ava.get_portfolio().buying_power.values()
+        self.balance.define(
+            account_balance_before,
+            self.settings["trading"]["budget"],
         )
 
-        log.info(f'Balance after: {round(self.log_data["balance_after"])}')
+    def get_balance_after(self) -> None:
+        self.balance.after = (
+            sum(self.ava.get_portfolio().buying_power.values())
+            - self.balance.not_tradable
+        )
+
+        log.info(f"Balance after: {round(self.balance.after)}")
+
+    def check_daily_limits(self) -> bool:
+        balance = self.ava.get_portfolio().total_own_capital - self.balance.not_tradable
+        return balance < self.balance.daily_limit or balance > self.balance.daily_target
 
     def get_trade_history(self) -> Tuple[dict, list]:
         transactions = self.ava.ctx.get_transactions(
@@ -129,24 +166,6 @@ class Helper:
             log.error(f"Transactions: {transactions}")
 
             return {}, []
-
-    def check_daily_limits(self) -> bool:
-        balance = self.ava.get_portfolio().total_own_capital
-        return balance < self.budget or balance > self.target
-
-    def update_daily_limits(self) -> None:
-        self.budget = max(
-            round(self.log_data["balance_before"] * 0.9),
-            self.settings["trading"]["budget"],
-        )
-
-        self.log_data["budget"] = self.budget
-
-        log.info(f"Trading budget: {self.budget}")
-
-        self.target = round(self.log_data["balance_before"] * 1.1)
-
-        log.info(f"Target: {self.target}")
 
     def update_instrument_status(
         self, market_direction: Instrument
@@ -356,7 +375,6 @@ class Day_Trading:
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:
         self.helper.get_balance_before()
-        self.helper.update_daily_limits()
 
         while True:
             if self.helper.trading_time.day_time == DayTime.MORNING:
@@ -369,7 +387,7 @@ class Day_Trading:
 
             if self.helper.trading_time.day_time == DayTime.EVENING or (
                 not self.dry and self.helper.check_daily_limits()
-            ):
+            ):  # HERE - change function check_daily_limits to overwrite self.dry
                 self.action_evening()
 
                 if (
@@ -386,7 +404,7 @@ class Day_Trading:
             trades_stats, profits = self.helper.get_trade_history()
 
             TeleLog(
-                day_trading_stats=self.helper.log_data,
+                day_trading_stats=self.helper.balance.summarize(),
                 trades_stats=trades_stats,
                 profits=profits,
             )

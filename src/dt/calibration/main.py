@@ -99,11 +99,18 @@ class Calibration:
             reverse=True,
         )
 
+        max_profit = max([s["profit"] for s in profitable_strategies])
+        profitable_strategies = [
+            s["strategy"]
+            for s in profitable_strategies
+            if s["profit"] >= max_profit * 0.5
+        ]
+
         Strategy.dump(
             "DT",
             {
                 **stored_strategies,
-                **{"act": [s["strategy"] for s in profitable_strategies][:5]},
+                **{"act": profitable_strategies},
             },
         )
 
