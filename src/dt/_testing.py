@@ -174,6 +174,9 @@ def run(target_dates) -> None:
                     testing.full_history.loc[:time_index]
                 )
 
+            if time_index.minute % 2 != 0:
+                continue
+
             # Get signal and act
             strategy = Strategy(
                 testing.full_history.loc[:time_index],  # type: ignore

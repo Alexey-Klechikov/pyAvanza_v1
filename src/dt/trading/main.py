@@ -45,9 +45,12 @@ class Balance:
         log.info(f"Balance before: {round(self.before)}")
         log.info(f"Trading budget: {round(self.tradable)}")
 
-    def summarize(self) -> dict:
+    def update_after(self, total_balance: float) -> None:
+        self.after = total_balance
+
         log.info(f"Balance after: {round(self.after)}")
 
+    def summarize(self) -> dict:
         return {
             "balance_before": self.before,
             "balance_after": self.after,
@@ -397,9 +400,11 @@ class Day_Trading:
 
                 self.helper.dry = True
 
-            time.sleep(50)
+            time.sleep(120)
 
-        self.helper.get_balance_after()
+        self.helper.balance.update_after(
+            sum(self.helper.ava.get_portfolio().buying_power.values())
+        )
 
         if log_to_telegram:
             trades_stats, profits = self.helper.get_trade_history()
