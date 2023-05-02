@@ -53,6 +53,14 @@ class Summary:
             reverse=True,
         )
 
+    def consider_ema_in_signal(self, signal_ema: OrderType) -> None:
+        if signal_ema == OrderType.SELL:
+            self.signal = OrderType.SELL
+
+    def consider_max_output_in_signal(self) -> None:
+        if self.max_output.result < 1400:
+            self.signal = OrderType.SELL
+
 
 @dataclass
 class Balance:
@@ -86,6 +94,7 @@ class Components:
         self.generate_conditions_trend()
         self.generate_conditions_overlap()
         self.generate_conditions_momentum()
+        self.generate_conditions_extra()
 
         self.data = self.clean_up_data(skip_points)
 
@@ -402,6 +411,11 @@ class Components:
             }
             self.columns_needed += ["STOCHd_14_3_3", "STOCHk_14_3_3"]
 
+    def generate_conditions_extra(self) -> None:
+        # EMA (Exponential Moving Average) - used for the position exit
+        self.data.ta.ema(length=200, append=True)
+        self.columns_needed += ["EMA_200"]
+
     def clean_up_data(self, skip_points: int) -> pd.DataFrame:
         return self.data.iloc[skip_points:].drop(
             columns=list(set(self.data.columns) - (set(self.columns_needed))),
@@ -584,8 +598,22 @@ class Strategy:
                 else OrderType.SELL
             )
 
+        summary.consider_max_output_in_signal()
+        summary.consider_ema_in_signal(
+            OrderType.SELL
+            if (self.data.iloc[-1]["Close"] < self.data.iloc[-1]["EMA_200"])
+            else OrderType.BUY
+        )
+
         log.info(
-            f'> {summary.signal.name}{". Top 3 strategies were considered" if summary.max_output.transactions_counter == 1 else ""}'
+            f"> {summary.signal.name}"
+            + f" / transaction counter: {summary.max_output.transactions_counter}"
+            + f" / max_output: {summary.max_output.result}"
+            + (
+                ""
+                if summary.max_output.transactions_counter == 1
+                else " / Top 3 strategies"
+            )
         )
 
         return summary

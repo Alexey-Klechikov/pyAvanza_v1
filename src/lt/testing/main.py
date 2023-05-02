@@ -279,16 +279,6 @@ class PortfolioAnalysis:
                         cache=cache,
                     )
 
-            log.info("Checking budget_lists")
-            for budget_rule_name, watch_list in self.ava.budget_rules.items():
-                for ticker in watch_list["tickers"]:
-                    self.get_strategy_on_ticker(
-                        ticker["ticker_yahoo"],
-                        f"Budget ({budget_rule_name}K): {ticker['ticker_yahoo']}",
-                        in_portfolio=False,
-                        cache=cache,
-                    )
-
 
 def run() -> None:
     PortfolioAnalysis(
@@ -296,7 +286,7 @@ def run() -> None:
         show_only_tickers_to_act_on=False,
         print_transactions=False,
         extra_tickers_plot=[],
-        plot_portfolio_tickers=False,
+        plot_portfolio_tickers=True,
         plot_total_algo_performance_vs_hold=False,
         plot_tickers_to_act_on=False,
         cache=False,

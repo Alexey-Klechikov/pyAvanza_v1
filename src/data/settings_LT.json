@@ -4,12 +4,7 @@
         "Bostad - Elena": 6574382,
         "Bostad - Alex": 9568450
     },
+    "budget_per_ticker": 10000,
     "log_to_telegram": true,
-    "buy_delay_after_sell": 2,
-    "budget_list_thresholds": {
-        "2200": "10",
-        "2000": "5",
-        "1800": "3",
-        "1600": "1"
-    }
+    "buy_delay_after_sell": 5
 }

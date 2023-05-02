@@ -1,6 +1,7 @@
 import logging
+import time
 import traceback
-from typing import List, Tuple
+from typing import List
 
 from avanza import OrderType as Signal
 
@@ -11,114 +12,140 @@ log = logging.getLogger("main.lt.trading")
 
 
 class PortfolioAnalysis:
-    def __init__(self, signals: dict):
-        settings = Settings().load("LT")
+    def __init__(self):
+        self.settings = Settings().load("LT")
 
         self.strategies = Strategy.load("LT")
-        self.signals = signals
+        self.signals: dict = {}
 
-        self.ava = Context(settings["user"], settings["accounts"])
-        self.run_analysis(settings["accounts"], settings["log_to_telegram"])
+        self.portfolio_tickers: dict = {"sold": {}, "in_stock": {}}
 
-    def get_signal_on_ticker(self, ticker_yahoo: str, ticker_ava: str) -> dict:
-        log.info("Getting signal")
+        self.ava = Context(self.settings["user"], self.settings["accounts"])
+        self.run_analysis()
 
-        if ticker_yahoo not in self.signals:
-            try:
-                data = History(ticker_yahoo, "18mo", "1d", cache=Cache.SKIP).data
+    def _get_signal_on_ticker(self, ticker_yahoo: str, ticker_ava: str) -> dict:
+        if ticker_yahoo in self.signals:
+            return self.signals[ticker_yahoo]
 
-                if str(data.iloc[-1]["Close"]) == "nan":
-                    self.ava.update_todays_ochl(data, ticker_ava)
+        try:
+            data = History(ticker_yahoo, "18mo", "1d", cache=Cache.SKIP).data
 
+            if str(data.iloc[-1]["Close"]) == "nan":
+                self.ava.update_todays_ochl(data, ticker_ava)
+
+            if self.strategies.get(ticker_yahoo):
                 strategy_obj = Strategy(
                     data,
-                    strategies=self.strategies.get(ticker_yahoo, []),
+                    strategies=self.strategies.get(ticker_yahoo, {}).get(
+                        "strategies", []
+                    ),
                 )
 
-            except Exception as e:
-                log.error(f"Error (get_signal_on_ticker): {e}")
+                self.signals[ticker_yahoo] = {
+                    "signal": strategy_obj.summary.signal,
+                    "return": strategy_obj.summary.max_output.result,
+                }
 
-                return {}
+            else:
+                log.info("!!!! No strategy found")  # TODO: HERE: remove
+                self.signals[ticker_yahoo] = {
+                    "signal": Signal.SELL,
+                    "return": 0,
+                }
 
-            self.signals[ticker_yahoo] = {
-                "signal": strategy_obj.summary.signal,
-                "return": strategy_obj.summary.max_output.result,
-            }
+            return self.signals[ticker_yahoo]
 
-        return self.signals[ticker_yahoo]
+        except Exception as e:
+            log.error(f"Error (_get_signal_on_ticker): {e}")
 
-    def create_sell_orders(self) -> Tuple[List[dict], dict]:
-        log.info("Walk through portfolio (sell)")
+            return {}
 
-        orders, portfolio_tickers = [], {}
-        if self.ava.portfolio.positions.df.shape[0] != 0:
-            for i, row in self.ava.portfolio.positions.df.iterrows():
-                log.info(
-                    f'Portfolio ({int(i) + 1}/{self.ava.portfolio.positions.df.shape[0]}): {row["ticker_yahoo"]}'  # type: ignore
-                )
+    def _sort_buy_orders(self, orders: List[dict]) -> List[dict]:
+        sorted_orders: list = []
 
-                portfolio_tickers[row["ticker_yahoo"]] = {"row": row}
+        tickers_sorted_by_priority: list = [
+            i[0]
+            for i in sorted(
+                self.strategies.items(), key=lambda x: x[1]["max_output"], reverse=True
+            )
+        ]
 
-                signal = self.get_signal_on_ticker(
-                    row["ticker_yahoo"], row["orderbookId"]
-                )
+        for ticker in tickers_sorted_by_priority:
+            for order in orders:
+                if order["ticker_yahoo"] == ticker:
+                    sorted_orders.append(order)
 
-                if signal.get("signal") != Signal.SELL:
-                    continue
+        return sorted_orders
 
-                log.info(">> ACTION")
+    def create_sell_orders(self) -> List[dict]:
+        log.info("Walk through portfolio (SELL)")
 
-                orders.append(
-                    {
-                        "account_id": row["accountId"],
-                        "order_book_id": row["orderbookId"],
-                        "volume": row["volume"],
-                        "price": row["lastPrice"],
-                        "profit": row["profitPercent"],
-                        "name": row["name"],
-                        "ticker_yahoo": row["ticker_yahoo"],
-                        "max_return": signal["return"],
-                    }
-                )
+        orders: list = []
 
-        self.ava.create_orders(orders, Signal.SELL)
+        if self.ava.portfolio.positions.df.shape[0] == 0:
+            return orders
 
-        return orders, portfolio_tickers
+        for i, row in self.ava.portfolio.positions.df.iterrows():
+            log.info(
+                f'Portfolio ({int(i) + 1}/{self.ava.portfolio.positions.df.shape[0]}): {row["ticker_yahoo"]}'  # type: ignore
+            )
 
-    def create_buy_orders(self, portfolio_tickers: dict) -> Tuple[List[dict], dict]:
-        log.info("Walk through budget lists (buy)")
+            signal = self._get_signal_on_ticker(row["ticker_yahoo"], row["orderbookId"])
 
-        orders = []
-        for budget_rule_name, watch_list in self.ava.budget_rules.items():
+            self.portfolio_tickers[
+                "in_stock" if signal.get("signal") == Signal.BUY else "sold"
+            ][row["ticker_yahoo"]] = row
+
+            if signal.get("signal") == Signal.BUY:
+                continue
+
+            log.info(">> ACTION")
+
+            orders.append(
+                {
+                    "account_id": row["accountId"],
+                    "order_book_id": row["orderbookId"],
+                    "volume": row["volume"],
+                    "price": row["lastPrice"],
+                    "profit": row["profitPercent"],
+                    "name": row["name"],
+                    "ticker_yahoo": row["ticker_yahoo"],
+                    "max_return": signal["return"],
+                }
+            )
+
+        # self.ava.create_orders(orders, Signal.SELL)
+
+        if len(orders) > 0:
+            time.sleep(self.settings["sleep_after_sell"] * 60)
+
+        return orders
+
+    def create_buy_orders(self) -> List[dict]:
+        log.info("Walk through watch lists (BUY)")
+
+        orders: list = []
+
+        for watch_list_name, watch_list in self.ava.watch_lists.items():
             for ticker in watch_list["tickers"]:
-                if ticker["ticker_yahoo"] in portfolio_tickers:
-                    portfolio_tickers[ticker["ticker_yahoo"]]["budget"] = (
-                        int(budget_rule_name) * 1000
-                    )
-
+                if ticker["ticker_yahoo"] in list(
+                    self.portfolio_tickers["in_stock"]
+                ) + list(self.portfolio_tickers["sold"]):
                     continue
 
-                log.info(
-                    f'> Budget list "{budget_rule_name}": {ticker["ticker_yahoo"]}'
-                )
+                log.info(f'> Watch list "{watch_list_name}": {ticker["ticker_yahoo"]}')
 
-                signal = self.get_signal_on_ticker(
+                signal = self._get_signal_on_ticker(
                     ticker["ticker_yahoo"], ticker["order_book_id"]
                 )
 
-                if signal.get("signal") != Signal.BUY:
+                if signal.get("signal") == Signal.SELL:
                     continue
 
                 stock_price = self.ava.get_stock_price(ticker["order_book_id"])
-
-                try:
-                    volume = int(
-                        int(budget_rule_name) * 1000 // stock_price[Signal.BUY]
-                    )
-
-                except Exception as e:
-                    log.error(f"Error (create_buy_orders): {e}")
-                    continue
+                volume = self.settings["budget_per_ticker"] // stock_price.get(
+                    Signal.BUY, self.settings["budget_per_ticker"] + 1
+                )
 
                 log.info(">> ACTION")
 
@@ -126,7 +153,7 @@ class PortfolioAnalysis:
                     {
                         "ticker_yahoo": ticker["ticker_yahoo"],
                         "order_book_id": ticker["order_book_id"],
-                        "budget": int(budget_rule_name) * 1000,
+                        "budget": self.settings["budget_per_ticker"],
                         "price": stock_price[Signal.BUY],
                         "volume": volume,
                         "name": ticker["name"],
@@ -134,60 +161,44 @@ class PortfolioAnalysis:
                     }
                 )
 
-        created_orders = self.ava.create_orders(orders, Signal.BUY)
+        orders = self._sort_buy_orders(orders)
+        # orders = self.ava.create_orders(orders, Signal.BUY)
 
-        return created_orders, portfolio_tickers
+        return orders
 
-    def create_take_profit_orders(
-        self, portfolio_tickers: dict, created_sell_orders: List[dict]
-    ) -> List[dict]:
-        log.info("Walk through portfolio (take profit)")
-
-        for sell_order in created_sell_orders:
-            if sell_order["ticker_yahoo"] in portfolio_tickers:
-                portfolio_tickers.pop(sell_order["ticker_yahoo"])
+    def create_take_profit_orders(self) -> List[dict]:
+        log.info("Walk through portfolio (TAKE PROFIT)")
 
         orders = []
 
-        for ticker in portfolio_tickers.values():
-            ticker_budget = ticker.get("budget")
-
-            if ticker_budget is None:
-                log.warning(
-                    f'> Ticker "{ticker["row"]["ticker_yahoo"]}" has no budget -> skip'
-                )
-
-                continue
-
-            log.info(f'> Ticker: {ticker["row"]["ticker_yahoo"]}')
+        for ticker in self.portfolio_tickers["in_stock"].values():
+            log.info(f'> Ticker: {ticker["ticker_yahoo"]}')
 
             volume_sell = (
-                ticker["row"]["value"]
-                - max(ticker["row"]["acquiredValue"], ticker_budget)
-            ) // ticker["row"]["lastPrice"]
+                ticker["value"] - self.settings["budget_per_ticker"]
+            ) // ticker["lastPrice"]
 
-            conditions_skip = [ticker["row"]["profitPercent"] < 10, volume_sell <= 0]
+            profit_percent = round(
+                volume_sell
+                * ticker["lastPrice"]
+                / self.settings["budget_per_ticker"]
+                * 100,
+                1,
+            )
 
-            if any(conditions_skip):
+            if profit_percent < 10 or volume_sell <= 0:
                 continue
 
             log.info("> TAKE PROFIT")
             orders.append(
                 {
-                    "account_id": ticker["row"]["accountId"],
-                    "order_book_id": ticker["row"]["orderbookId"],
+                    "account_id": ticker["accountId"],
+                    "order_book_id": ticker["orderbookId"],
                     "volume": volume_sell,
-                    "price": ticker["row"]["lastPrice"],
-                    "profit": round(
-                        (
-                            (volume_sell * ticker["row"]["lastPrice"])
-                            / max(ticker["row"]["acquiredValue"], ticker_budget)
-                        )
-                        * 100,
-                        1,
-                    ),
-                    "name": ticker["row"]["name"],
-                    "ticker_yahoo": ticker["row"]["ticker_yahoo"],
+                    "price": ticker["lastPrice"],
+                    "profit": profit_percent,
+                    "name": ticker["name"],
+                    "ticker_yahoo": ticker["ticker_yahoo"],
                 }
             )
 
@@ -195,30 +206,27 @@ class PortfolioAnalysis:
 
         return orders
 
-    def run_analysis(self, accounts: dict, log_to_telegram: bool) -> None:
-        log.info(f'Running analysis for account(s): {" & ".join(accounts)}')
+    def run_analysis(self) -> None:
+        log.info(
+            f'Running analysis for account(s): {" & ".join(self.settings["accounts"])}'
+        )
 
-        self.ava.delete_active_orders(account_ids=list(accounts.values()))
+        self.ava.delete_active_orders(
+            account_ids=list(self.settings["accounts"].values())
+        )
 
         created_orders = {}
-        created_orders[Signal.SELL], portfolio_tickers = self.create_sell_orders()
-        created_orders[Signal.BUY], portfolio_tickers = self.create_buy_orders(
-            portfolio_tickers
-        )
-        created_orders[Signal.SELL] += self.create_take_profit_orders(
-            portfolio_tickers, created_orders[Signal.SELL]
-        )
+        created_orders[Signal.SELL] = self.create_sell_orders()
+        created_orders[Signal.BUY] = self.create_buy_orders()
+        created_orders[Signal.SELL] += self.create_take_profit_orders()
 
-        if log_to_telegram:
+        if self.settings["log_to_telegram"]:
             TeleLog(portfolio=self.ava.get_portfolio(), orders=created_orders)
 
 
 def run() -> None:
-    signals: dict = {}
-
     try:
-        walkthrough = PortfolioAnalysis(signals)
-        signals = walkthrough.signals
+        PortfolioAnalysis()
 
     except Exception as e:
         log.error(f">>> {e}: {traceback.format_exc()}")

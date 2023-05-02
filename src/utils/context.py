@@ -116,7 +116,7 @@ class Context:
         self.portfolio = self.get_portfolio()
 
         if process_lists:
-            self.budget_rules, self.watch_lists = self.process_lt_watch_lists()
+            self.watch_lists = self.process_lt_watch_lists()
 
     def get_ctx(self, user: str) -> Avanza:
         log.debug("Getting context")
@@ -181,20 +181,19 @@ class Context:
 
         return portfolio
 
-    def process_lt_watch_lists(self) -> Tuple[dict, dict]:
+    def process_lt_watch_lists(self) -> dict:
         log.debug("Process watch lists")
 
         watch_lists: dict = {}
-        budget_rules: dict = {}
 
         all_watch_lists = self.ctx.get_watchlists()
         if not all_watch_lists:
-            return budget_rules, watch_lists
+            return watch_lists
 
         for watch_list in all_watch_lists:
             tickers = []
 
-            if watch_list["name"].startswith("DT"):
+            if not watch_list["name"].startswith("LT"):
                 continue
 
             for order_book_id in watch_list["orderbooks"]:
@@ -217,13 +216,9 @@ class Context:
                 "tickers": tickers,
             }
 
-            try:
-                int(watch_list["name"])
-                budget_rules[watch_list["name"]] = copy(temp_watch_list)
-            except ValueError:
-                watch_lists[watch_list["name"]] = copy(temp_watch_list)
+            watch_lists[watch_list["name"]] = copy(temp_watch_list)
 
-        return budget_rules, watch_lists
+        return watch_lists
 
     def retrieve_dt_instruments_from_watch_lists(self) -> dict:
         log.debug("Retrieve instruments from watch lists")
