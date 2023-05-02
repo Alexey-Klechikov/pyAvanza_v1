@@ -431,7 +431,8 @@ class Context:
         key_indicators = instrument_info.get(
             "keyIndicators", {"direction": None, "leverage": None}
         )
-        if instrument_info["type"] == "CERTIFICATE":
+
+        if instrument_info.get("type") == "CERTIFICATE":
             key_indicators.update(
                 {
                     "direction": instrument_info.get("direction"),
