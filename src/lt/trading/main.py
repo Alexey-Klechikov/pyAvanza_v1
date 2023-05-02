@@ -114,7 +114,7 @@ class PortfolioAnalysis:
                 }
             )
 
-        # self.ava.create_orders(orders, Signal.SELL)
+        self.ava.create_orders(orders, Signal.SELL)
 
         if len(orders) > 0:
             time.sleep(self.settings["sleep_after_sell"] * 60)
@@ -162,7 +162,7 @@ class PortfolioAnalysis:
                 )
 
         orders = self._sort_buy_orders(orders)
-        # orders = self.ava.create_orders(orders, Signal.BUY)
+        orders = self.ava.create_orders(orders, Signal.BUY)
 
         return orders
 
