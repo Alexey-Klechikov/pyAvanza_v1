@@ -57,7 +57,7 @@ class Signal:
         for i in range(1, 5):
             candle = strategy.data.iloc[-i]
 
-            for signal in [OrderType.BUY, OrderType.SELL]:
+            for signal in OrderType:
                 if all(
                     [i(candle) for i in strategy.strategies[strategy_name].get(signal)]
                 ):
@@ -76,7 +76,7 @@ class Signal:
             for s in latest_signals["all"]
         ]
 
-        for signal in [OrderType.BUY, OrderType.SELL]:
+        for signal in OrderType:
             latest_signals[signal.name.lower()] = [
                 s for s in latest_signals["all"] if s["signal"] == signal
             ]
@@ -94,9 +94,9 @@ class Signal:
             latest_signal_time,
             " / ".join(
                 [
-                    f"{s}: {len(latest_signals[s.lower()])}"
-                    for s in ["BUY", "SELL"]
-                    if len(latest_signals[s.lower()]) > 0
+                    f"{s}: {len(latest_signals[s.name.lower()])}"
+                    for s in OrderType
+                    if len(latest_signals[s.name.lower()]) > 0
                 ]
             ),
         )

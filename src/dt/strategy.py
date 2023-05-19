@@ -5,7 +5,6 @@ import warnings
 from json import JSONDecodeError
 from typing import List, Tuple
 
-import numpy as np
 import pandas as pd
 import pandas_ta as ta
 from avanza import OrderType
@@ -54,6 +53,10 @@ class Components:
         # RSI (Relative Strength Index) - used for the position exit
         self.data["RSI"] = self.data.ta.rsi(length=14)
         self.columns_needed += ["RSI"]
+
+        # EMAs (Exponential Moving Averages) - used for strategy selection
+        self.data["EMA"] = self.data.ta.ema(length=90)
+        self.columns_needed += ["EMA"]
 
     def generate_conditions_cycles(self) -> None:
         category = "Cycles"

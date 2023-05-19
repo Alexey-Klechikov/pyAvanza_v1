@@ -186,6 +186,19 @@ class Walker:
         Walker.settings = settings
         self.ava = Context(settings["user"], settings["accounts"], process_lists=False)
 
+    def get_direction(self):
+        history = self.ava.get_today_history(
+            Walker.settings["instruments"]["MONITORING"]["AVA"]
+        )
+
+        strategy = Strategy(history)
+
+        return (
+            Instrument.BULL
+            if strategy.data.iloc[-1].Close > strategy.data.iloc[-1].EMA
+            else Instrument.BEAR
+        )
+
     def traverse_strategies(
         self,
         period: str = "1d",

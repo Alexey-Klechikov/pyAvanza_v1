@@ -398,6 +398,8 @@ class Day_Trading:
             if not self.helper.dry and self.helper.check_daily_limits():
                 log.warning("Daily limits reached, switching to DRY")
 
+                self.action_evening()
+
                 self.helper.dry = True
 
             time.sleep(120)

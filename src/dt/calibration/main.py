@@ -1,10 +1,11 @@
 import logging
 import time
 import traceback
-from datetime import date
+from datetime import datetime
 
 from src.dt import DayTime, Strategy, TradingTime
 from src.dt.calibration.walker import Helper, Walker
+from src.dt.common_types import Instrument
 from src.utils import Cache, Settings, TeleLog
 
 log = logging.getLogger("main.dt.calibration.main")
@@ -17,14 +18,14 @@ class Calibration:
     def __init__(self):
         self.walker = Walker(Settings().load("DT"))
 
-    def update(self, target_day_direction) -> None:
-        log.info(f"Updating strategies ({target_day_direction})")
+    def update(self, direction) -> None:
+        log.info(f"Updating strategies ({direction})")
 
         profitable_strategies = sorted(
             self.walker.traverse_strategies(
                 period=PERIOD_UPDATE,
                 cache=Cache.APPEND,
-                target_day_direction=target_day_direction,
+                target_day_direction=direction,
             ),
             key=lambda s: (s["points"], s["profit"]),
             reverse=True,
@@ -36,13 +37,13 @@ class Calibration:
             "DT",
             {
                 **Strategy.load("DT"),
-                **{f"{target_day_direction}_{PERIOD_UPDATE}": profitable_strategies},
-                **{f"{target_day_direction}_indicators_stats": indicators_counter},
+                **{f"{direction}_{PERIOD_UPDATE}": profitable_strategies},
+                **{f"{direction}_indicators_stats": indicators_counter},
             },
         )
 
-    def test(self, target_day_direction: str):
-        log.info(f"Testing strategies ({target_day_direction})")
+    def test(self, direction: str):
+        log.info(f"Testing strategies ({direction})")
 
         stored_strategies = Strategy.load("DT")
 
@@ -52,11 +53,9 @@ class Calibration:
                 cache=Cache.APPEND,
                 loaded_strategies=[
                     i["strategy"]
-                    for i in stored_strategies.get(
-                        f"{target_day_direction}_{PERIOD_UPDATE}", []
-                    )
+                    for i in stored_strategies.get(f"{direction}_{PERIOD_UPDATE}", [])
                 ],
-                target_day_direction=target_day_direction,
+                target_day_direction=direction,
             ),
             key=lambda s: s["points"] * 100 + s["profit"],
             reverse=True,
@@ -66,26 +65,23 @@ class Calibration:
             "DT",
             {
                 **stored_strategies,
-                **{f"{target_day_direction}_{PERIOD_TEST}": profitable_strategies},
+                **{f"{direction}_{PERIOD_TEST}": profitable_strategies},
                 **{"act": []},
             },
         )
 
-    def pick(self) -> None:
+    def pick(self, direction) -> None:
         log.info("Picking strategies")
 
         self.walker.update_trading_settings()
 
         stored_strategies = Strategy.load("DT")
 
-        strategies_to_test = []
-        for direction in ["BULL", "BEAR", "range"]:
-            strategies_to_test += [
-                i["strategy"]
-                for i in stored_strategies.get(f"{direction}_{PERIOD_TEST}", [])
-                if int(i["efficiency"][:-1]) >= 65
-            ]
-        strategies_to_test = list(set(strategies_to_test))
+        strategies_to_test = [
+            i["strategy"]
+            for i in stored_strategies.get(f"{direction}_{PERIOD_TEST}", [])
+            if int(i["efficiency"][:-1]) >= 65
+        ]
 
         profitable_strategies = sorted(
             self.walker.traverse_strategies(
@@ -103,7 +99,7 @@ class Calibration:
         profitable_strategies = [
             s["strategy"]
             for s in profitable_strategies
-            if s["profit"] >= max_profit * 0.5
+            if s["profit"] >= max_profit * 0.8
         ]
 
         Strategy.dump(
@@ -120,10 +116,20 @@ def run(update: bool = True, pick: bool = True, show_orders: bool = False) -> No
     calibration = Calibration()
     Helper.show_orders = show_orders
 
+    last_direction = direction = Instrument.BULL
+
     # day run
     while True:
         if not pick:
             break
+
+        direction = calibration.walker.get_direction()
+
+        if last_direction == direction or datetime.now().minute % 6 != 0:
+            last_direction = direction
+            time.sleep(60 * 1)
+
+            continue
 
         try:
             trading_time.update_day_time()
@@ -132,23 +138,21 @@ def run(update: bool = True, pick: bool = True, show_orders: bool = False) -> No
                 pass
 
             elif trading_time.day_time == DayTime.DAY:
-                calibration.pick()
+                calibration.pick(direction)
 
             elif trading_time.day_time == DayTime.EVENING:
                 break
-
-            time.sleep(60 * 6)
 
         except Exception as e:
             log.error(f">>> {e}: {traceback.format_exc()}")
 
     # full calibration
     try:
-        for target_day_direction in ["BULL", "BEAR", "range"]:
+        for direction in Instrument:
             if update:
-                calibration.update(target_day_direction)
+                calibration.update(direction)
 
-            calibration.test(target_day_direction)
+            calibration.test(direction)
 
         TeleLog(message="DT Calibration: Done")
 

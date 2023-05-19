@@ -117,7 +117,7 @@ class PortfolioAnalysis:
         self.ava.create_orders(orders, Signal.SELL)
 
         if len(orders) > 0:
-            time.sleep(self.settings["sleep_after_sell"] * 60)
+            time.sleep(self.settings["buy_delay_after_sell"] * 60)
 
         return orders
 
@@ -143,8 +143,10 @@ class PortfolioAnalysis:
                     continue
 
                 stock_price = self.ava.get_stock_price(ticker["order_book_id"])
-                volume = self.settings["budget_per_ticker"] // stock_price.get(
-                    Signal.BUY, self.settings["budget_per_ticker"] + 1
+                volume = self.settings["budget_per_ticker"] // (
+                    stock_price[Signal.BUY]
+                    if stock_price[Signal.BUY]
+                    else self.settings["budget_per_ticker"] + 1
                 )
 
                 log.info(">> ACTION")

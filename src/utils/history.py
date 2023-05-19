@@ -168,7 +168,7 @@ class History:
     ) -> pd.DataFrame:
         strategy_target = int(self.period[:-1])
 
-        counters = {"BULL": 0, "BEAR": 0, "range": 0}
+        counters = {"BULL": 0, "BEAR": 0}
 
         filtered_data = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
 
@@ -183,9 +183,6 @@ class History:
 
             elif day_price_change < 0.995:
                 day_direction = "BEAR"
-
-            elif abs(1 - day_price_change) < 0.002:
-                day_direction = "range"
 
             if (
                 not day_direction

@@ -1,7 +1,7 @@
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import pandas as pd
 from avanza import OrderType
@@ -15,7 +15,7 @@ from src.utils import Cache, History, Settings
 log = logging.getLogger("main.dt.calibration._testing")
 
 
-TARGET_FOLDER = ""
+TARGET_FOLDER = "ema_direction_150_2_5h_0_8max_strat"
 
 
 class SignalMod(Signal):
@@ -82,15 +82,14 @@ class Testing:
 
         self.walker = Walker(Settings().load("DT"))
 
-    def _get_stored_strategies(self) -> list:
-        stored_strategies = []
-        for direction in ["BULL", "BEAR", "range"]:
-            stored_strategies += [
+    def _get_stored_strategies(self) -> Dict[str, list]:
+        stored_strategies = {}
+        for direction in ["BULL", "BEAR"]:
+            stored_strategies[direction] = [
                 i["strategy"]
                 for i in Strategy.load("DT").get(f"{direction}_10d", [])
                 if int(i["efficiency"][:-1]) >= 65
             ]
-        stored_strategies = list(set(stored_strategies))
 
         return stored_strategies
 
@@ -121,7 +120,7 @@ class Testing:
 
         return history_data
 
-    def backtest_strategies(self, sliced_history: pd.DataFrame) -> list:
+    def backtest_strategies(self, sliced_history: pd.DataFrame, direction: str) -> list:
         log.info(
             "Back-testing strategies "
             + f"({sliced_history.index[0].strftime('%H:%M')} : {sliced_history.index[-1].strftime('%H:%M')})"  # type: ignore
@@ -130,7 +129,7 @@ class Testing:
         profitable_strategies = sorted(
             self.walker.traverse_strategies(
                 custom_history=sliced_history,
-                loaded_strategies=self.stored_strategies,
+                loaded_strategies=self.stored_strategies.get(direction, []),
                 filter_strategies=False,
                 history_cutoff={"hours": 2, "minutes": 30},
             ),
@@ -142,7 +141,7 @@ class Testing:
         profitable_strategies = [
             s["strategy"]
             for s in profitable_strategies
-            if s["profit"] >= max_profit * 0.5
+            if s["profit"] >= max_profit * 0.8
         ]
 
         return profitable_strategies
@@ -159,31 +158,35 @@ def run(target_dates) -> None:
         signal = None
         message: list = []
         exit_instrument = None
+        last_direction = direction = Instrument.BULL
 
         strategies = []
         signals: dict = {"BUY": [], "SELL": [], "EXIT": []}
 
         for time_index in testing.full_history.index:
             # Before the day
-            if time_index < time_index.replace(hour=10):
+            if time_index < time_index.replace(hour=12):
                 continue
 
             # Calibration
-            if time_index.minute % 6 == 0:
+            if time_index.minute % 6 == 0 or last_direction != direction:
                 strategies = testing.backtest_strategies(
-                    testing.full_history.loc[:time_index]
+                    testing.full_history.loc[:time_index], direction
                 )
 
+            last_direction = direction
+
+            # Only act on even minutes
             if time_index.minute % 2 != 0:
                 continue
 
-            # Get signal and act
+            # Act on the last minute signal
             strategy = Strategy(
                 testing.full_history.loc[:time_index],  # type: ignore
                 strategies=strategies,
             )
 
-            row = strategy.data.iloc[-1]
+            row = strategy.data.loc[time_index]
             if not signal and exit_instrument:
                 helper.sell_order(
                     row,
@@ -207,6 +210,9 @@ def run(target_dates) -> None:
                 )
 
             helper.check_orders_for_limits(row)
+
+            # Get next action
+            direction = Instrument.BULL if row.Close > row.EMA else Instrument.BEAR
 
             signal, message = signal_obj.get(strategies, strategy)
 
