@@ -71,7 +71,7 @@ class Calibration:
         )
 
     def pick(self, direction) -> None:
-        log.info("Picking strategies")
+        log.info(f"Picking strategies for direction: {direction}")
 
         self.walker.update_trading_settings()
 
@@ -123,14 +123,6 @@ def run(update: bool = True, pick: bool = True, show_orders: bool = False) -> No
         if not pick:
             break
 
-        direction = calibration.walker.get_direction()
-
-        if last_direction == direction or datetime.now().minute % 6 != 0:
-            last_direction = direction
-            time.sleep(60 * 1)
-
-            continue
-
         try:
             trading_time.update_day_time()
 
@@ -138,7 +130,13 @@ def run(update: bool = True, pick: bool = True, show_orders: bool = False) -> No
                 pass
 
             elif trading_time.day_time == DayTime.DAY:
-                calibration.pick(direction)
+                direction = calibration.walker.get_direction()
+
+                if last_direction != direction or datetime.now().minute % 6 == 0:
+                    calibration.pick(direction)
+
+                last_direction = direction
+                time.sleep(60)
 
             elif trading_time.day_time == DayTime.EVENING:
                 break
