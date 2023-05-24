@@ -1,5 +1,4 @@
-import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Optional
 
 import mplfinance as mpf
@@ -15,8 +14,6 @@ class Plot:
         date_target: Optional[date] = None,
         date_end: Optional[date] = None,
     ):
-        self.data: pd.DataFrame = pd.DataFrame()
-
         if data is not None:
             self.data = data
 
@@ -119,6 +116,18 @@ class Plot:
                 marker="*",
                 panel=1,
                 ylabel="Balance",
+            )
+        )
+
+    def add_moving_average_to_figure(self) -> None:
+        if "MA" not in self.data.columns:
+            return
+
+        self.subplots.append(
+            mpf.make_addplot(
+                self.data["MA"],
+                color="black",
+                secondary_y=False,
             )
         )
 

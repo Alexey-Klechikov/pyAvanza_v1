@@ -178,10 +178,10 @@ class History:
 
             day_direction = None
             day_price_change = group["Close"].iloc[-10] / group["Close"].iloc[60]
-            if day_price_change > 1.005:
+            if day_price_change > 1.003:
                 day_direction = "BULL"
 
-            elif day_price_change < 0.995:
+            elif day_price_change < 0.997:
                 day_direction = "BEAR"
 
             if (

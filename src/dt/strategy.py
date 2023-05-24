@@ -54,9 +54,9 @@ class Components:
         self.data["RSI"] = self.data.ta.rsi(length=14)
         self.columns_needed += ["RSI"]
 
-        # EMAs (Exponential Moving Averages) - used for strategy selection
-        self.data["EMA"] = self.data.ta.ema(length=90)
-        self.columns_needed += ["EMA"]
+        # MA ([Simple] Moving Averages) - used for strategy selection
+        self.data["MA"] = self.data.ta.sma(length=90)
+        self.columns_needed += ["MA"]
 
     def generate_conditions_cycles(self) -> None:
         category = "Cycles"
@@ -253,14 +253,14 @@ class Components:
         except:
             self._generate_empty_condition(category, "SUPERT")
 
-        # EMA (Trend direction by 100 EMA)
+        # SMA (Trend direction by 100 SMA)
         try:
-            self.data["EMA"] = self.data.ta.ema(length=min(len(self.data) - 1, 100))
-            self.conditions[category]["EMA"] = {
-                OrderType.BUY: lambda x: x["Close"] > x["EMA"],
-                OrderType.SELL: lambda x: x["Close"] < x["EMA"],
+            self.data["SMA"] = self.data.ta.sma(length=min(len(self.data) - 1, 100))
+            self.conditions[category]["SMA"] = {
+                OrderType.BUY: lambda x: x["Close"] > x["SMA"],
+                OrderType.SELL: lambda x: x["Close"] < x["SMA"],
             }
-            self.columns_needed += ["EMA"]
+            self.columns_needed += ["SMA"]
 
         except:
             self._generate_empty_condition(category, "EMA")
@@ -378,6 +378,8 @@ class Strategy:
             for i_2, indicator_2 in enumerate(temp_indicators_names):
                 if indicator_1[0] == indicator_2[0]:
                     continue
+
+                strategies_component_names.append([indicator_1, indicator_2])
 
                 for indicator_3 in temp_indicators_names[i_2:]:
                     if indicator_2[0] == indicator_3[0]:

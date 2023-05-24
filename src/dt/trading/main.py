@@ -246,6 +246,7 @@ class Helper:
 
         plot.get_signals_from_log(f"{path}/logs/auto_day_trading_{date_filename}.log")
         plot.add_signals_to_figure()
+        plot.add_moving_average_to_figure()
         plot.save_figure(f"{path}/logs/auto_day_trading_{date_filename}.png")
 
 

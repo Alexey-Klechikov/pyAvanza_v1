@@ -15,7 +15,7 @@ from src.utils import Cache, History, Settings
 log = logging.getLogger("main.dt.calibration._testing")
 
 
-TARGET_FOLDER = "ema_direction_150_2_5h_0_8max_strat"
+TARGET_FOLDER = ""
 
 
 class SignalMod(Signal):
@@ -212,7 +212,11 @@ def run(target_dates) -> None:
             helper.check_orders_for_limits(row)
 
             # Get next action
-            direction = Instrument.BULL if row.Close > row.EMA else Instrument.BEAR
+            direction = (
+                Instrument.BULL
+                if (row.Close + row.Open) / 2 > row.MA
+                else Instrument.BEAR
+            )
 
             signal, message = signal_obj.get(strategies, strategy)
 
@@ -229,7 +233,7 @@ def run(target_dates) -> None:
                 break
 
         # Plot
-        plot = Plot(testing.full_history)
+        plot = Plot(strategy.data[["Close", "Open", "High", "Low", "MA"]])  # type: ignore
 
         path = os.path.dirname(os.path.abspath(__file__))
         for _ in range(2):
@@ -237,6 +241,7 @@ def run(target_dates) -> None:
 
         plot.add_signals_to_figure(signals=signals)
         plot.add_balance_to_figure(helper.orders_history)
+        plot.add_moving_average_to_figure()
         plot.save_figure(
             f"{path}/logs/"
             + (f"{TARGET_FOLDER}/" if TARGET_FOLDER else "")

@@ -15,12 +15,12 @@
     "instruments": {
         "TRADING": {
             "BEAR": [
-                "WARRANT",
-                "1210275"
+                "CERTIFICATE",
+                "1534291"
             ],
             "BULL": [
                 "CERTIFICATE",
-                "1499037"
+                "1456629"
             ]
         },
         "MONITORING": {
