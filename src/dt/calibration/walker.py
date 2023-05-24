@@ -195,7 +195,8 @@ class Walker:
 
         return (
             Instrument.BULL
-            if strategy.data.iloc[-1].Close > strategy.data.iloc[-1].EMA
+            if (strategy.data.iloc[-1].Close + strategy.data.iloc[-1].Open) / 2
+            > strategy.data.iloc[-1].EMA
             else Instrument.BEAR
         )
 
