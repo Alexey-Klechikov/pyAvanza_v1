@@ -6,9 +6,7 @@ if __name__ == "__main__":
     Logger(file_prefix="manual_day_trading_testing")
 
     target_dates = [
-        "2023-05-22",
-        "2023-05-23",
-        "2023-05-24",
+        "2023-05-25",
     ]
 
     run_day_trading_testing(target_dates)

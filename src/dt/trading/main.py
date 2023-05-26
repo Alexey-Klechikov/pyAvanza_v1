@@ -39,7 +39,7 @@ class Balance:
         self.tradable = budget
         self.not_tradable = round(before - budget)
 
-        self.daily_target = round(self.tradable * 1.1)
+        self.daily_target = round(self.tradable * 1.2)
         self.daily_limit = round(self.tradable * 0.9)
 
         log.info(f"Balance before: {round(self.before)}")
