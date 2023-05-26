@@ -107,7 +107,9 @@ class Helper:
 
     def check_daily_limits(self) -> bool:
         balance = self.ava.get_portfolio().total_own_capital - self.balance.not_tradable
-        return balance < self.balance.daily_limit or balance > self.balance.daily_target
+        return (
+            balance < self.balance.daily_limit
+        )  # or balance > self.balance.daily_target
 
     def get_trade_history(self) -> Tuple[dict, list]:
         transactions = self.ava.ctx.get_transactions(
