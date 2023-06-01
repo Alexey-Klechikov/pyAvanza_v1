@@ -39,8 +39,8 @@ class Balance:
         self.tradable = budget
         self.not_tradable = round(before - budget)
 
-        self.daily_target = round(self.tradable * 1.2)
-        self.daily_limit = round(self.tradable * 0.9)
+        self.daily_target *= self.tradable
+        self.daily_limit *= self.tradable
 
         log.info(f"Balance before: {round(self.before)}")
         log.info(f"Trading budget: {round(self.tradable)}")
@@ -65,7 +65,10 @@ class Helper:
 
         self.trading_done = False
 
-        self.balance = Balance()
+        self.balance = Balance(
+            daily_target=settings["trading"]["daily_target"],
+            daily_limit=settings["trading"]["daily_limit"],
+        )
         self.trading_time = TradingTime()
         self.instrument_status: dict = {
             instrument: InstrumentStatus(instrument, settings["trading"])
@@ -107,9 +110,7 @@ class Helper:
 
     def check_daily_limits(self) -> bool:
         balance = self.ava.get_portfolio().total_own_capital - self.balance.not_tradable
-        return (
-            balance < self.balance.daily_limit
-        )  # or balance > self.balance.daily_target
+        return balance < self.balance.daily_limit or balance > self.balance.daily_target
 
     def get_trade_history(self) -> Tuple[dict, list]:
         transactions = self.ava.ctx.get_transactions(
@@ -125,7 +126,7 @@ class Helper:
                 pd.DataFrame(transactions["transactions"])
                 .dropna(subset=["orderbook"])
                 .set_index("id")
-                .iloc[::-1]
+                .sort_index()
             )
 
             transactions_df["orderbook"] = transactions_df["orderbook"].apply(
@@ -140,7 +141,7 @@ class Helper:
                 if (
                     prices["BUY"]
                     and prices["SELL"]
-                    and volumes["SELL"] == -1 * volumes["BUY"]
+                    and volumes["SELL"] == volumes["BUY"]
                 ):
                     trades.append([prices["SELL"], prices["BUY"]])
                     prices = {"BUY": 0, "SELL": 0}
@@ -148,7 +149,7 @@ class Helper:
 
                 if row["transactionType"] == "SELL":
                     prices["SELL"] += row["sum"]
-                    volumes["SELL"] += row["volume"]
+                    volumes["SELL"] += abs(row["volume"])
 
                 elif row["transactionType"] == "BUY":
                     prices["BUY"] += row["sum"]

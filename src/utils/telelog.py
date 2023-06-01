@@ -25,9 +25,6 @@ class TeleLog:
         if "orders" in kwargs:
             self.parse_orders(kwargs["orders"])
 
-        if "watch_lists_analysis_log" in kwargs:
-            self.parse_watch_lists_analysis_log(kwargs["watch_lists_analysis_log"])
-
         if "completed_orders" in kwargs:
             self.parse_completed_orders(kwargs["completed_orders"])
 
@@ -92,13 +89,6 @@ class TeleLog:
             ]
         )
         self.message += f"LT: Total value: {round(portfolio.total_own_capital)}\n\nTotal free funds:\n{free_funds}\n\n"
-
-    def parse_watch_lists_analysis_log(
-        self, watch_lists_analysis_log: List[str]
-    ) -> None:
-        log.debug("Parse watch_lists_analysis_log")
-
-        self.message = "\n".join(watch_lists_analysis_log)
 
     def parse_orders(self, orders: dict) -> None:
         log.debug("Parse orders")

@@ -60,7 +60,7 @@ class Calibration:
         Strategy.dump("LT", self.top_strategies_per_ticker)
 
         if log_to_telegram:
-            TeleLog(watch_lists_analysis_log=self.logs)
+            TeleLog(message="LT Calibration: Done")
 
 
 def run() -> None:

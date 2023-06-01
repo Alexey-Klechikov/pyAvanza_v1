@@ -10,7 +10,9 @@
         "take_profit": 1.1,
         "exit": 1.015,
         "pullback": 0.998,
-        "spread_limit": 0.9
+        "spread_limit": 0.9,
+        "daily_limit": 0.85,
+        "daily_target": 2
     },
     "instruments": {
         "TRADING": {
