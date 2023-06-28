@@ -79,7 +79,7 @@ class TeleLog:
     ) -> None:
         log.debug("Parse portfolio")
 
-        self.message += f"LT:\n> Total value: {round(portfolio.total_own_capital)}\n"
+        self.message += f"LT:\n\n> Total value: {round(portfolio.total_own_capital)}\n"
         self.message += (
             f"> Profit: {account_development}%\n\n" if account_development else "\n"
         )
