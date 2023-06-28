@@ -3,7 +3,7 @@ This module is used to process and dump execution logs to Telegram
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 
 import telegram_send
 from avanza import OrderType
@@ -20,7 +20,7 @@ class TeleLog:
 
         # Long trading
         if "portfolio" in kwargs:
-            self.parse_portfolio(kwargs["portfolio"])
+            self.parse_portfolio(kwargs["portfolio"], kwargs.get("account_development"))
 
         if "orders" in kwargs:
             self.parse_orders(kwargs["orders"])
@@ -30,7 +30,9 @@ class TeleLog:
 
         # Day trading
         if "day_trading_stats" in kwargs:
-            self.parse_day_trading_stats(kwargs["day_trading_stats"])
+            self.parse_day_trading_stats(
+                kwargs["day_trading_stats"], kwargs.get("instruments")
+            )
 
         # General
         if "crash_report" in kwargs:
@@ -43,7 +45,9 @@ class TeleLog:
 
         self.dump_to_telegram()
 
-    def parse_day_trading_stats(self, day_trading_stats: dict) -> None:
+    def parse_day_trading_stats(
+        self, day_trading_stats: dict, instruments: Optional[str]
+    ) -> None:
         log.debug("Parse day_trading_stats")
 
         profit = round(
@@ -53,9 +57,11 @@ class TeleLog:
         profit_percentage = round(100 * profit / day_trading_stats["budget"], 2)
 
         messages = [
-            f'DT: Total value: {round(day_trading_stats["balance_after"])}\n',
+            "DT:\n",
+            f'> Total value: {round(day_trading_stats["balance_after"])}',
             f'> Budget: {day_trading_stats["budget"]}',
             f"> Profit: {profit_percentage}% ({profit} SEK)",
+            f"> Instruments: {instruments}",
         ]
 
         self.message += "\n".join(messages)
@@ -68,16 +74,25 @@ class TeleLog:
 
         self.message += f"\n\nErrors: {number_errors}"
 
-    def parse_portfolio(self, portfolio: Portfolio) -> None:
+    def parse_portfolio(
+        self, portfolio: Portfolio, account_development: Optional[float]
+    ) -> None:
         log.debug("Parse portfolio")
 
-        free_funds = "\n".join(
-            [
-                f"> {account}: {funds}"
-                for account, funds in portfolio.buying_power.items()
-            ]
+        self.message += f"LT:\n> Total value: {round(portfolio.total_own_capital)}\n"
+        self.message += (
+            f"> Profit: {account_development}%\n\n" if account_development else "\n"
         )
-        self.message += f"LT: Total value: {round(portfolio.total_own_capital)}\n\nTotal free funds:\n{free_funds}\n\n"
+        self.message += (
+            "Total free funds:\n"
+            + "\n".join(
+                [
+                    f"> {account}: {funds}"
+                    for account, funds in portfolio.buying_power.items()
+                ]
+            )
+            + "\n\n"
+        )
 
     def parse_orders(self, orders: dict) -> None:
         log.debug("Parse orders")

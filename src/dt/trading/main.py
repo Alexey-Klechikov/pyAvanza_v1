@@ -268,6 +268,19 @@ class Helper:
 
         return Instrument.BULL if omx_signal > 0 else Instrument.BEAR
 
+    def save_omx_data(self) -> None:
+        log.info("Load and save OMX30 data")
+
+        History(
+            self.settings["instruments"]["MONITORING"]["YAHOO"],
+            period="1d",
+            interval="1m",
+            cache=Cache.APPEND,
+            extra_data=self.ava.get_today_history(
+                self.settings["instruments"]["MONITORING"]["AVA"]
+            ),
+        )
+
 
 class Day_Trading:
     def __init__(self, dry: bool):
@@ -326,11 +339,13 @@ class Day_Trading:
         if custom_price:
             self.helper.sell_instrument(instrument_today, custom_price)
 
-    def action_evening(self, instrument_today: Optional[Instrument]) -> None:
+    def action_evening(self, instrument_today: Optional[Instrument]) -> Instrument:
+        self.helper.save_omx_data()
+
         instrument_tomorrow = self.helper.get_target_instrument_from_combined_omx()
 
         if instrument_today == instrument_tomorrow:
-            return
+            return instrument_tomorrow
 
         if instrument_today:
             self.helper.sell_instrument(instrument_today)
@@ -349,10 +364,14 @@ class Day_Trading:
             ),
         )
 
+        return instrument_tomorrow
+
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:
         self.helper.get_balance_before()
+
         instrument_today = None
+        instrument_tomorrow = None
 
         while True:
             if self.helper.trading_time.day_time == DayTime.MORNING:
@@ -364,18 +383,21 @@ class Day_Trading:
                 self.action_day(instrument_today)
 
             if self.helper.trading_time.day_time == DayTime.EVENING:
-                self.action_evening(instrument_today)
+                instrument_tomorrow = self.action_evening(instrument_today)
 
                 break
 
             time.sleep(120)
 
         self.helper.balance.update_after(
-            sum(self.helper.ava.get_portfolio().buying_power.values())
+            self.helper.ava.get_portfolio().total_own_capital
         )
 
         if log_to_telegram:
-            TeleLog(day_trading_stats=self.helper.balance.summarize())
+            TeleLog(
+                day_trading_stats=self.helper.balance.summarize(),
+                instruments=f"{instrument_today} -> {instrument_tomorrow}",
+            )
 
 
 def run(dry: bool) -> None:
