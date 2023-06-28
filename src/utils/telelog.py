@@ -30,9 +30,7 @@ class TeleLog:
 
         # Day trading
         if "day_trading_stats" in kwargs:
-            self.parse_day_trading_stats(
-                kwargs["day_trading_stats"], kwargs["trades_stats"], kwargs["profits"]
-            )
+            self.parse_day_trading_stats(kwargs["day_trading_stats"])
 
         # General
         if "crash_report" in kwargs:
@@ -45,9 +43,7 @@ class TeleLog:
 
         self.dump_to_telegram()
 
-    def parse_day_trading_stats(
-        self, day_trading_stats: dict, trades_stats: dict, profits: list
-    ) -> None:
+    def parse_day_trading_stats(self, day_trading_stats: dict) -> None:
         log.debug("Parse day_trading_stats")
 
         profit = round(
@@ -61,13 +57,6 @@ class TeleLog:
             f'> Budget: {day_trading_stats["budget"]}',
             f"> Profit: {profit_percentage}% ({profit} SEK)",
         ]
-
-        if profit_percentage:
-            messages += [
-                "\n> Trades: "
-                + ", ".join([f"{k} - {v}" for k, v in trades_stats.items()]),
-                "> Profits: " + ", ".join(f"{i}%" for i in profits),
-            ]
 
         self.message += "\n".join(messages)
 

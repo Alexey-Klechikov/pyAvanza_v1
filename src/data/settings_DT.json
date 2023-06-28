@@ -6,13 +6,8 @@
     "log_to_telegram": true,
     "trading": {
         "budget": 1320,
-        "stop_loss": 0.93,
-        "take_profit": 1.1,
-        "exit": 1.015,
-        "pullback": 0.998,
-        "spread_limit": 0.9,
-        "daily_limit": 0.85,
-        "daily_target": 2
+        "daily_limit": 0.92,
+        "daily_target": 1.1
     },
     "instruments": {
         "TRADING": {
@@ -22,12 +17,175 @@
             ],
             "BULL": [
                 "CERTIFICATE",
-                "1456629"
+                "1478248"
             ]
         },
         "MONITORING": {
             "AVA": 19002,
             "YAHOO": "^OMX"
+        }
+    },
+    "omx_weights": {
+        "ABB.ST": {
+            "nasdaq": 3.22,
+            "weight_calc": 3.63,
+            "orderbook_id": "5447"
+        },
+        "ALFA.ST": {
+            "nasdaq": 2.93,
+            "weight_calc": 2.92,
+            "orderbook_id": "5580"
+        },
+        "ASSA-B.ST": {
+            "nasdaq": 4.76,
+            "weight_calc": 4.98,
+            "orderbook_id": "5271"
+        },
+        "AZN.ST": {
+            "nasdaq": 4.48,
+            "weight_calc": 4.83,
+            "orderbook_id": "5431"
+        },
+        "ATCO-A.ST": {
+            "nasdaq": 9.22,
+            "weight_calc": 9.66,
+            "orderbook_id": "5234"
+        },
+        "ATCO-B.ST": {
+            "nasdaq": 3.79,
+            "weight_calc": 3.92,
+            "orderbook_id": "5235"
+        },
+        "ALIV-SDB.ST": {
+            "nasdaq": 0.71,
+            "weight_calc": 0.6,
+            "orderbook_id": "5236",
+            "skip": true
+        },
+        "BOL.ST": {
+            "nasdaq": 1.87,
+            "weight_calc": 1.57,
+            "orderbook_id": "5564",
+            "skip": true
+        },
+        "ELUX-B.ST": {
+            "nasdaq": 0.84,
+            "weight_calc": 0.74,
+            "orderbook_id": "5238",
+            "skip": true
+        },
+        "ERIC-B.ST": {
+            "nasdaq": 3.21,
+            "weight_calc": 3.15,
+            "orderbook_id": "5240"
+        },
+        "ESSITY-B.ST": {
+            "nasdaq": 3.75,
+            "weight_calc": 3.41,
+            "orderbook_id": "764241"
+        },
+        "EVO.ST": {
+            "nasdaq": 5.24,
+            "weight_calc": 5.4,
+            "orderbook_id": "549768"
+        },
+        "GETI-B.ST": {
+            "nasdaq": 1.2,
+            "weight_calc": 0.87,
+            "orderbook_id": "5282",
+            "skip": true
+        },
+        "HM-B.ST": {
+            "nasdaq": 4.02,
+            "weight_calc": 4.15,
+            "orderbook_id": "5364"
+        },
+        "HEXA-B.ST": {
+            "nasdaq": 5.72,
+            "weight_calc": 6.2,
+            "orderbook_id": "5286"
+        },
+        "INVE-B.ST": {
+            "nasdaq": 7.51,
+            "weight_calc": 7.16,
+            "orderbook_id": "5247"
+        },
+        "KINV-B.ST": {
+            "nasdaq": 0.76,
+            "weight_calc": 0.65,
+            "orderbook_id": "5369",
+            "skip": true
+        },
+        "NIBE-B.ST": {
+            "nasdaq": 3.72,
+            "weight_calc": 3.25,
+            "orderbook_id": "5325"
+        },
+        "NDA-SE.ST": {
+            "nasdaq": 3.19,
+            "weight_calc": 3.77,
+            "orderbook_id": "5249"
+        },
+        "SBB-B.ST": {
+            "nasdaq": 0.26,
+            "weight_calc": 0.1,
+            "orderbook_id": "517316",
+            "skip": true
+        },
+        "SAND.ST": {
+            "nasdaq": 4.92,
+            "weight_calc": 4.81,
+            "orderbook_id": "5471"
+        },
+        "SINCH.ST": {
+            "nasdaq": 0.36,
+            "weight_calc": 0.38,
+            "orderbook_id": "599956",
+            "skip": true
+        },
+        "SEB-A.ST": {
+            "nasdaq": 4.57,
+            "weight_calc": 4.54,
+            "orderbook_id": "5255"
+        },
+        "SKF-B.ST": {
+            "nasdaq": 1.5,
+            "weight_calc": 1.5,
+            "orderbook_id": "5259",
+            "skip": true
+        },
+        "SCA-B.ST": {
+            "nasdaq": 1.7,
+            "weight_calc": 1.63,
+            "orderbook_id": "5263",
+            "skip": true
+        },
+        "SHB-A.ST": {
+            "nasdaq": 3.21,
+            "weight_calc": 3.19,
+            "orderbook_id": "5264"
+        },
+        "SWED-A.ST": {
+            "nasdaq": 3.68,
+            "weight_calc": 3.75,
+            "orderbook_id": "5241"
+        },
+        "TEL2-B.ST": {
+            "nasdaq": 1.33,
+            "weight_calc": 1.12,
+            "orderbook_id": "5386",
+            "skip": true
+        },
+        "TELIA.ST": {
+            "nasdaq": 2.12,
+            "weight_calc": 1.72,
+            "orderbook_id": "5479",
+            "skip": true
+        },
+        "VOLV-B.ST": {
+            "nasdaq": 6.22,
+            "weight_calc": 6.4,
+            "orderbook_id": "5269"
         }
     }
 }

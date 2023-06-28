@@ -108,6 +108,21 @@ class Avanza(AvanzaBase):
     def get_positions(self):
         return self._retry_call("/_mobile/account/positions")
 
+    def find_stock_data(self, ticker: str) -> dict:
+        stocks = self.search_for_instrument(InstrumentType.STOCK, ticker)
+
+        if not isinstance(stocks, dict) or stocks.get("totalNumberOfHits", 0) == 0:
+            log.warning(f"{ticker} not found")
+            return {}
+
+        stock = [
+            i
+            for i in stocks["hits"][0]["topHits"]
+            if i["tickerSymbol"] == ticker and i["flagCode"] == "SE"
+        ][0]
+
+        return stock
+
 
 class Context:
     def __init__(self, user: str, accounts: dict, process_lists: bool = True):

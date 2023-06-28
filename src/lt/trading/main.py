@@ -213,6 +213,10 @@ class PortfolioAnalysis:
             f'Running analysis for account(s): {" & ".join(self.settings["accounts"])}'
         )
 
+        # from pprint import pprint
+        # pprint(self.ava.ctx.get_account_overview('6574382'))
+        # return
+
         self.ava.delete_active_orders(
             account_ids=list(self.settings["accounts"].values())
         )

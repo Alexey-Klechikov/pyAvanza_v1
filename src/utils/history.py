@@ -71,7 +71,7 @@ class History:
 
             data = (
                 self._read_cache(self.pickle_path)
-                .append(self.extra_data)
+                .append(self.extra_data)  # type: ignore
                 .append(self._read_ticker(self.ticker_yahoo, period, self.interval))
                 .fillna(0)
             )
@@ -87,7 +87,7 @@ class History:
             if target_day_direction:
                 data = self._get_directed_history(data, target_day_direction)
 
-            else:
+            elif self.period.endswith("d"):
                 data = data[
                     lambda x: (
                         (datetime.today() - timedelta(days=int(period[:-1]))).strftime(
@@ -110,7 +110,6 @@ class History:
 
         # Progressive loader if more than a week of data with 1 min interval is requested
         if (period.endswith("d") and period_num > 7) and interval == "1m":
-
             earliest_date = datetime.today() - timedelta(days=min(period_num, 29))
 
             intervals: List[List[str]] = []
@@ -129,7 +128,7 @@ class History:
             for start, end in intervals:
                 data = data.append(
                     ticker.history(interval=interval, start=start, end=end)
-                )
+                )  # type: ignore
             data.drop_duplicates(inplace=True)
 
         # Simple loader

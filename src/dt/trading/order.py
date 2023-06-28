@@ -3,8 +3,7 @@ from typing import Optional
 
 from avanza import OrderType
 
-from src.dt.common_types import Instrument
-from src.dt.trading.status import InstrumentStatus
+from src.dt import Instrument
 from src.utils import Context
 
 log = logging.getLogger("main.dt.trading.order")
@@ -19,7 +18,7 @@ class Order:
         self,
         signal: OrderType,
         market_direction: Instrument,
-        instrument_status: InstrumentStatus,
+        instrument_status: dict,
         custom_price: Optional[float] = None,
     ) -> None:
         order_data = {
@@ -33,15 +32,14 @@ class Order:
 
         if (
             signal == OrderType.BUY
-            and instrument_status.price_buy
-            and not instrument_status.position
+            and instrument_status[signal]
+            and not instrument_status["position"]
         ):
             order_data.update(
                 {
-                    "price": instrument_status.price_buy,
+                    "price": instrument_status[signal],
                     "volume": int(
-                        self.settings["trading"]["budget"]
-                        // instrument_status.price_buy
+                        self.settings["trading"]["budget"] // instrument_status[signal]
                     ),
                     "budget": self.settings["trading"]["budget"],
                 }
@@ -49,13 +47,13 @@ class Order:
 
         elif (
             signal == OrderType.SELL
-            and instrument_status.price_sell
-            and instrument_status.position
+            and instrument_status[signal]
+            and instrument_status["position"]
         ):
             order_data.update(
                 {
-                    "price": instrument_status.price_sell,
-                    "volume": instrument_status.position["volume"],
+                    "price": instrument_status[signal],
+                    "volume": instrument_status["position"]["volume"],
                 }
             )
 
@@ -78,7 +76,7 @@ class Order:
         self,
         signal: OrderType,
         market_direction: Instrument,
-        instrument_status: InstrumentStatus,
+        instrument_status: dict,
         custom_price: Optional[float] = None,
     ) -> None:
         price = None
@@ -86,21 +84,21 @@ class Order:
         if custom_price:
             price = custom_price
 
-        elif signal == OrderType.BUY and instrument_status.price_buy:
-            price = instrument_status.price_buy
+        elif signal == OrderType.BUY and instrument_status[signal]:
+            price = instrument_status[signal]
 
-        elif signal == OrderType.SELL and instrument_status.price_sell:
-            price = instrument_status.price_sell
+        elif signal == OrderType.SELL and instrument_status[signal]:
+            price = instrument_status[signal]
 
-        if not price or not instrument_status.spread:
+        if not price or not instrument_status["spread"]:
             return
 
         log.debug(
-            f'{market_direction} - (UPD {signal.name.upper()} order): {instrument_status.active_order["price"]} -> {price} '
+            f'{market_direction} - (UPD {signal.name.upper()} order): {instrument_status["order"]["price"]} -> {price} '
         )
 
         self.ava.update_order(
-            instrument_status.active_order,
+            instrument_status["order"],
             price,
             self.settings["instruments"]["TRADING"][market_direction][1],
             self.settings["instruments"]["TRADING"][market_direction][0],

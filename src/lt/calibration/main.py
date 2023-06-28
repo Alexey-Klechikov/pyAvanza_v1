@@ -12,7 +12,6 @@ class Calibration:
         settings = Settings().load("LT")
 
         self.ava = Context(settings["user"], settings["accounts"])
-        self.logs = ["LT calibration:\n"]
         self.top_strategies_per_ticker: dict = {}
 
         self.run_analysis(settings["log_to_telegram"])
