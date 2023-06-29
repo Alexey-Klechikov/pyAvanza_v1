@@ -1,61 +1,20 @@
 import logging
-import os
 import time
 import traceback
 from dataclasses import dataclass
-from datetime import date, timedelta
 from http.client import RemoteDisconnected
-from typing import Optional, Tuple
+from typing import Optional
 
-import pandas as pd
+import pandas_ta as ta
 from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
 
-from src.dt import DayTime, Plot, Strategy, TradingTime
-from src.dt.common_types import Instrument
+from src.dt import DayTime, Instrument, TradingTime
+from src.dt.trading.balance import Balance
 from src.dt.trading.order import Order
-from src.dt.trading.signal import Signal
-from src.dt.trading.status import InstrumentStatus
-from src.utils import Context, Settings, TeleLog, displace_message
+from src.utils import Cache, Context, History, Settings, TeleLog
 
 log = logging.getLogger("main.dt.trading.main")
-
-DISPLACEMENTS = (12, 14, 13, 12, 9, 0)
-
-
-@dataclass
-class Balance:
-    before: float = 0
-    tradable: float = 0
-    not_tradable: float = 0
-
-    daily_target: float = 0
-    daily_limit: float = 0
-
-    after: float = 0
-
-    def define(self, before: float, budget: float) -> None:
-        self.before = before
-        self.tradable = budget
-        self.not_tradable = round(before - budget)
-
-        self.daily_target *= self.tradable
-        self.daily_limit *= self.tradable
-
-        log.info(f"Balance before: {round(self.before)}")
-        log.info(f"Trading budget: {round(self.tradable)}")
-
-    def update_after(self, total_balance: float) -> None:
-        self.after = total_balance
-
-        log.info(f"Balance after: {round(self.after)}")
-
-    def summarize(self) -> dict:
-        return {
-            "balance_before": self.before,
-            "balance_after": self.after,
-            "budget": self.tradable,
-        }
 
 
 class Helper:
@@ -65,40 +24,32 @@ class Helper:
 
         self.trading_done = False
 
+        self.ava = Context(settings["user"], settings["accounts"], process_lists=False)
+
         self.balance = Balance(
+            before=self.get_balance_before(),
+            tradable=settings["trading"]["budget"],
             daily_target=settings["trading"]["daily_target"],
             daily_limit=settings["trading"]["daily_limit"],
         )
+
         self.trading_time = TradingTime()
-        self.instrument_status: dict = {
-            instrument: InstrumentStatus(instrument, settings["trading"])
-            for instrument in Instrument
-        }
-        self.strategy_names = Strategy.load("DT").get("use", [])
-        self.ava = Context(settings["user"], settings["accounts"], process_lists=False)
+
         self.order = Order(self.ava, settings)
 
-    def get_balance_before(self) -> None:
-        transactions = self.ava.ctx.get_transactions(
-            account_id=str(self.settings["accounts"]["DT"]),
-            transactions_from=date.today(),
-        )
+    def get_balance_before(self) -> float:
+        balance_before = sum(self.ava.portfolio.buying_power.values())
 
-        account_balance_before = (
-            self.ava.portfolio.total_own_capital
-            if not transactions or not transactions["transactions"]
-            else sum(
-                [
-                    sum(self.ava.portfolio.buying_power.values()),
-                    sum([i["sum"] for i in transactions["transactions"]]),
-                ]
-            )
-        )
+        for instrument in Instrument:
+            instrument_status = self.get_instrument_status(instrument)
 
-        self.balance.define(
-            account_balance_before,
-            self.settings["trading"]["budget"],
-        )
+            if instrument_status["position"]:
+                balance_before += (
+                    instrument_status["position"]["acquiredPrice"]
+                    * instrument_status["position"]["volume"]
+                )
+
+        return balance_before
 
     def get_balance_after(self) -> None:
         self.balance.after = (
@@ -108,96 +59,25 @@ class Helper:
 
         log.info(f"Balance after: {round(self.balance.after)}")
 
-    def check_daily_limits(self) -> bool:
-        balance = self.ava.get_portfolio().total_own_capital - self.balance.not_tradable
-        return balance < self.balance.daily_limit or balance > self.balance.daily_target
-
-    def get_trade_history(self) -> Tuple[dict, list]:
-        transactions = self.ava.ctx.get_transactions(
-            account_id=str(self.settings["accounts"]["DT"]),
-            transactions_from=date.today(),
-        )
-
-        if not transactions:
-            return {}, []
-
-        try:
-            transactions_df = (
-                pd.DataFrame(transactions["transactions"])
-                .dropna(subset=["orderbook"])
-                .set_index("id")
-                .sort_index()
-            )
-
-            transactions_df["orderbook"] = transactions_df["orderbook"].apply(
-                lambda x: x["name"]
-            )
-
-            trades = []
-            prices = {"BUY": 0, "SELL": 0}
-            volumes = {"BUY": 0, "SELL": 0}
-
-            for _, row in transactions_df.iterrows():
-                if (
-                    prices["BUY"]
-                    and prices["SELL"]
-                    and volumes["SELL"] == volumes["BUY"]
-                ):
-                    trades.append([prices["SELL"], prices["BUY"]])
-                    prices = {"BUY": 0, "SELL": 0}
-                    volumes = {"BUY": 0, "SELL": 0}
-
-                if row["transactionType"] == "SELL":
-                    prices["SELL"] += row["sum"]
-                    volumes["SELL"] += abs(row["volume"])
-
-                elif row["transactionType"] == "BUY":
-                    prices["BUY"] += row["sum"]
-                    volumes["BUY"] += row["volume"]
-
-            if prices["BUY"] and prices["SELL"]:
-                trades.append([prices["SELL"], prices["BUY"]])
-
-            profits = [round((1 - abs(i[1] / i[0])) * 100, 2) for i in trades]
-            trades_stats = {
-                "good": len([i for i in profits if i > 0]),
-                "bad": len([i for i in profits if i < 0]),
-            }
-
-            return trades_stats, profits
-
-        except Exception as e:
-            log.error(f"Error getting trade history: {e}")
-
-            log.error(f"Transactions: {transactions}")
-
-            return {}, []
-
-    def update_instrument_status(
-        self, market_direction: Instrument
-    ) -> InstrumentStatus:
+    def get_instrument_status(self, market_direction: str) -> dict:
         i_type, i_id = self.settings["instruments"]["TRADING"][market_direction]
 
-        instrument_info = self.ava.get_instrument_info(
+        return self.ava.get_instrument_info(
             InstrumentType[i_type],
             str(i_id),
         )
-
-        self.instrument_status[market_direction].extract(instrument_info)
-
-        return self.instrument_status[market_direction]
 
     def buy_instrument(self, market_direction: Instrument) -> None:
         if self.dry:
             return
 
         for _ in range(5):
-            instrument_status = self.update_instrument_status(market_direction)
+            instrument_status = self.get_instrument_status(market_direction)
 
-            if instrument_status.position:
+            if instrument_status["position"]:
                 return
 
-            if not instrument_status.active_order:
+            if not instrument_status["order"]:
                 self.order.place(OrderType.BUY, market_direction, instrument_status)
 
             else:
@@ -212,21 +92,21 @@ class Helper:
             return
 
         for _ in range(5):
-            instrument_status = self.update_instrument_status(market_direction)
+            instrument_status = self.get_instrument_status(market_direction)
 
-            if not instrument_status.active_order and not instrument_status.position:
+            if not instrument_status["order"] and not instrument_status["position"]:
                 return
 
-            elif instrument_status.active_order and not instrument_status.position:
+            elif instrument_status["order"] and not instrument_status["position"]:
                 self.order.delete()
 
-            elif not instrument_status.active_order and instrument_status.position:
+            elif not instrument_status["order"] and instrument_status["position"]:
                 self.order.place(
                     OrderType.SELL, market_direction, instrument_status, custom_price
                 )
 
-            elif instrument_status.active_order and instrument_status.position:
-                if instrument_status.active_order["price"] == custom_price:
+            elif instrument_status["order"] and instrument_status["position"]:
+                if instrument_status["order"]["price"] == custom_price:
                     return
 
                 self.order.update(
@@ -238,26 +118,174 @@ class Helper:
 
             time.sleep(10)
 
-    @staticmethod
-    def plot(date_target: date) -> None:
-        plot = Plot(date_target=date_target, date_end=date_target + timedelta(days=1))
+    def traverse_instruments(
+        self, market_direction: Instrument, instruments_pool: dict
+    ) -> list:
+        instruments = []
 
-        date_filename = date_target.strftime("%Y-%m-%d")
-        path = os.path.dirname(os.path.abspath(__file__))
-        for _ in range(3):
-            path = os.path.dirname(path)
+        for instrument_id, instrument_type in instruments_pool[market_direction]:
+            instrument_info = self.ava.get_instrument_info(
+                InstrumentType[instrument_type],
+                str(instrument_id),
+            )
 
-        plot.get_signals_from_log(f"{path}/logs/auto_day_trading_{date_filename}.log")
-        plot.add_signals_to_figure()
-        plot.add_moving_average_to_figure()
-        plot.save_figure(f"{path}/logs/auto_day_trading_{date_filename}.png")
+            log_prefix = (
+                f"Instrument {market_direction} ({instrument_type} - {instrument_id})"
+            )
+
+            if instrument_info["position"] or instrument_info["order"]:
+                log.debug(f"{log_prefix} is in use")
+
+                return [
+                    {
+                        "identifier": [instrument_type, instrument_id],
+                        "numbers": {
+                            "score": 0,
+                        },
+                    }
+                ]
+
+            elif instrument_info["is_deprecated"]:
+                log.debug(f"{log_prefix} is deprecated")
+
+            elif market_direction != {
+                "Lång": Instrument.BULL,
+                "Kort": Instrument.BEAR,
+            }.get(instrument_info["key_indicators"]["direction"]):
+                log.debug(
+                    f"{log_prefix} is in wrong category: {instrument_info['key_indicators']['direction']}"
+                )
+
+            elif (
+                not instrument_info[OrderType.BUY]
+                or instrument_info[OrderType.BUY] > 280
+            ):
+                log.debug(
+                    f"{log_prefix} has bad price: {instrument_info[OrderType.BUY]}"
+                )
+
+            elif not instrument_info["spread"] or not (
+                0.1 < instrument_info["spread"] < 0.9
+            ):
+                log.debug(f"{log_prefix} has bad spread: {instrument_info['spread']}")
+
+            elif (
+                not instrument_info["key_indicators"].get("leverage")
+                or instrument_info["key_indicators"]["leverage"] < 18
+            ):
+                log.debug(
+                    f"{log_prefix} has bad leverage: {instrument_info['key_indicators'].get('leverage')}"
+                )
+
+            else:
+                instruments.append(
+                    {
+                        "identifier": [instrument_type, instrument_id],
+                        "numbers": {
+                            "spread": instrument_info["spread"],
+                            "leverage": instrument_info["key_indicators"]["leverage"],
+                            "score": round(
+                                instrument_info["key_indicators"]["leverage"]
+                                / instrument_info["spread"]
+                            )
+                            // 3,
+                        },
+                    }
+                )
+
+        return instruments
+
+    def update_trading_settings(self) -> None:
+        settings = Settings().load("DT")
+
+        instruments_pool = self.ava.retrieve_dt_instruments_from_watch_lists()
+
+        instruments_info: dict = {}
+
+        for market_direction in Instrument:
+            instruments_info[market_direction] = []
+
+            instruments_info[market_direction] = self.traverse_instruments(
+                market_direction, instruments_pool
+            )
+
+            top_instruments = sorted(
+                filter(
+                    lambda x: x["numbers"]["score"]
+                    == max(
+                        [
+                            i["numbers"]["score"]
+                            for i in instruments_info[market_direction]
+                        ]
+                    ),
+                    instruments_info[market_direction],
+                ),
+                key=lambda x: x["identifier"],
+            )
+
+            if top_instruments and (
+                settings["instruments"]["TRADING"].get(market_direction)
+                not in [i["identifier"] for i in top_instruments]
+            ):
+                log.info(
+                    f'Change instrument {market_direction} -> {top_instruments[0]["identifier"]} ({top_instruments[0]["numbers"]})'
+                )
+
+                settings["instruments"]["TRADING"][market_direction] = top_instruments[
+                    0
+                ]["identifier"]
+
+        Settings().dump(settings, "DT")
+
+        self.settings = settings
+
+    def get_target_instrument_from_combined_omx(self) -> Instrument:
+        date = None
+        omx_signal = 0
+        for ticker_yahoo, ticker in self.settings["omx_weights"].items():
+            data = History(ticker_yahoo, "18mo", "1d", cache=Cache.APPEND).data
+
+            if str(data.iloc[-1]["Close"]) == "nan":
+                self.ava.update_todays_ochl(data, ticker["order_book_id"])
+
+            data.ta.sma(length=5, append=True)
+
+            signal = (
+                OrderType.BUY
+                if data.iloc[-1]["SMA_5"] > data.iloc[-1]["Close"]
+                else OrderType.SELL
+            )
+
+            omx_signal += (
+                (1 if signal == OrderType.BUY else -1) * ticker["weight_calc"] / 100
+            )
+
+            date = data.iloc[-1].name.date()  # type: ignore
+
+        log.info(
+            f"Instrument tomorrow: {Instrument.BULL if omx_signal > 0 else Instrument.BEAR} (omx_signal: {round(omx_signal, 2)}, date: {date})"
+        )
+
+        return Instrument.BULL if omx_signal > 0 else Instrument.BEAR
+
+    def save_omx_data(self) -> None:
+        log.info("Load and save OMX30 data")
+
+        History(
+            self.settings["instruments"]["MONITORING"]["YAHOO"],
+            period="1d",
+            interval="1m",
+            cache=Cache.APPEND,
+            extra_data=self.ava.get_today_history(
+                self.settings["instruments"]["MONITORING"]["AVA"]
+            ),
+        )
 
 
 class Day_Trading:
     def __init__(self, dry: bool):
         settings = Settings().load("DT")
         self.helper = Helper(settings, dry)
-        self.signal = Signal(self.helper.ava, settings)
 
         log.warning(("Dry run, no orders" if dry else "Orders") + " will be placed")
 
@@ -268,165 +296,113 @@ class Day_Trading:
                 break
 
             except (ReadTimeout, ConnectionError, RemoteDisconnected):
-                log.error("AVA Connection error, retrying in 5 seconds")
+                log.warning("AVA Connection error, retrying in 5 seconds")
 
                 self.helper.ava.ctx = self.helper.ava.get_ctx(settings["user"])
 
-    def action_morning(self) -> None:
-        for market_direction in Instrument:
-            instrument_status = self.helper.update_instrument_status(market_direction)
+    def action_morning(self) -> Optional[Instrument]:
+        instrument_today = None
+        for instrument in Instrument:
+            instrument_status = self.helper.get_instrument_status(instrument)
+            if instrument_status["position"]:
+                instrument_today = instrument
 
-            if instrument_status.position:
-                log.info(
-                    " ".join(
-                        [
-                            f"{market_direction} {self.helper.settings['instruments']['TRADING'][market_direction]} has position.",
-                            f"Acquired price: {instrument_status.acquired_price},",
-                            f"Current price: {instrument_status.price_sell},",
-                            f"Profit: {instrument_status.get_profit()}%",
-                        ]
-                    )
-                )
+        return instrument_today
 
-                instrument_status.update_limits(0.7)
-
-    def action_day(self) -> None:
-        signal, message = self.signal.get(Strategy.load("DT").get("act", []))
-        self.helper.order.settings = self.helper.settings = Settings().load("DT")
-
-        def _action_signal(signal: OrderType, atr: float) -> None:
-            instrument_sell = Instrument.from_signal(signal)[OrderType.SELL]
-            self.helper.sell_instrument(instrument_sell)
-
-            instrument_buy = Instrument.from_signal(signal)[OrderType.BUY]
-            self.helper.buy_instrument(instrument_buy)
-
-            instrument_status = self.helper.instrument_status[instrument_buy]
-
-            message.insert(
-                1,
-                f"Profit: {instrument_status.get_profit()}%",
-            )
-
-            log.info(
-                displace_message(DISPLACEMENTS, tuple(message)),
-            )
-
-            instrument_status.update_limits(atr)
-
-            self.helper.sell_instrument(
-                instrument_buy,
-                instrument_status.take_profit,
-            )
-
-        def _action_no_signal(atr: float, rsi: float) -> None:
-            for market_direction in Instrument:
-                instrument_status = self.helper.update_instrument_status(
-                    market_direction
-                )
-
-                if instrument_status.position and not instrument_status.stop_loss:
-                    self.helper.instrument_status[market_direction].update_limits(atr)
-
-                if not (
-                    instrument_status.position
-                    and instrument_status.price_sell
-                    and instrument_status.stop_loss
-                    and instrument_status.take_profit
-                ):
-                    continue
-
-                if instrument_status.position and not instrument_status.active_order:
-                    self.helper.sell_instrument(
-                        market_direction,
-                        instrument_status.take_profit,
-                    )
-
-                if (
-                    instrument_status.adjusted_price_sell
-                    and instrument_status.adjusted_price_sell
-                    <= instrument_status.stop_loss
-                ):
-                    log.debug(
-                        f"{market_direction} hit SL {instrument_status.price_sell} <= {instrument_status.stop_loss}"
-                    )
-                    self.helper.sell_instrument(market_direction)
-
-                if self.signal.exit(market_direction, instrument_status):
-                    log.info(
-                        f"Signal: Exit | RSI: {round(rsi, 2)}",
-                    )
-
-                    self.helper.sell_instrument(market_direction)
-
-                if message == ["No strategies"]:
-                    log.info(f"Signal: Exit | No strategies")
-
-                    self.helper.sell_instrument(market_direction)
-
-        if self.signal.candle.empty:
+    def action_day(self, instrument_today: Optional[Instrument]) -> None:
+        if not instrument_today:
             return
 
-        if signal:
-            _action_signal(signal, self.signal.candle["ATR"])
+        instrument_status = self.helper.get_instrument_status(instrument_today)
 
-        else:
-            _action_no_signal(self.signal.candle["ATR"], self.signal.candle["RSI"])
+        custom_price = None
+        if not instrument_status["order"]:
+            custom_price = round(
+                instrument_status[OrderType.SELL]
+                * self.helper.settings["trading"]["daily_target"],
+                2,
+            )
 
-    def action_evening(self) -> None:
-        for market_direction in Instrument:
-            self.helper.sell_instrument(market_direction)
+        if (
+            instrument_status["position"].get("acquiredPrice")
+            and instrument_status["position"].get("acquiredPrice")
+            * self.helper.settings["trading"]["daily_limit"]
+            > instrument_status[OrderType.SELL]
+        ):
+            custom_price = instrument_status[OrderType.SELL]
+
+        log.debug(
+            f'Acquired price: {instrument_status["position"].get("acquiredPrice")}, '
+            + f"current price: {instrument_status[OrderType.SELL]} "
+            + f'(change: {round(100 * (instrument_status[OrderType.SELL] - instrument_status["position"].get("acquiredPrice")) / instrument_status["position"].get("acquiredPrice"), 2)}%)'
+        )
+        if custom_price:
+            self.helper.sell_instrument(instrument_today, custom_price)
+
+    def action_evening(self, instrument_today: Optional[Instrument]) -> Instrument:
+        self.helper.save_omx_data()
+
+        instrument_tomorrow = self.helper.get_target_instrument_from_combined_omx()
+
+        if instrument_today == instrument_tomorrow:
+            return instrument_tomorrow
+
+        if instrument_today:
+            self.helper.sell_instrument(instrument_today)
+
+        self.helper.update_trading_settings()
+
+        self.helper.buy_instrument(instrument_tomorrow)
+
+        instrument_status = self.helper.get_instrument_status(instrument_tomorrow)
+        self.helper.sell_instrument(
+            instrument_tomorrow,
+            custom_price=round(
+                instrument_status[OrderType.SELL]
+                * self.helper.settings["trading"]["daily_target"],
+                2,
+            ),
+        )
+
+        return instrument_tomorrow
 
     # MAIN method
     def run_analysis(self, log_to_telegram: bool) -> None:
         self.helper.get_balance_before()
 
+        instrument_today = None
+        instrument_tomorrow = None
+
         while True:
             if self.helper.trading_time.day_time == DayTime.MORNING:
-                self.action_morning()
+                instrument_today = self.action_morning()
 
             self.helper.trading_time.update_day_time()
 
             if self.helper.trading_time.day_time == DayTime.DAY:
-                self.action_day()
+                self.action_day(instrument_today)
 
             if self.helper.trading_time.day_time == DayTime.EVENING:
-                self.action_evening()
+                instrument_tomorrow = self.action_evening(instrument_today)
 
-                if (
-                    not self.helper.instrument_status[Instrument.BEAR].position
-                    and not self.helper.instrument_status[Instrument.BULL].position
-                ):
-                    break
-
-            if not self.helper.dry and self.helper.check_daily_limits():
-                log.warning("Daily limits reached, switching to DRY")
-
-                self.action_evening()
-
-                self.helper.dry = True
+                break
 
             time.sleep(120)
 
         self.helper.balance.update_after(
-            sum(self.helper.ava.get_portfolio().buying_power.values())
+            self.helper.ava.get_portfolio().total_own_capital
         )
 
         if log_to_telegram:
-            trades_stats, profits = self.helper.get_trade_history()
-
             TeleLog(
                 day_trading_stats=self.helper.balance.summarize(),
-                trades_stats=trades_stats,
-                profits=profits,
+                instruments=f"{instrument_today} -> {instrument_tomorrow}",
             )
 
 
 def run(dry: bool) -> None:
     try:
         Day_Trading(dry)
-
-        Helper.plot(date.today())
 
     except Exception as e:
         log.error(f">>> {e}: {traceback.format_exc()}")

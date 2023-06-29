@@ -10,29 +10,14 @@ log = logging.getLogger("main.dt.common_types")
 
 
 class DayTime(str, Enum):
-    MORNING = "morning"  # No trading
-    DAY = "day"  # Trading is on
-    EVENING = "evening"  #  Market is closing. Sell all.
+    MORNING = "morning"
+    DAY = "day"
+    EVENING = "evening"
 
 
 class Instrument(str, Enum):
     BULL = "BULL"
     BEAR = "BEAR"
-
-    @classmethod
-    def generate_empty_counters(cls) -> dict:
-        return {i: 0 for i in cls}
-
-    @classmethod
-    def from_signal(cls, signal: OrderType) -> dict:
-        return {
-            OrderType.BUY: Instrument.BULL
-            if signal == OrderType.BUY
-            else Instrument.BEAR,
-            OrderType.SELL: Instrument.BEAR
-            if signal == OrderType.BUY
-            else Instrument.BULL,
-        }
 
 
 @dataclass
@@ -43,7 +28,7 @@ class TradingTime:
     def update_day_time(self) -> None:
         current_time = datetime.now()
 
-        if current_time <= current_time.replace(hour=12, minute=0):
+        if current_time <= current_time.replace(hour=9, minute=0):
             self.day_time = DayTime.MORNING
 
         elif (

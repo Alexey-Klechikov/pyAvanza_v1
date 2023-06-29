@@ -1,249 +1,354 @@
 import logging
-import os
-from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple
+import traceback
+from datetime import date, timedelta
+from typing import Optional
 
 import pandas as pd
-from avanza import OrderType
+import pandas_ta as ta
+from avanza import OrderType as Signal
 
-from src.dt import Plot, Strategy
-from src.dt.calibration.walker import Helper, Walker
-from src.dt.common_types import Instrument
-from src.dt.trading.signal import Signal
-from src.utils import Cache, History, Settings
+from src.lt.strategy import Strategy
+from src.utils import Cache, Context, History, Settings
 
-log = logging.getLogger("main.dt.calibration._testing")
+log = logging.getLogger("main.dt.testing")
 
 
-TARGET_FOLDER = ""
+class Backtest:
+    def __init__(self):
+        self.settings = Settings().load("DT")
+        self.strategies = Strategy.load("DT")
+        self.ava = Context(self.settings["user"], self.settings["accounts"])
 
+        self.history_dates = []
 
-class SignalMod(Signal):
-    def get(  # type: ignore
-        self, strategy_names: list, strategy: Strategy
-    ) -> Tuple[Optional[OrderType], list]:
-        if len(strategy_names) == 0:
-            return None, ["No strategies"]
+        self.run_analysis()
 
-        self.candle = strategy.data.iloc[-1]
+    def get_strategy_signal_on_ticker(
+        self,
+        ticker_yahoo: str,
+        ticker_ava: str,
+        cache: Cache,
+        target_date: Optional[date],
+    ) -> Signal:
+        data = History(ticker_yahoo, "18mo", "1d", cache=cache).data
 
-        signals: list = []
-        for strategy_name in strategy_names:
-            (
-                strategy_last_signal,
-                strategy_last_signal_time,
-            ) = self._get_last_signal_on_strategy(strategy, strategy_name)
+        if target_date:
+            data = data[data.index <= target_date]
+        else:
+            self.history_dates = list(reversed(data.index.to_list()[:-1]))
 
-            if strategy_last_signal:
-                signals.append(
-                    {
-                        "signal": strategy_last_signal,
-                        "time": strategy_last_signal_time,
-                        "strategy_name": strategy_name,
-                    }
+        if str(data.iloc[-1]["Close"]) == "nan":
+            self.ava.update_todays_ochl(data, ticker_ava)
+
+        strategy_obj = Strategy(
+            data,
+            strategies=self.strategies.get(ticker_yahoo, []),
+        )
+
+        return strategy_obj.summary.signal
+
+    def get_ma_signals_on_ticker(self, ticker_yahoo: str, target_date: date) -> dict:
+        data = History(ticker_yahoo, "18mo", "1d", cache=Cache.REUSE).data
+        data = data[data.index <= target_date]
+
+        signals = {}
+
+        for ma in ["SMA", "EMA"]:
+            for length in [3, 4, 5, 6, 7]:
+                if ma == "SMA":
+                    data.ta.sma(length=length, append=True)
+                else:
+                    data.ta.ema(length=length, append=True)
+
+                signals[f"{ma}_{length}"] = (
+                    Signal.BUY
+                    if data.iloc[-1][f"{ma}_{length}"] > data.iloc[-1]["Close"]
+                    else Signal.SELL
                 )
 
-        if len(signals) == 0:
-            return None, ["No signals"]
+        return signals
 
-        (
-            current_signal,
-            latest_signal_time,
-            signals_summary,
-        ) = self._extract_signal_from_list(signals)
+    def _run_predictions(self, omx_history: pd.DataFrame) -> pd.DataFrame:
+        results = pd.DataFrame()
 
-        if (
-            self.last_signal["signal"] == current_signal
-            and self.last_signal["time"] >= latest_signal_time
-        ):
-            log.debug(
-                f"Outdated signal: {current_signal.name} at {latest_signal_time.strftime('%H:%M')}"
-            )
+        for i in range(len(self.history_dates)):
+            if i < 2:
+                continue
 
-            return None, ["Outdated signal"]
+            test_info = {"prediction_date": self.history_dates[i], "omx_signal": 0}
 
-        self.last_signal = {"signal": current_signal, "time": latest_signal_time}  # type: ignore
+            for ticker_yahoo, ticker in self.settings["omx_weights"].items():
+                """
+                signal_strategy = self.get_strategy_signal_on_ticker(
+                    ticker_yahoo,
+                    ticker["orderbook_id"],
+                    cache=Cache.REUSE,
+                    target_date=test_info["prediction_date"],
+                )
 
-        return current_signal, [
-            f"Signal: {current_signal.name}",
-            f"Candle: {latest_signal_time.strftime('%H:%M')}",
-            f"OMX: {round(self.candle['Close'], 2)}",
-            f"ATR: {round(self.candle['ATR'], 2)}",
-            f"Counts: {signals_summary}",
-        ]
+                test_info["omx_signal"] += (
+                    (1 if signal_strategy == Signal.BUY else -1)
+                    * ticker["weight_calc"]
+                    / 100
+                )
+                """
 
+                signal_ma = self.get_ma_signals_on_ticker(
+                    ticker_yahoo, test_info["prediction_date"]
+                )
 
-class Testing:
-    def __init__(self, target_date):
-        self.target_date = target_date
+                for ma, signal in signal_ma.items():
+                    test_info.setdefault(f"{ma}_signal", 0)
+                    test_info[f"{ma}_signal"] += (
+                        (1 if signal == Signal.BUY else -1)
+                        * ticker["weight_calc"]
+                        / 100
+                    )
 
-        self.stored_strategies = self._get_stored_strategies()
-        self.full_history = self._get_full_history()
-
-        self.walker = Walker(Settings().load("DT"))
-
-    def _get_stored_strategies(self) -> Dict[str, list]:
-        stored_strategies = {}
-        for direction in ["BULL", "BEAR"]:
-            stored_strategies[direction] = [
-                i["strategy"]
-                for i in Strategy.load("DT").get(f"{direction}_10d", [])
-                if int(i["efficiency"][:-1]) >= 65
+            omx_history_day = omx_history.loc[
+                self.history_dates[i - 1]
+                + timedelta(hours=9, minutes=1) : self.history_dates[i - 1]
+                + timedelta(hours=17, minutes=15)
+            ]
+            omx_history_day_before = omx_history.loc[
+                self.history_dates[i]
+                + timedelta(hours=17, minutes=15) : self.history_dates[i]
+                + timedelta(hours=17, minutes=16)
             ]
 
-        return stored_strategies
+            if len(omx_history_day) < 400 or len(omx_history_day_before) == 0:
+                continue
 
-    def _get_full_history(self) -> pd.DataFrame:
-        target_days_limits = (
-            datetime.strptime(self.target_date, "%Y-%m-%d").replace(
-                hour=7, tzinfo=None
-            ),
-            datetime.strptime(self.target_date, "%Y-%m-%d").replace(
-                hour=21, tzinfo=None
-            ),
+            for k, v in test_info.items():
+                if k.endswith("_signal"):
+                    test_info[k] = round(v, 2)
+
+            test_info.update(
+                {
+                    "eval_buy_amount": omx_history_day_before.iloc[0]["Close"],
+                    "eval_open_amount": omx_history_day.iloc[0]["Open"],
+                    "eval_close_amount": omx_history_day.iloc[-1]["Close"],
+                    "eval_high_amount": omx_history_day["High"].max(),
+                    "eval_low_amount": omx_history_day["Low"].min(),
+                    "eval_price_column": (
+                        omx_history_day["High"] + omx_history_day["Low"]
+                    )
+                    / 2,
+                    "prediction_date": test_info["prediction_date"].date(),
+                }
+            )
+
+            results = results.append(test_info, ignore_index=True)  # type: ignore
+
+            log.error(
+                " | ".join(
+                    [
+                        f"{k}: {v}"
+                        for k, v in test_info.items()
+                        if k
+                        in [
+                            "eval_buy_amount",
+                            "eval_open_amount",
+                            "eval_close_amount",
+                            "eval_high_amount",
+                            "eval_low_amount",
+                            "prediction_date",
+                        ]
+                    ]
+                )
+            )
+
+            if len(results) > 40:
+                break
+
+        return results
+
+    def _run_analytics(self, results: pd.DataFrame) -> None:
+        counters = {}
+
+        for signal_column in [c for c in results.columns if c.endswith("_signal")]:
+            for target_change_amount in range(5, 15):
+                print(
+                    "Change_amount: ",
+                    target_change_amount,
+                    "data:\n",
+                    results[
+                        [
+                            signal_column,
+                            "eval_buy_amount",
+                            "eval_open_amount",
+                            "eval_close_amount",
+                            "eval_high_amount",
+                            "eval_low_amount",
+                        ]
+                    ],
+                )
+
+                counter: float = 0
+
+                for _, row in results.iterrows():
+                    multiplier = 1 if row[signal_column] > 0 else -1
+                    amount_diff_close = (
+                        row["eval_close_amount"] - row["eval_buy_amount"]
+                    )
+
+                    highs = row["eval_price_column"][
+                        (
+                            (row["eval_price_column"] - row["eval_buy_amount"])
+                            * multiplier
+                            > 0
+                        )
+                        & (
+                            abs((row["eval_price_column"] - row["eval_buy_amount"]))
+                            > target_change_amount
+                        )
+                    ]
+                    lows = row["eval_price_column"][
+                        (
+                            (row["eval_buy_amount"] - row["eval_price_column"])
+                            * multiplier
+                            > 0
+                        )
+                        & (
+                            abs((row["eval_price_column"] - row["eval_buy_amount"]))
+                            > target_change_amount * 0.8
+                        )
+                    ]
+
+                    if len(highs) > 0 and len(lows) > 0:
+                        if highs.index[0] < lows.index[0]:
+                            actual_change_amount = abs(
+                                highs[0] - row["eval_buy_amount"]
+                            )
+
+                            print(
+                                "BULL - " if row[signal_column] > 0 else "BEAR - ",
+                                "Case 1: high is before low + both are over limit",
+                                counter,
+                                " -> ",
+                                round(counter + actual_change_amount, 2),
+                                "buy_amount: ",
+                                row["eval_buy_amount"],
+                                "first_high: ",
+                                highs.index[0],
+                                highs[0],
+                                "first_low: ",
+                                lows.index[0],
+                                lows[0],
+                            )
+                            counter += actual_change_amount
+
+                        else:
+                            actual_change_amount = abs(lows[0] - row["eval_buy_amount"])
+
+                            print(
+                                "BULL - " if row[signal_column] > 0 else "BEAR - ",
+                                "Case 2: low is before high + both are over limit",
+                                counter,
+                                " -> ",
+                                round(counter - actual_change_amount, 2),
+                                "buy_amount: ",
+                                row["eval_buy_amount"],
+                                "first_high: ",
+                                highs.index[0],
+                                highs[0],
+                                "first_low: ",
+                                lows.index[0],
+                                lows[0],
+                            )
+                            counter -= actual_change_amount
+
+                    elif len(highs) > 0:
+                        actual_change_amount = abs(highs[0] - row["eval_buy_amount"])
+
+                        print(
+                            "BULL - " if row[signal_column] > 0 else "BEAR - ",
+                            "Case 3: high is over limit",
+                            counter,
+                            " -> ",
+                            round(counter + actual_change_amount, 2),
+                            "buy_amount: ",
+                            row["eval_buy_amount"],
+                            "first_high: ",
+                            highs.index[0],
+                            highs[0],
+                        )
+                        counter += actual_change_amount
+
+                    elif len(lows) > 0:
+                        actual_change_amount = abs(lows[0] - row["eval_buy_amount"])
+
+                        print(
+                            "BULL - " if row[signal_column] > 0 else "BEAR - ",
+                            "Case 4: low is over limit",
+                            counter,
+                            " -> ",
+                            round(counter - actual_change_amount, 2),
+                            "buy_amount: ",
+                            row["eval_buy_amount"],
+                            "first_low: ",
+                            lows.index[0],
+                            lows[0],
+                        )
+                        counter -= actual_change_amount
+
+                    else:
+                        print(
+                            "BULL - " if row[signal_column] > 0 else "BEAR - ",
+                            "Case 5: close by the end of the day",
+                            counter,
+                            " -> ",
+                            round(counter + amount_diff_close, 2),
+                        )
+                        counter += amount_diff_close
+
+                print(
+                    f"Change amount: {target_change_amount} | Signal: {signal_column} | Counter: {counter} \n------------------"
+                )
+
+                counters[signal_column] = {
+                    "counter": counter,
+                    "change_amount": target_change_amount,
+                }
+
+        print(
+            "Best counter: ",
+            [
+                f"{k}: {v['change_amount']} ({v['counter']})"
+                for k, v in counters.items()
+                if v["counter"] == max([i["counter"] for i in counters.values()])
+            ][0],
         )
 
-        history_data = History(
-            Settings().load("DT")["instruments"]["MONITORING"]["YAHOO"],
-            "1d",
-            "1m",
-            cache=Cache.REUSE,
+    def run_analysis(self) -> None:
+        """
+        Test 2023.06.27 | Change amount: 10 | Signal: SMA_5_signal | Counter: 121 | Results_len: 40
+        Test 2023.06.27 | Change amount: 9 (sell 80%) | Signal: SMA_5_signal | Counter: 118 | Results_len: 40
+        """
+
+        log.info("Running analysis")
+
+        for ticker_yahoo, ticker in self.settings["omx_weights"].items():
+            signal_strategy = self.get_strategy_signal_on_ticker(
+                ticker_yahoo,
+                ticker["orderbook_id"],
+                cache=Cache.APPEND,
+                target_date=None,
+            )
+
+        log.info("Running backtest")
+
+        omx_history = History(
+            self.settings["instruments"]["MONITORING"]["YAHOO"], "180d", "1m"
         ).data
 
-        history_data.index = pd.to_datetime(history_data.index).tz_convert(None)
-        history_data = history_data.loc[target_days_limits[0] : target_days_limits[1]]  # type: ignore
-
-        for _ in range(3):
-            if history_data.index[0].hour == 9:  # type: ignore
-                break
-            history_data.index = history_data.index + timedelta(hours=1)  # type: ignore
-
-        return history_data
-
-    def backtest_strategies(self, sliced_history: pd.DataFrame, direction: str) -> list:
-        log.info(
-            "Back-testing strategies "
-            + f"({sliced_history.index[0].strftime('%H:%M')} : {sliced_history.index[-1].strftime('%H:%M')})"  # type: ignore
-        )
-
-        profitable_strategies = sorted(
-            self.walker.traverse_strategies(
-                custom_history=sliced_history,
-                loaded_strategies=self.stored_strategies.get(direction, []),
-                filter_strategies=False,
-                history_cutoff={"hours": 2, "minutes": 30},
-            ),
-            key=lambda s: s["profit"],
-            reverse=True,
-        )
-
-        max_profit = max([s["profit"] for s in profitable_strategies])
-        profitable_strategies = [
-            s["strategy"]
-            for s in profitable_strategies
-            if s["profit"] >= max_profit * 0.8
-        ]
-
-        return profitable_strategies
+        results = self._run_predictions(omx_history)
+        self._run_analytics(results)
 
 
-def run(target_dates) -> None:
-    for target_date in target_dates:
-        log.warn(f"Target date: {target_date}")
+def run() -> None:
+    try:
+        Backtest()
 
-        testing = Testing(target_date)
-        signal_obj = SignalMod(testing.walker.ava, Settings().load("DT"))
-        helper = Helper("TESTING")
-
-        signal = None
-        message: list = []
-        exit_instrument = None
-        last_direction = direction = Instrument.BULL
-
-        strategies = []
-        signals: dict = {"BUY": [], "SELL": [], "EXIT": []}
-
-        for time_index in testing.full_history.index:
-            # Before the day
-            if time_index < time_index.replace(hour=12):
-                continue
-
-            # Calibration
-            if time_index.minute % 6 == 0 or last_direction != direction:
-                strategies = testing.backtest_strategies(
-                    testing.full_history.loc[:time_index], direction
-                )
-
-            last_direction = direction
-
-            # Only act on even minutes
-            if time_index.minute % 2 != 0:
-                continue
-
-            # Act on the last minute signal
-            strategy = Strategy(
-                testing.full_history.loc[:time_index],  # type: ignore
-                strategies=strategies,
-            )
-
-            row = strategy.data.loc[time_index]
-            if not signal and exit_instrument:
-                helper.sell_order(
-                    row,
-                    exit_instrument,
-                )
-
-                signals["EXIT"].append(time_index)
-
-            elif signal:
-                log.warn(" | ".join(message))
-
-                signals[signal.name].append(time_index)
-
-                helper.sell_order(
-                    row,
-                    Instrument.from_signal(signal)[OrderType.SELL],
-                )
-                helper.buy_order(
-                    row,
-                    Instrument.from_signal(signal)[OrderType.BUY],
-                )
-
-            helper.check_orders_for_limits(row)
-
-            # Get next action
-            direction = (
-                Instrument.BULL
-                if (row.Close + row.Open) / 2 > row.MA
-                else Instrument.BEAR
-            )
-
-            signal, message = signal_obj.get(strategies, strategy)
-
-            exit_instrument = helper.get_exit_instrument(row, strategy.data)
-
-            # "End of day" or "No strategies"
-            end_of_day = time_index.hour == 17 and time_index.minute >= 15
-            if end_of_day or not strategies:
-                for instrument in helper.orders:
-                    helper.sell_order(row, instrument)
-                    signals["EXIT"].append(time_index)
-
-            if end_of_day:
-                break
-
-        # Plot
-        plot = Plot(strategy.data[["Close", "Open", "High", "Low", "MA"]])  # type: ignore
-
-        path = os.path.dirname(os.path.abspath(__file__))
-        for _ in range(2):
-            path = os.path.dirname(path)
-
-        plot.add_signals_to_figure(signals=signals)
-        plot.add_balance_to_figure(helper.orders_history)
-        plot.add_moving_average_to_figure()
-        plot.save_figure(
-            f"{path}/logs/"
-            + (f"{TARGET_FOLDER}/" if TARGET_FOLDER else "")
-            + f"manual_day_trading_{target_date}.png"
-        )
+    except Exception as e:
+        log.error(f">>> {e}: {traceback.format_exc()}")

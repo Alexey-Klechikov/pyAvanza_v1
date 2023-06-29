@@ -1,7 +1,7 @@
 import logging
 import time
 import traceback
-from typing import List
+from typing import List, Optional
 
 from avanza import OrderType as Signal
 
@@ -76,6 +76,37 @@ class PortfolioAnalysis:
                     sorted_orders.append(order)
 
         return sorted_orders
+
+    def get_account_development(self) -> Optional[float]:
+        current_ballance = self.ava.get_portfolio().total_own_capital
+        account_development = (
+            None
+            if self.settings.get("last_accounts_balance", 0) == 0
+            else round(
+                (current_ballance - self.settings["last_accounts_balance"])
+                / self.settings.get("last_accounts_balance", 0)
+                * 100,
+                2,
+            )
+        )
+
+        self.settings[
+            "last_accounts_balance"
+        ] = self.ava.get_portfolio().total_own_capital
+
+        Settings().dump(self.settings, "LT")
+
+        return account_development
+
+    def get_omx_development(self) -> Optional[float]:
+        data = self.ava.get_today_history(self.settings["omx_orderbook_id"])
+
+        return round(
+            (data.iloc[-1]["Close"] - data.iloc[0]["Open"])
+            / data.iloc[0]["Open"]
+            * 100,
+            2,
+        )
 
     def create_sell_orders(self) -> List[dict]:
         log.info("Walk through portfolio (SELL)")
@@ -213,6 +244,9 @@ class PortfolioAnalysis:
             f'Running analysis for account(s): {" & ".join(self.settings["accounts"])}'
         )
 
+        account_development = self.get_account_development()
+        omx_development = self.get_omx_development()
+
         self.ava.delete_active_orders(
             account_ids=list(self.settings["accounts"].values())
         )
@@ -223,7 +257,12 @@ class PortfolioAnalysis:
         created_orders[Signal.SELL] += self.create_take_profit_orders()
 
         if self.settings["log_to_telegram"]:
-            TeleLog(portfolio=self.ava.get_portfolio(), orders=created_orders)
+            TeleLog(
+                portfolio=self.ava.get_portfolio(),
+                orders=created_orders,
+                account_development=account_development,
+                omx_development=self.get_omx_development(),
+            )
 
 
 def run() -> None:
