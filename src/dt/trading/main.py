@@ -331,11 +331,13 @@ class Day_Trading:
         ):
             custom_price = instrument_status[OrderType.SELL]
 
-        log.debug(
-            f'Acquired price: {instrument_status["position"].get("acquiredPrice")}, '
-            + f"current price: {instrument_status[OrderType.SELL]} "
-            + f'(change: {round(100 * (instrument_status[OrderType.SELL] - instrument_status["position"].get("acquiredPrice")) / instrument_status["position"].get("acquiredPrice"), 2)}%)'
-        )
+        if instrument_status["position"].get("acquiredPrice"):
+            log.debug(
+                f'Acquired price: {round(instrument_status["position"].get("acquiredPrice"), 2)}, '
+                + f"current price: {instrument_status[OrderType.SELL]} "
+                + f'(change: {round(100 * (instrument_status[OrderType.SELL] - instrument_status["position"].get("acquiredPrice")) / instrument_status["position"].get("acquiredPrice"), 2)}%)'
+            )
+
         if custom_price:
             self.helper.sell_instrument(instrument_today, custom_price)
 
