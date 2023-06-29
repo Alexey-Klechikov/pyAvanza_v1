@@ -98,6 +98,16 @@ class PortfolioAnalysis:
 
         return account_development
 
+    def get_omx_development(self) -> Optional[float]:
+        data = self.ava.get_today_history(self.settings["omx_orderbook_id"])
+
+        return round(
+            (data.iloc[-1]["Close"] - data.iloc[0]["Open"])
+            / data.iloc[0]["Open"]
+            * 100,
+            2,
+        )
+
     def create_sell_orders(self) -> List[dict]:
         log.info("Walk through portfolio (SELL)")
 
@@ -235,6 +245,7 @@ class PortfolioAnalysis:
         )
 
         account_development = self.get_account_development()
+        omx_development = self.get_omx_development()
 
         self.ava.delete_active_orders(
             account_ids=list(self.settings["accounts"].values())
@@ -250,6 +261,7 @@ class PortfolioAnalysis:
                 portfolio=self.ava.get_portfolio(),
                 orders=created_orders,
                 account_development=account_development,
+                omx_development=self.get_omx_development(),
             )
 
 

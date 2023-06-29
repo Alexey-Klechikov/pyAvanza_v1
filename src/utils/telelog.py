@@ -20,7 +20,11 @@ class TeleLog:
 
         # Long trading
         if "portfolio" in kwargs:
-            self.parse_portfolio(kwargs["portfolio"], kwargs.get("account_development"))
+            self.parse_portfolio(
+                kwargs["portfolio"],
+                kwargs.get("account_development"),
+                kwargs.get("omx_development"),
+            )
 
         if "orders" in kwargs:
             self.parse_orders(kwargs["orders"])
@@ -75,14 +79,18 @@ class TeleLog:
         self.message += f"\n\nErrors: {number_errors}"
 
     def parse_portfolio(
-        self, portfolio: Portfolio, account_development: Optional[float]
+        self,
+        portfolio: Portfolio,
+        account_development: Optional[float],
+        omx_development: Optional[float],
     ) -> None:
         log.debug("Parse portfolio")
 
         self.message += f"LT:\n\n> Total value: {round(portfolio.total_own_capital)}\n"
         self.message += (
-            f"> Profit: {account_development}%\n\n" if account_development else "\n"
+            f"> Profit: {account_development}%\n" if account_development else "\n"
         )
+        self.message += f"> OMX: {omx_development}%\n\n" if omx_development else "\n"
         self.message += (
             "Total free funds:\n"
             + "\n".join(
