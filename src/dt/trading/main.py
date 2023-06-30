@@ -289,7 +289,7 @@ class Day_Trading:
 
         log.warning(("Dry run, no orders" if dry else "Orders") + " will be placed")
 
-        while True:
+        for _ in range(5):
             try:
                 self.run_analysis(settings["log_to_telegram"])
 
@@ -299,6 +299,8 @@ class Day_Trading:
                 log.warning("AVA Connection error, reconnecting...")
 
                 self.helper.ava.ctx = self.helper.ava.get_ctx(settings["user"])
+
+                time.sleep(30)
 
     def action_morning(self) -> Optional[Instrument]:
         instrument_today = None
