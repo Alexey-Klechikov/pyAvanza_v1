@@ -6,7 +6,7 @@ from typing import List, Optional
 from avanza import OrderType as Signal
 
 from src.lt.strategy import Strategy
-from src.utils import Cache, Context, History, Settings, TeleLog
+from src.utils import Cache, Context, History, Settings, State, TeleLog
 
 log = logging.getLogger("main.lt.trading")
 
@@ -79,22 +79,18 @@ class PortfolioAnalysis:
 
     def get_account_development(self) -> Optional[float]:
         current_ballance = self.ava.get_portfolio().total_own_capital
+        last_day_balance = State().load("LT").get("last_day_balance", 0)
+
         account_development = (
             None
-            if self.settings.get("last_accounts_balance", 0) == 0
+            if last_day_balance == 0
             else round(
-                (current_ballance - self.settings["last_accounts_balance"])
-                / self.settings.get("last_accounts_balance", 0)
-                * 100,
+                (current_ballance - last_day_balance) / last_day_balance * 100,
                 2,
             )
         )
 
-        self.settings[
-            "last_accounts_balance"
-        ] = self.ava.get_portfolio().total_own_capital
-
-        Settings().dump(self.settings, "LT")
+        State().dump({"last_day_balance": current_ballance}, "LT")
 
         return account_development
 
@@ -245,7 +241,6 @@ class PortfolioAnalysis:
         )
 
         account_development = self.get_account_development()
-        omx_development = self.get_omx_development()
 
         self.ava.delete_active_orders(
             account_ids=list(self.settings["accounts"].values())

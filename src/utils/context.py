@@ -8,7 +8,7 @@ import time
 from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import keyring
 import pandas as pd

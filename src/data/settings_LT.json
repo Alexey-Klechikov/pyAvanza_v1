@@ -7,6 +7,5 @@
     "budget_per_ticker": 10000,
     "log_to_telegram": true,
     "buy_delay_after_sell": 5,
-    "last_accounts_balance": 146581.94,
     "omx_orderbook_id": 19002
 }

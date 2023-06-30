@@ -12,6 +12,8 @@ from src.utils import Cache, Context, History, Settings
 
 log = logging.getLogger("main.dt.testing")
 
+PRINT_DECISIONS = False
+
 
 class Backtest:
     def __init__(self):
@@ -22,30 +24,6 @@ class Backtest:
         self.history_dates = []
 
         self.run_analysis()
-
-    def get_strategy_signal_on_ticker(
-        self,
-        ticker_yahoo: str,
-        ticker_ava: str,
-        cache: Cache,
-        target_date: Optional[date],
-    ) -> Signal:
-        data = History(ticker_yahoo, "18mo", "1d", cache=cache).data
-
-        if target_date:
-            data = data[data.index <= target_date]
-        else:
-            self.history_dates = list(reversed(data.index.to_list()[:-1]))
-
-        if str(data.iloc[-1]["Close"]) == "nan":
-            self.ava.update_todays_ochl(data, ticker_ava)
-
-        strategy_obj = Strategy(
-            data,
-            strategies=self.strategies.get(ticker_yahoo, []),
-        )
-
-        return strategy_obj.summary.signal
 
     def get_ma_signals_on_ticker(self, ticker_yahoo: str, target_date: date) -> dict:
         data = History(ticker_yahoo, "18mo", "1d", cache=Cache.REUSE).data
@@ -78,21 +56,6 @@ class Backtest:
             test_info = {"prediction_date": self.history_dates[i], "omx_signal": 0}
 
             for ticker_yahoo, ticker in self.settings["omx_weights"].items():
-                """
-                signal_strategy = self.get_strategy_signal_on_ticker(
-                    ticker_yahoo,
-                    ticker["orderbook_id"],
-                    cache=Cache.REUSE,
-                    target_date=test_info["prediction_date"],
-                )
-
-                test_info["omx_signal"] += (
-                    (1 if signal_strategy == Signal.BUY else -1)
-                    * ticker["weight_calc"]
-                    / 100
-                )
-                """
-
                 signal_ma = self.get_ma_signals_on_ticker(
                     ticker_yahoo, test_info["prediction_date"]
                 )
@@ -164,7 +127,7 @@ class Backtest:
         return results
 
     def _run_analytics(self, results: pd.DataFrame) -> None:
-        counters = {}
+        counters = []
 
         for signal_column in [c for c in results.columns if c.endswith("_signal")]:
             for target_change_amount in range(5, 15):
@@ -180,6 +143,7 @@ class Backtest:
                             "eval_close_amount",
                             "eval_high_amount",
                             "eval_low_amount",
+                            "prediction_date",
                         ]
                     ],
                 )
@@ -221,9 +185,53 @@ class Backtest:
                                 highs[0] - row["eval_buy_amount"]
                             )
 
+                            if PRINT_DECISIONS:
+                                print(
+                                    "BULL - " if row[signal_column] > 0 else "BEAR - ",
+                                    "Case 1: high is before low + both are over limit",
+                                    counter,
+                                    " -> ",
+                                    round(counter + actual_change_amount, 2),
+                                    "buy_amount: ",
+                                    row["eval_buy_amount"],
+                                    "first_high: ",
+                                    highs.index[0],
+                                    highs[0],
+                                    "first_low: ",
+                                    lows.index[0],
+                                    lows[0],
+                                )
+                            counter += actual_change_amount
+
+                        else:
+                            actual_change_amount = abs(lows[0] - row["eval_buy_amount"])
+
+                            if PRINT_DECISIONS:
+                                print(
+                                    "BULL - " if row[signal_column] > 0 else "BEAR - ",
+                                    "Case 2: low is before high + both are over limit",
+                                    counter,
+                                    " -> ",
+                                    round(counter - actual_change_amount, 2),
+                                    "buy_amount: ",
+                                    row["eval_buy_amount"],
+                                    "first_high: ",
+                                    highs.index[0],
+                                    highs[0],
+                                    "first_low: ",
+                                    lows.index[0],
+                                    lows[0],
+                                )
+
+                            counter -= actual_change_amount
+
+                    elif len(highs) > 0:
+                        actual_change_amount = abs(highs[0] - row["eval_buy_amount"])
+
+                        if PRINT_DECISIONS:
                             print(
                                 "BULL - " if row[signal_column] > 0 else "BEAR - ",
-                                "Case 1: high is before low + both are over limit",
+                                "Case 3: high is over limit",
                                 counter,
                                 " -> ",
                                 round(counter + actual_change_amount, 2),
@@ -232,91 +240,59 @@ class Backtest:
                                 "first_high: ",
                                 highs.index[0],
                                 highs[0],
-                                "first_low: ",
-                                lows.index[0],
-                                lows[0],
                             )
-                            counter += actual_change_amount
 
-                        else:
-                            actual_change_amount = abs(lows[0] - row["eval_buy_amount"])
-
-                            print(
-                                "BULL - " if row[signal_column] > 0 else "BEAR - ",
-                                "Case 2: low is before high + both are over limit",
-                                counter,
-                                " -> ",
-                                round(counter - actual_change_amount, 2),
-                                "buy_amount: ",
-                                row["eval_buy_amount"],
-                                "first_high: ",
-                                highs.index[0],
-                                highs[0],
-                                "first_low: ",
-                                lows.index[0],
-                                lows[0],
-                            )
-                            counter -= actual_change_amount
-
-                    elif len(highs) > 0:
-                        actual_change_amount = abs(highs[0] - row["eval_buy_amount"])
-
-                        print(
-                            "BULL - " if row[signal_column] > 0 else "BEAR - ",
-                            "Case 3: high is over limit",
-                            counter,
-                            " -> ",
-                            round(counter + actual_change_amount, 2),
-                            "buy_amount: ",
-                            row["eval_buy_amount"],
-                            "first_high: ",
-                            highs.index[0],
-                            highs[0],
-                        )
                         counter += actual_change_amount
 
                     elif len(lows) > 0:
                         actual_change_amount = abs(lows[0] - row["eval_buy_amount"])
 
-                        print(
-                            "BULL - " if row[signal_column] > 0 else "BEAR - ",
-                            "Case 4: low is over limit",
-                            counter,
-                            " -> ",
-                            round(counter - actual_change_amount, 2),
-                            "buy_amount: ",
-                            row["eval_buy_amount"],
-                            "first_low: ",
-                            lows.index[0],
-                            lows[0],
-                        )
+                        if PRINT_DECISIONS:
+                            print(
+                                "BULL - " if row[signal_column] > 0 else "BEAR - ",
+                                "Case 4: low is over limit",
+                                counter,
+                                " -> ",
+                                round(counter - actual_change_amount, 2),
+                                "buy_amount: ",
+                                row["eval_buy_amount"],
+                                "first_low: ",
+                                lows.index[0],
+                                lows[0],
+                            )
+
                         counter -= actual_change_amount
 
                     else:
-                        print(
-                            "BULL - " if row[signal_column] > 0 else "BEAR - ",
-                            "Case 5: close by the end of the day",
-                            counter,
-                            " -> ",
-                            round(counter + amount_diff_close, 2),
-                        )
+                        if PRINT_DECISIONS:
+                            print(
+                                "BULL - " if row[signal_column] > 0 else "BEAR - ",
+                                "Case 5: close by the end of the day",
+                                counter,
+                                " -> ",
+                                round(counter + amount_diff_close, 2),
+                            )
+
                         counter += amount_diff_close
 
                 print(
                     f"Change amount: {target_change_amount} | Signal: {signal_column} | Counter: {counter} \n------------------"
                 )
 
-                counters[signal_column] = {
-                    "counter": counter,
-                    "change_amount": target_change_amount,
-                }
+                counters.append(
+                    {
+                        "signal_column": signal_column,
+                        "counter": counter,
+                        "change_amount": target_change_amount,
+                    }
+                )
 
         print(
             "Best counter: ",
             [
-                f"{k}: {v['change_amount']} ({v['counter']})"
-                for k, v in counters.items()
-                if v["counter"] == max([i["counter"] for i in counters.values()])
+                c
+                for c in counters
+                if c["counter"] == max([i["counter"] for i in counters])
             ][0],
         )
 
@@ -329,12 +305,14 @@ class Backtest:
         log.info("Running analysis")
 
         for ticker_yahoo, ticker in self.settings["omx_weights"].items():
-            signal_strategy = self.get_strategy_signal_on_ticker(
-                ticker_yahoo,
-                ticker["orderbook_id"],
-                cache=Cache.APPEND,
-                target_date=None,
-            )
+            log.info(f"Loading ticker data: {ticker_yahoo}")
+
+            data = History(ticker_yahoo, "18mo", "1d").data
+
+            self.history_dates = list(reversed(data.index.to_list()[:-1]))
+
+            if str(data.iloc[-1]["Close"]) == "nan":
+                self.ava.update_todays_ochl(data, ticker["orderbook_id"])
 
         log.info("Running backtest")
 

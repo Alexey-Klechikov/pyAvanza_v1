@@ -1,13 +1,13 @@
 import logging
 import time
 import traceback
-from dataclasses import dataclass
 from http.client import RemoteDisconnected
 from typing import Optional
 
 import pandas_ta as ta
 from avanza import InstrumentType, OrderType
 from requests import ReadTimeout
+from requests.exceptions import HTTPError
 
 from src.dt import DayTime, Instrument, TradingTime
 from src.dt.trading.balance import Balance
@@ -252,7 +252,7 @@ class Helper:
 
             signal = (
                 OrderType.BUY
-                if data.iloc[-1]["SMA_5"] > data.iloc[-1]["Close"]
+                if data.iloc[-1]["Close"] > data.iloc[-1]["SMA_5"]
                 else OrderType.SELL
             )
 
@@ -295,8 +295,8 @@ class Day_Trading:
 
                 break
 
-            except (ReadTimeout, ConnectionError, RemoteDisconnected):
-                log.warning("AVA Connection error, retrying in 5 seconds")
+            except (ReadTimeout, ConnectionError, RemoteDisconnected, HTTPError):
+                log.warning("AVA Connection error, reconnecting...")
 
                 self.helper.ava.ctx = self.helper.ava.get_ctx(settings["user"])
 
