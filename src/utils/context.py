@@ -123,6 +123,9 @@ class Avanza(AvanzaBase):
 
         return stock
 
+    def get_watchlists(self) -> dict:
+        return self._retry_call("/_mobile/usercontent/watchlist")
+
 
 class Context:
     def __init__(self, user: str, accounts: dict, process_lists: bool = True):
