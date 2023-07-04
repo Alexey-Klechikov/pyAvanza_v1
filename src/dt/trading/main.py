@@ -347,8 +347,9 @@ class Day_Trading:
         self.helper.save_omx_data()
 
         instrument_tomorrow = self.helper.get_target_instrument_from_combined_omx()
+        instrument_status = self.helper.get_instrument_status(instrument_tomorrow)
 
-        if instrument_today == instrument_tomorrow:
+        if instrument_today == instrument_tomorrow and instrument_status["position"]:
             return instrument_tomorrow
 
         if instrument_today:
@@ -358,7 +359,6 @@ class Day_Trading:
 
         self.helper.buy_instrument(instrument_tomorrow)
 
-        instrument_status = self.helper.get_instrument_status(instrument_tomorrow)
         self.helper.sell_instrument(
             instrument_tomorrow,
             custom_price=round(
