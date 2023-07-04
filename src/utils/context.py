@@ -280,7 +280,7 @@ class Context:
                             OrderType.SELL
                         ],
                     ),
-                    "valid_until": (datetime.today() + timedelta(days=1)).date(),
+                    "valid_until": (datetime.today() + timedelta(days=7)).date(),
                     "volume": sell_order["volume"],
                 }
 
